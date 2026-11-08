@@ -37,7 +37,8 @@ function dealNewGame(){
   const seedValue = document.getElementById('seedInput').value.trim();
   rng = seedValue ? mulberry32(hashSeed(seedValue)) : Math.random;
   const rules = Object.assign({}, DEFAULT_RULES, {
-    twoBeatsAce: document.getElementById('twoBeatsAceInput').checked
+    twoBeatsAce: document.getElementById('twoBeatsAceInput').checked,
+    battleFirst: document.getElementById('battleFirstInput').checked
   });
   const inputs = namesList.querySelectorAll('input');
   const deck = shuffle(buildDeck());
