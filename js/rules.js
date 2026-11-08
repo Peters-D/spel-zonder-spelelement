@@ -1,7 +1,7 @@
 // Spelregels. Alle instelbare regels staan in één object; de spelkern (engine.js)
 // geeft dat object door, zodat elke regel overal hetzelfde wordt toegepast.
 const DEFAULT_RULES = {
-  twoBeatsAce: false, // 2 verslaat Aas (maar verliest van 3 t/m K)
+  twoBeatsAce: false, // 2 verslaat Aas: ligt er een Aas, dan wint de 2 van alle kaarten
   battleFirst: false  // gelijke kaarten gaan voor: een paar begint een battle, ook als een andere kaart hoger is
 };
 
@@ -10,7 +10,8 @@ const DEFAULT_RULES = {
 // Regel battleFirst (gaat vóór alle andere regels): liggen er kaarten van dezelfde waarde, dan
 //   battlen alleen die spelers, ook als een andere speler een hogere kaart heeft. Zijn er meer
 //   paren, dan battlet het paar met de hoogste waarde. De overige spelers doen niet meer mee.
-// Regel twoBeatsAce: liggen er zowel een 2 als een Aas, dan winnen de 2('s), ook van de Aas.
+// Regel twoBeatsAce: liggen er zowel een 2 als een Aas, dan winnen de 2('s) van alle andere kaarten,
+//   ook van een K (anders zou 2 > A > K > 2 een cirkel zijn). Zonder Aas is de 2 gewoon de laagste kaart.
 // Anders wint de hoogste kaart.
 function findWinningPlayers(inPlay, rules){
   if (rules.battleFirst){
