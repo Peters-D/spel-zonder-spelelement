@@ -29,7 +29,7 @@ git clone https://github.com/Peters-D/spel-zonder-spelelement.git
 
 ## Online spelen
 
-Een link naar de online versie volgt.
+Speel het spel online: https://peters-d.github.io/spel-zonder-spelelement/
 
 ## Licentie
 
