@@ -55,7 +55,7 @@ function compareAndResolve(){
     displayPot = game.pot.length;
     const names = formatNamesNL(ev.contenders.map(p => p.name));
     if (ev.overruled && ev.overruled.length > 0){
-      setDispatch(formatNamesNL(ev.overruled.map(p => p.name)) + ' had de hoogste kaart, maar gelijke kaarten gaan voor. BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
+      setDispatch(formatNamesNL(ev.overruled.map(p => p.name)) + ' had de winnende kaart, maar gelijke kaarten gaan voor. BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
