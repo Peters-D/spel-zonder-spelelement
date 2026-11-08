@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntaxcontrole van alle JavaScript-bestanden
+        run: |
+          for f in js/*.js tests/*.js; do
+            echo "node --check $f"
+            node --check "$f"
+          done
+      - name: Rooktest (laden + vaste seeds + live spel)
+        run: node tests/smoke.js
