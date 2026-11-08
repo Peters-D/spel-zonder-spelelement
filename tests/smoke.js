@@ -65,14 +65,35 @@ function playLive(){
   })()`);
 }
 
-// Regelcombinaties; de namen zijn de sleutels in tests/expected.json.
-const RULE_SETS = {
-  'standard': { twoBeatsAce: false, battleFirst: false },
-  'twoBeatsAce': { twoBeatsAce: true, battleFirst: false },
-  'battleFirst': { twoBeatsAce: false, battleFirst: true },
-  'twoBeatsAce+battleFirst': { twoBeatsAce: true, battleFirst: true }
-};
+// Regelcombinaties, afgeleid uit de catalogus RULES (rules.js): alle combinaties van aan/uit.
+// De namen zijn de sleutels in tests/expected.json: 'standard' (geen extra regels) of de ids van
+// de regels die aan staan, in catalogusvolgorde, gescheiden door '+'.
+const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
+  id: r.id, priority: r.priority, title: r.title, short: r.short, description: r.description,
+  default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function' })))`));
+const RULE_IDS = CATALOG.map(r => r.id);
+const RULE_SETS = {};
+for (let mask = 0; mask < (1 << RULE_IDS.length); mask++){
+  const on = RULE_IDS.filter((id, i) => mask & (1 << i));
+  const sets = {};
+  for (const id of RULE_IDS) sets[id] = on.includes(id);
+  RULE_SETS[on.length ? on.join('+') : 'standard'] = sets;
+}
 const failures = [];
+
+// ---- de catalogus zelf ----
+const isText = t => typeof t === 'string' && t.trim().length > 0;
+const defaultRules = JSON.parse(run('JSON.stringify(DEFAULT_RULES)'));
+if (JSON.stringify(Object.keys(defaultRules)) !== JSON.stringify(RULE_IDS)) failures.push('DEFAULT_RULES en RULES hebben niet dezelfde regels');
+if (new Set(RULE_IDS).size !== RULE_IDS.length) failures.push('catalogus: dubbele regel-id');
+if (new Set(CATALOG.map(r => r.priority)).size !== CATALOG.length) failures.push('catalogus: twee regels met dezelfde prioriteit (de volgorde is dan onduidelijk)');
+for (const r of CATALOG){
+  for (const f of ['id', 'title', 'short', 'description']) if (!isText(r[f])) failures.push('catalogus ' + r.id + ': ' + f + ' ontbreekt');
+  if (!Number.isFinite(r.priority)) failures.push('catalogus ' + r.id + ': priority ontbreekt');
+  if (typeof r.default !== 'boolean') failures.push('catalogus ' + r.id + ': default moet true of false zijn');
+  if (!r.hasDecide) failures.push('catalogus ' + r.id + ': decide ontbreekt');
+  if (!Array.isArray(r.examples) || r.examples.length === 0) failures.push('catalogus ' + r.id + ': minstens één voorbeeld nodig (die laten zien en testen wat de regel doet)');
+}
 
 // ---- directe regeltests (findWinningPlayers en spelkern) ----
 // Elke regel: [kaarten die open liggen, regels, indexen van de spelers die (voorlopig) winnen]
@@ -95,6 +116,30 @@ const ruleTests = [
   ['2,A,7,7 met beide regels: paar gaat voor', ['2', 'A', '7', '7'], BOTH, [2, 3]],
   ['2,2,A met beide regels: de tweeën battlen', ['2', '2', 'A'], BOTH, [0, 1]]
 ];
+// Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
+const optionLabels = document.getElementById('rulesList').children;
+if (optionLabels.length !== CATALOG.length) failures.push('startscherm: ' + optionLabels.length + ' vinkjes voor ' + CATALOG.length + ' regels');
+CATALOG.forEach((r, i) => {
+  const label = optionLabels[i];
+  const input = label && label.children[0], text = label && label.children[1];
+  if (!input || input.id !== r.id + 'Input' || input.type !== 'checkbox') failures.push('startscherm: vinkje voor ' + r.id + ' ontbreekt of heeft een verkeerd id');
+  if (!text || text.textContent !== r.short) failures.push('startscherm: tekst bij het vinkje van ' + r.id + ' komt niet uit de catalogus');
+});
+
+// De voorbeelden uit de catalogus (die ook in het regelboek komen) tegen de echte regelcode.
+let exampleCount = 0;
+for (const r of CATALOG){
+  for (const ex of r.examples || []){
+    exampleCount++;
+    const rules = {};
+    for (const id of RULE_IDS) rules[id] = id === r.id || (ex.with || []).includes(id);
+    const got = run('__fw(' + JSON.stringify(ex.cards) + ', ' + JSON.stringify(rules) + ')');
+    if (JSON.stringify(got) !== JSON.stringify(ex.winners)){
+      failures.push('voorbeeld bij "' + r.title + '" (' + ex.cards.join(',') + (ex.with ? ' met ' + ex.with.join('+') : '') +
+        '): het regelboek zegt ' + JSON.stringify(ex.winners) + ', het spel doet ' + JSON.stringify(got));
+    }
+  }
+}
 for (const [name, ranks, rules, exp] of ruleTests){
   const got = run('__fw(' + JSON.stringify(ranks) + ', ' + JSON.stringify(rules) + ')');
   if (JSON.stringify(got) !== JSON.stringify(exp)) failures.push('regeltest "' + name + '": verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got));
@@ -162,7 +207,8 @@ if (update){
 }
 for (const k of Object.keys(expected)) if (!actual[k]) failures.push(k + ': staat in expected.json maar wordt niet meer getest');
 
-console.log(scripts.length + ' scripts geladen, ' + cases.length + ' seeds gesimuleerd, ' + liveChecked + ' spellen live uitgespeeld.');
+console.log(scripts.length + ' scripts geladen, ' + CATALOG.length + ' regels in de catalogus (' + exampleCount + ' voorbeelden getest), ' +
+  cases.length + ' seeds gesimuleerd, ' + liveChecked + ' spellen live uitgespeeld.');
 if (failures.length){
   console.error('\n' + failures.length + ' fout(en):\n' + failures.map(f => ' - ' + f).join('\n'));
   process.exit(1);

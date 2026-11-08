@@ -31,15 +31,33 @@ function renderNameInputs(){
 }
 renderNameInputs();
 
+// Eén vinkje per extra regel, opgebouwd uit de catalogus (RULES in rules.js).
+function renderRuleOptions(){
+  const list = document.getElementById('rulesList');
+  list.innerHTML = '';
+  for (const rule of RULES){
+    const label = document.createElement('label');
+    label.className = 'rule-check';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = rule.id + 'Input';
+    input.checked = rule.default;
+    const text = document.createElement('span');
+    text.textContent = rule.short;
+    label.appendChild(input);
+    label.appendChild(text);
+    list.appendChild(label);
+  }
+}
+renderRuleOptions();
+
 // ===== Spel starten (met cyclus-precheck) =====
 
 function dealNewGame(){
   const seedValue = document.getElementById('seedInput').value.trim();
   rng = seedValue ? mulberry32(hashSeed(seedValue)) : Math.random;
-  const rules = Object.assign({}, DEFAULT_RULES, {
-    twoBeatsAce: document.getElementById('twoBeatsAceInput').checked,
-    battleFirst: document.getElementById('battleFirstInput').checked
-  });
+  const rules = Object.assign({}, DEFAULT_RULES);
+  for (const rule of RULES) rules[rule.id] = document.getElementById(rule.id + 'Input').checked;
   const inputs = namesList.querySelectorAll('input');
   const deck = shuffle(buildDeck());
   const dealt = [];

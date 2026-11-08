@@ -71,6 +71,11 @@ h1{
   outline:none;
 }
 .names-list input:focus{ border-color: var(--teal, var(--brass)); }
+.rule-check{
+  display:flex; align-items:center; gap:10px; margin-bottom:18px;
+  font-size:13px; color: rgba(237,228,208,0.85); cursor:pointer;
+}
+.rule-check input{ width:17px; height:17px; flex-shrink:0; accent-color: var(--brass); }
 .start-btn{
   width:100%;
   background: var(--brass);
