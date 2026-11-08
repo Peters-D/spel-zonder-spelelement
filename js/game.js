@@ -54,8 +54,9 @@ function compareAndResolve(){
     if (typeof statsRecordBattle === 'function') statsRecordBattle(ev.level); // STATS HOOK
     displayPot = game.pot.length;
     const names = formatNamesNL(ev.contenders.map(p => p.name));
-    if (ev.overruled && ev.overruled.length > 0){
-      setDispatch(formatNamesNL(ev.overruled.map(p => p.name)) + ' had de winnende kaart, maar gelijke kaarten gaan voor. BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
+    const rule = ev.ruleId ? RULES.find(r => r.id === ev.ruleId) : null;
+    if (ev.overruled && ev.overruled.length > 0 && rule && rule.overruledMessage){
+      setDispatch(rule.overruledMessage(formatNamesNL(ev.overruled.map(p => p.name))) + ' BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }

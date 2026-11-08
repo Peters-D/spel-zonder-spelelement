@@ -5,7 +5,7 @@
 // Een spelstand ziet er zo uit:
 //   {
 //     players:     [{ id, name, deck: [kaarten, bovenste eerst], out, faceCard }],
-//     rules:       { twoBeatsAce, battleFirst, ... }   (zie rules.js)
+//     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     contenders:  ids van de spelers die nog meedingen naar de pot
 //     battleLevel: hoeveel battles er deze ronde al zijn geweest
@@ -46,24 +46,25 @@ function engineStartRound(state){
 
 // Vergelijkt de open kaarten van de spelers die nog meedingen. Geeft terug:
 //   { type: 'win',    winner, potSize, how: 'normal' | 'battle' }  één winnaar, krijgt de pot
-//   { type: 'battle', level, contenders: [spelers], overruled: [spelers] }
-//                                                                gelijkspel (of paar met battleFirst), battle-kaarten nodig;
-//                                                                overruled = spelers die anders hadden gewonnen
+//   { type: 'battle', level, contenders: [spelers], overruled: [spelers], ruleId }
+//                                                                gelijkspel (of een regel die een battle afdwingt), battle-kaarten nodig;
+//                                                                overruled = spelers die zonder die regel hadden gewonnen
 //   { type: 'void',   potSize }                                  niemand kon spelen (zeldzaam)
 function engineResolve(state){
   const inPlay = state.players.filter(p => !p.out && state.contenders.includes(p.id) && p.faceCard);
   if (inPlay.length === 0) return engineAwardToFirstActive(state);
-  const winners = findWinningPlayers(inPlay, state.rules);
+  const { winners, rule } = decideRound(inPlay, state.rules);
   if (winners.length === 1){
     return engineAwardPot(state, winners[0], state.battleLevel > 0 ? 'battle' : 'normal');
   }
   state.battleLevel++;
   state.contenders = winners.map(p => p.id);
-  // Spelers die zonder de regel battleFirst hadden gewonnen, maar nu zijn overruled door een paar.
-  const overruled = state.rules.battleFirst
-    ? findWinningPlayers(inPlay, Object.assign({}, state.rules, { battleFirst: false })).filter(p => !winners.includes(p))
+  // Spelers die zonder de beslissende regel hadden gewonnen, maar nu zijn overruled (alleen voor
+  // regels met een overruledMessage, zoals "gelijke kaarten gaan voor").
+  const overruled = rule && rule.overruledMessage
+    ? decideRound(inPlay, Object.assign({}, state.rules, { [rule.id]: false })).winners.filter(p => !winners.includes(p))
     : [];
-  return { type: 'battle', level: state.battleLevel, contenders: winners, overruled };
+  return { type: 'battle', level: state.battleLevel, contenders: winners, overruled, ruleId: rule ? rule.id : null };
 }
 
 // De spelers in de battle leggen elk een nieuwe kaart open. Wie geen kaart meer heeft, ligt eruit.
