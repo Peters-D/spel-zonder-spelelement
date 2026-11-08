@@ -53,7 +53,12 @@ function compareAndResolve(){
   if (ev.type === 'battle'){
     if (typeof statsRecordBattle === 'function') statsRecordBattle(ev.level); // STATS HOOK
     displayPot = game.pot.length;
-    setDispatch('BATTLE tussen ' + formatNamesNL(ev.contenders.map(p => p.name)) + '! Klik om battle-kaarten te leggen.', true);
+    const names = formatNamesNL(ev.contenders.map(p => p.name));
+    if (ev.overruled && ev.overruled.length > 0){
+      setDispatch(formatNamesNL(ev.overruled.map(p => p.name)) + ' had de hoogste kaart, maar gelijke kaarten gaan voor. BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
+    } else {
+      setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
+    }
     phase = 'battle-pending';
     updateButtonLabel();
     renderGrid(false);

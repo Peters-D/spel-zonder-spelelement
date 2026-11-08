@@ -65,19 +65,66 @@ function playLive(){
   })()`);
 }
 
+// Regelcombinaties; de namen zijn de sleutels in tests/expected.json.
+const RULE_SETS = {
+  'standard': { twoBeatsAce: false, battleFirst: false },
+  'twoBeatsAce': { twoBeatsAce: true, battleFirst: false },
+  'battleFirst': { twoBeatsAce: false, battleFirst: true },
+  'twoBeatsAce+battleFirst': { twoBeatsAce: true, battleFirst: true }
+};
+const failures = [];
+
+// ---- directe regeltests (findWinningPlayers en spelkern) ----
+// Elke regel: [kaarten die open liggen, regels, indexen van de spelers die (voorlopig) winnen]
+run(`globalThis.__fw = (ranks, rules) => findWinningPlayers(
+  ranks.map((r, i) => ({ id: i, faceCard: { rank: r, value: RANKS.indexOf(r) + 2 } })), rules).map(p => p.id)`);
+const OFF = RULE_SETS['standard'], TWO = RULE_SETS['twoBeatsAce'], BF = RULE_SETS['battleFirst'], BOTH = RULE_SETS['twoBeatsAce+battleFirst'];
+const ruleTests = [
+  ['A,3,3 zonder regel: Aas wint', ['A', '3', '3'], OFF, [0]],
+  ['A,3,3 gelijke gaan voor: de drieën battlen', ['A', '3', '3'], BF, [1, 2]],
+  ['A,3,3,7,7: hoogste paar battlet', ['A', '3', '3', '7', '7'], BF, [3, 4]],
+  ['A,K,Q zonder paar: hoogste wint gewoon', ['A', 'K', 'Q'], BF, [0]],
+  ['3,3,3,A: drie gelijke battlen samen', ['3', '3', '3', 'A'], BF, [0, 1, 2]],
+  ['2 spelers A,3: geen verschil', ['A', '3'], BF, [0]],
+  ['2 spelers A,A: gelijkspel', ['A', 'A'], BF, [0, 1]],
+  ['2,A,A met alleen 2-verslaat-Aas: de 2 wint', ['2', 'A', 'A'], TWO, [0]],
+  ['2,A,A met beide regels: paar gaat voor', ['2', 'A', 'A'], BOTH, [1, 2]],
+  ['2,A,7,7 met alleen 2-verslaat-Aas: de 2 wint', ['2', 'A', '7', '7'], TWO, [0]],
+  ['2,A,7,7 met beide regels: paar gaat voor', ['2', 'A', '7', '7'], BOTH, [2, 3]],
+  ['2,2,A met beide regels: de tweeën battlen', ['2', '2', 'A'], BOTH, [0, 1]]
+];
+for (const [name, ranks, rules, exp] of ruleTests){
+  const got = run('__fw(' + JSON.stringify(ranks) + ', ' + JSON.stringify(rules) + ')');
+  if (JSON.stringify(got) !== JSON.stringify(exp)) failures.push('regeltest "' + name + '": verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got));
+}
+// De spelkern meldt wie er door het paar is overruled (voor de tekst op het scherm).
+const engineEvent = battleFirst => JSON.parse(run(`(() => {
+  const c = (rank, suit) => ({ rank, suit, value: RANKS.indexOf(rank) + 2 });
+  const st = createGameState([
+    { id: 0, name: 'a', deck: [c('A', '♠'), c('2', '♠')] }, { id: 1, name: 'b', deck: [c('3', '♠'), c('2', '♥')] },
+    { id: 2, name: 'c', deck: [c('3', '♥'), c('2', '♦')] }, { id: 3, name: 'd', deck: [c('7', '♠'), c('2', '♣')] }
+  ], { battleFirst: ${battleFirst} });
+  engineStartRound(st);
+  const ev = engineResolve(st);
+  return JSON.stringify({ type: ev.type, winner: ev.winner && ev.winner.id, contenders: ev.contenders && ev.contenders.map(p => p.id), overruled: ev.overruled && ev.overruled.map(p => p.id) });
+})()`));
+const evOn = engineEvent(true), evOff = engineEvent(false);
+if (JSON.stringify(evOn) !== JSON.stringify({ type: 'battle', contenders: [1, 2], overruled: [0] })) failures.push('spelkern met battleFirst: ' + JSON.stringify(evOn));
+if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failures.push('spelkern zonder battleFirst: ' + JSON.stringify(evOff));
+
 // ---- testgevallen ----
 const cases = [];
-for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rule of [false, true]) cases.push({ n, seed, rule });
-const key = c => c.n + '|' + c.seed + '|' + (c.rule ? 'twoBeatsAce' : 'standard');
+for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rules of Object.keys(RULE_SETS)) cases.push({ n, seed, rules });
+const key = c => c.n + '|' + c.seed + '|' + c.rules;
 
 const expected = update || !fs.existsSync(expectedFile) ? {} : JSON.parse(fs.readFileSync(expectedFile, 'utf8'));
 const actual = {};
-const failures = [];
 let liveChecked = 0;
 
 for (const c of cases){
   document.getElementById("seedInput").value = c.seed;
-  document.getElementById("twoBeatsAceInput").checked = c.rule;
+  document.getElementById("twoBeatsAceInput").checked = RULE_SETS[c.rules].twoBeatsAce;
+  document.getElementById("battleFirstInput").checked = RULE_SETS[c.rules].battleFirst;
   document.getElementById("namesList").children = Array.from({ length: c.n }, () => ({ value: '' }));
   run('numPlayers = ' + c.n + '; dealNewGame();');
   const sim = JSON.parse(run(`(() => {

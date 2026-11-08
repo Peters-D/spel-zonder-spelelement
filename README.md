@@ -10,6 +10,7 @@ Een kaartspel in de stijl van "oorlogje" voor 2 tot 8 spelers, in de browser. Sp
 - **Battle:** bij een gelijke hoogste kaart leggen alleen de betrokken spelers een nieuwe kaart open. Dit herhaalt zich tot er één winnaar is. Wie tijdens een battle geen kaarten meer heeft, ligt eruit.
 - Wie geen kaarten meer heeft, is uitgeschakeld. De laatste speler met kaarten wint het spel.
 - **Extra regel (optioneel): 2 verslaat Aas.** Liggen er zowel een 2 als een Aas, dan wint de 2. Tegen 3 t/m K verliest de 2 gewoon.
+- **Extra regel (optioneel): gelijke kaarten gaan voor.** Liggen er twee of meer kaarten van dezelfde waarde, dan begint daar een battle, ook als een andere speler een hogere kaart heeft. Bijvoorbeeld bij A, 3, 3 en 7 battlen alleen de twee drieën; hun winnaar krijgt de hele pot, ook de Aas. Liggen er meerdere paren, dan battlet het hoogste paar. Deze regel gaat vóór "2 verslaat Aas" en geldt ook in elke volgende battle-ronde. Met 2 spelers verandert er niets.
 
 ## Functies
 
