@@ -1,7 +1,7 @@
 // Statistieken-module. Verwijder dit bestand, de <script> in index.html, het
 // stats-blok in de HTML en css/stats.css om de functie te verwijderen.
 let statsHistory = [];      // [{round, counts:{name: cardCount}}]
-let statsWins = {};         // name -> aantal rondes gewonnen
+let statsWins = {};         // speler-id -> aantal rondes gewonnen
 let statsTotalBattles = 0;  // aantal keer dat een battle is gestart
 let statsLongestTie = 0;    // diepste aantal opeenvolgende battle-niveaus in één ronde
 let statsRoundCount = 0;    // aantal afgeronde rondes (met een winnaar)
@@ -24,13 +24,13 @@ function statsRecordBattle(depth){
   statsLongestTie = Math.max(statsLongestTie, depth);
 }
 
-function statsRecordRoundWin(winnerName, countsOverride){
-  statsWins[winnerName] = (statsWins[winnerName] || 0) + 1;
+function statsRecordRoundWin(winnerId, countsOverride){
+  statsWins[winnerId] = (statsWins[winnerId] || 0) + 1;
   statsRoundCount++;
   let counts = countsOverride;
   if (!counts){
     counts = {};
-    players.forEach(p => { counts[p.name] = p.deck.length; });
+    players.forEach(p => { counts[p.id] = p.deck.length; });
   }
   statsHistory.push({ round: statsRoundCount, counts });
   renderStatsPanel();
@@ -68,7 +68,7 @@ function renderStatsChart(){
     ctx.beginPath();
     statsHistory.forEach((snap, i) => {
       const x = padL + (statsHistory.length === 1 ? 0 : (plotW * i / (statsHistory.length - 1)));
-      const val = snap.counts[p.name] !== undefined ? snap.counts[p.name] : 0;
+      const val = snap.counts[p.id] !== undefined ? snap.counts[p.id] : 0;
       const y = (H - padB) - (val / maxVal) * plotH;
       if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     });
@@ -92,7 +92,7 @@ function renderStatsSummary(){
   html += '<div class="stats-summary-item">Langste tie-break: <strong>' + statsLongestTie + '</strong> ' + (statsLongestTie === 1 ? 'niveau' : 'niveaus') + '</div>';
   html += '<div class="stats-summary-item">Rondes gespeeld: <strong>' + statsRoundCount + '</strong></div>';
   players.forEach(p => {
-    const wins = statsWins[p.name] || 0;
+    const wins = statsWins[p.id] || 0;
     const pct = statsRoundCount > 0 ? Math.round((wins / statsRoundCount) * 100) : 0;
     html += '<div class="stats-summary-item">' + p.name + ': <strong>' + pct + '%</strong> (' + wins + '/' + statsRoundCount + ')</div>';
   });

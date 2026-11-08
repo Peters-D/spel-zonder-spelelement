@@ -1,11 +1,15 @@
-// Spelregels: bepalen wie een ronde wint.
-let twoBeatsAceRule = false;
+// Spelregels. Alle instelbare regels staan in één object; de spelkern (engine.js)
+// geeft dat object door, zodat elke regel overal hetzelfde wordt toegepast.
+const DEFAULT_RULES = {
+  twoBeatsAce: false // 2 verslaat Aas (maar verliest van 3 t/m K)
+};
 
-// If the 2-beats-Aas rule is on and both a 2 and an Aas are among the
-// revealed cards, the 2(s) win outright over everyone — Aas included.
-// Otherwise, normal highest-value comparison applies.
-function findWinningPlayers(inPlay){
-  if (twoBeatsAceRule){
+// Bepaalt wie van de spelers in inPlay de ronde (voorlopig) wint.
+// Meer dan één speler terug betekent gelijkspel → battle.
+// Regel twoBeatsAce: liggen er zowel een 2 als een Aas, dan winnen de 2('s), ook van de Aas.
+// Anders wint de hoogste kaart.
+function findWinningPlayers(inPlay, rules){
+  if (rules.twoBeatsAce){
     const twos = inPlay.filter(p => p.faceCard.rank === '2');
     const aces = inPlay.filter(p => p.faceCard.rank === 'A');
     if (twos.length > 0 && aces.length > 0){

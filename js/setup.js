@@ -1,6 +1,7 @@
 // Instelscherm: spelers, namen, seed, delen en starten.
 let numPlayers = 4;
-let players = []; // {name, deck: [], out: false, faceCard: null}
+let game = null;   // spelstand van de spelkern (zie engine.js)
+let players = []; // = game.players: [{id, name, deck: [], out: false, faceCard: null}]
 
 const countGrid = document.getElementById('countGrid');
 const namesList = document.getElementById('namesList');
@@ -35,19 +36,23 @@ renderNameInputs();
 function dealNewGame(){
   const seedValue = document.getElementById('seedInput').value.trim();
   rng = seedValue ? mulberry32(hashSeed(seedValue)) : Math.random;
-  twoBeatsAceRule = document.getElementById('twoBeatsAceInput').checked;
+  const rules = Object.assign({}, DEFAULT_RULES, {
+    twoBeatsAce: document.getElementById('twoBeatsAceInput').checked
+  });
   const inputs = namesList.querySelectorAll('input');
   const deck = shuffle(buildDeck());
-  players = [];
+  const dealt = [];
   for (let i=0;i<numPlayers;i++){
     const nm = inputs[i].value.trim() || ('Speler ' + (i+1));
-    players.push({ name: nm, deck: [], out:false, faceCard:null });
+    dealt.push({ id: i, name: nm, deck: [] });
   }
   let idx = 0;
   while (deck.length){
-    players[idx % numPlayers].deck.push(deck.pop());
+    dealt[idx % numPlayers].deck.push(deck.pop());
     idx++;
   }
+  game = createGameState(dealt, rules);
+  players = game.players;
 }
 
 function launchGame(){
@@ -66,7 +71,7 @@ function launchGame(){
 
 document.getElementById('startBtn').addEventListener('click', () => {
   dealNewGame();
-  const result = simulateOutcome(players);
+  const result = simulateOutcome(players, game.rules);
   if (result.outcome === 'cycle' || result.outcome === 'unknown'){
     const text = result.outcome === 'cycle'
       ? 'Deze indeling loopt na ' + result.rounds + ' rondes in een cyclus — het spel zou nooit eindigen.'

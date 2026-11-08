@@ -1,10 +1,8 @@
 // ---- Click-driven phase system ----
+// Dit bestand regelt alleen wat je ziet en wanneer. De spelregels zelf staan in engine.js.
 // phases: 'idle' -> 'revealed' -> 'battle-pending' -> 'battle-revealed' -> 'round-over' -> (back to 'idle' via next round) / 'game-over'
 let phase = 'idle';
-let pot = [];
 let displayPot = 0; // settled pot count shown to the user — only updates once a battle round is resolved
-let contenders = [];
-let warLevel = 0;
 
 const playBtn = document.getElementById('playBtn');
 
@@ -20,7 +18,7 @@ function updateButtonLabel(){
 }
 
 function clearBoard(){
-  pot = [];
+  game.pot = [];
   displayPot = 0;
   players.forEach(p => { p.faceCard = null; });
   renderGrid(true);
@@ -30,13 +28,8 @@ function clearBoard(){
 }
 
 function startRound(){
-  pot = [];
-  contenders = activePlayers().map(p => p.name);
-  warLevel = 0;
-
-  players.forEach(p => { if (!p.out) p.faceCard = p.deck.length ? p.deck.shift() : null; });
-  players.forEach(p => { if (!p.out && p.faceCard) pot.push(p.faceCard); });
-  displayPot = pot.length;
+  engineStartRound(game);
+  displayPot = game.pot.length;
   renderGrid(false);
   setDispatch('Bekijk de kaarten en bepaal de winnaar.');
   phase = 'revealed';
@@ -44,87 +37,56 @@ function startRound(){
 }
 
 function layBattleCards(){
-  const warriors = contenders.map(name => players.find(p => p.name === name));
-  for (const w of warriors){
-    if (w.deck.length >= 1){
-      const up = w.deck.shift();
-      pot.push(up);
-      w.faceCard = up;
-    } else {
-      w.out = true;
-      w.faceCard = null;
-    }
-  }
-  renderGrid(false);
-  contenders = contenders.filter(name => {
-    const p = players.find(pp => pp.name === name);
-    return p && !p.out;
-  });
-
-  if (contenders.length === 0){
-    const alive = activePlayers();
-    displayPot = pot.length;
-    if (alive.length){ alive[0].deck.push(...pot); }
-    pot = [];
-    finalizeRoundOver();
+  const ev = engineLayBattleCards(game);
+  if (ev.type === 'battle-revealed'){
+    renderGrid(false);
+    setDispatch('Bekijk de battle-kaarten en bepaal de winnaar.', true);
+    phase = 'battle-revealed';
+    updateButtonLabel();
     return;
   }
-  if (contenders.length === 1){
-    const w = players.find(p => p.name === contenders[0]);
-    displayPot = pot.length;
-    w.deck.push(...pot);
-    pot = [];
-    showStamp('LAATSTE OVER', '#c9a227');
-    setDispatch(w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
-    finalizeRoundOver();
-    if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.name); // STATS HOOK
-    renderGrid(false, players.map(p => p===w));
-    return;
-  }
-  setDispatch('Bekijk de battle-kaarten en bepaal de winnaar.', true);
-  phase = 'battle-revealed';
-  updateButtonLabel();
+  showRoundResult(ev);
 }
 
 function compareAndResolve(){
-  const inPlay = players.filter(p => !p.out && contenders.includes(p.name) && p.faceCard);
-  if (inPlay.length === 0){
-    const alive = activePlayers();
-    displayPot = pot.length;
-    if (alive.length){ alive[0].deck.push(...pot); }
-    pot = [];
-    finalizeRoundOver();
-    return;
-  }
-  const winners = findWinningPlayers(inPlay);
-
-  if (winners.length === 1){
-    const w = winners[0];
-    displayPot = pot.length;
-    w.deck.push(...pot);
-    pot = [];
-    showStamp(warLevel > 0 ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
-    setDispatch(w.name + ' verovert ' + displayPot + ' kaarten!');
-    finalizeRoundOver();
-    if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.name); // STATS HOOK
-    renderGrid(false, players.map(p => p===w));
-  } else {
-    warLevel++;
-    if (typeof statsRecordBattle === 'function') statsRecordBattle(warLevel); // STATS HOOK
-    contenders = winners.map(p => p.name);
-    displayPot = pot.length;
-    setDispatch('BATTLE tussen ' + formatNamesNL(contenders) + '! Klik om battle-kaarten te leggen.', true);
+  const ev = engineResolve(game);
+  if (ev.type === 'battle'){
+    if (typeof statsRecordBattle === 'function') statsRecordBattle(ev.level); // STATS HOOK
+    displayPot = game.pot.length;
+    setDispatch('BATTLE tussen ' + formatNamesNL(ev.contenders.map(p => p.name)) + '! Klik om battle-kaarten te leggen.', true);
     phase = 'battle-pending';
     updateButtonLabel();
     renderGrid(false);
+    return;
   }
+  showRoundResult(ev);
+}
+
+// De ronde is beslist: toon de winnaar (of, zeldzaam, dat niemand de pot kon winnen).
+function showRoundResult(ev){
+  displayPot = ev.potSize;
+  if (ev.type !== 'win'){
+    finalizeRoundOver();
+    renderGrid(false);
+    return;
+  }
+  const w = ev.winner;
+  if (ev.how === 'last-standing'){
+    showStamp('LAATSTE OVER', '#c9a227');
+    setDispatch(w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
+  } else {
+    showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
+    setDispatch(w.name + ' verovert ' + displayPot + ' kaarten!');
+  }
+  finalizeRoundOver();
+  if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.id); // STATS HOOK
+  renderGrid(false, players.map(p => p === w));
 }
 
 function finalizeRoundOver(){
-  updateEliminations();
-  const alive = activePlayers();
-  if (alive.length <= 1){
-    endGame(alive[0]);
+  const end = engineEndRound(game);
+  if (end.gameOver){
+    endGame(end.winner);
     phase = 'game-over';
     updateButtonLabel();
     return;
@@ -137,10 +99,6 @@ function finalizeRoundOver(){
   }
   phase = 'round-over';
   updateButtonLabel();
-}
-
-function updateEliminations(){
-  players.forEach(p => { if (p.deck.length === 0) p.out = true; });
 }
 
 function endGame(winner){

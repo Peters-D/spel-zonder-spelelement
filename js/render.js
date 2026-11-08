@@ -11,13 +11,13 @@ function renderGrid(faceDown, warFlags){
   const inBattle = (phase === 'battle-pending' || phase === 'battle-revealed');
   players.forEach((p, i) => {
     const slot = document.createElement('div');
-    const isTied = inBattle && !p.out && contenders.includes(p.name);
+    const isTied = inBattle && !p.out && game.contenders.includes(p.id);
     slot.className = 'pslot' + (p.out ? ' eliminated' : '') + (warFlags && warFlags[i] ? ' winner-flash' : '') + (isTied ? ' tie-flash' : '');
     const pname = document.createElement('div');
     pname.className = 'pname';
     pname.textContent = p.name;
     const cardEl = document.createElement('div');
-    const isSidelined = inBattle && !p.out && !contenders.includes(p.name);
+    const isSidelined = inBattle && !p.out && !game.contenders.includes(p.id);
     if (p.out){
       cardEl.className = 'card back';
       cardEl.style.opacity = '0.4';
@@ -79,7 +79,7 @@ function updateIntegrity(){
   const line = document.getElementById('integrityLine');
   const totalEl = document.getElementById('totalCount');
   const statusEl = document.getElementById('integrityStatus');
-  const total = players.reduce((sum, p) => sum + p.deck.length, 0) + pot.length;
+  const total = players.reduce((sum, p) => sum + p.deck.length, 0) + game.pot.length;
   totalEl.textContent = total;
   if (total === 52){
     statusEl.textContent = '✓ klopt';
@@ -112,4 +112,3 @@ function showStamp(text, color){
   setTimeout(()=>s.remove(), 900);
 }
 
-function activePlayers(){ return players.filter(p => !p.out); }
