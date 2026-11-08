@@ -63,6 +63,7 @@ function launchGame(){
   visitedStates = new Set();
   visitedStates.add(stateSignature(players));
   phase = 'idle';
+  displayPot = 0; // pot-teller van een vorig spel niet meenemen
   updateButtonLabel();
   setDispatch('Klaar om te beginnen. Speel een ronde.');
   renderGrid(true);
