@@ -334,6 +334,7 @@ h1{
 }
 .speed-slider{
   flex:1;
+  min-width:0; /* een schuifje heeft zelf een minimale breedte (±129px); zonder dit loopt de rij op smalle schermen over */
   accent-color: var(--brass);
 }
 .speed-label{
@@ -343,6 +344,13 @@ h1{
   min-width:56px;
   text-align:right;
   flex-shrink:0;
+}
+@media (max-width: 395px){
+  /* Op smalle schermen is er naast de knoppen te weinig ruimte voor het schuifje (minder dan ±100px).
+     Het schuifje komt dan op een eigen regel onder de knoppen. */
+  .autoplay-row{ flex-wrap:wrap; }
+  .speed-label{ margin-left:auto; }
+  .speed-slider{ order:3; flex:1 1 100%; }
 }
 
 .reset-btn{
