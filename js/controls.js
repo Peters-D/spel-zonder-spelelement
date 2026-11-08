@@ -50,15 +50,14 @@ function fastForward(){
   if (!(phase === 'idle' || phase === 'round-over' || phase === 'cleared')) return;
   stopAutoPlay();
 
-  const snapshot = players.map(p => ({ name: p.name, deck: p.deck.slice(), out: p.out }));
-  const result = simulateFullTrace(snapshot, SIM_ROUND_CAP);
+  const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules);
 
   // Speel de volledige trace na in de statistieken, ronde voor ronde.
   result.trace.forEach(entry => {
     if (entry.type === 'battle'){
       if (typeof statsRecordBattle === 'function') statsRecordBattle(entry.depth); // STATS HOOK
     } else if (entry.type === 'win'){
-      if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(entry.winnerName, entry.counts); // STATS HOOK
+      if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(entry.winnerId, entry.counts); // STATS HOOK
     }
   });
 
@@ -68,11 +67,11 @@ function fastForward(){
     players[i].out = sp.out;
     players[i].faceCard = null;
   });
-  pot = [];
+  game.pot = [];
   displayPot = 0;
 
   if (result.outcome === 'win'){
-    const winnerObj = players.find(p => p.name === result.winner);
+    const winnerObj = players.find(p => p.id === result.winnerId);
     endGame(winnerObj);
     phase = 'game-over';
   } else if (result.outcome === 'cycle'){
