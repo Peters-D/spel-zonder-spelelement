@@ -25,7 +25,7 @@ function makeEl(id){
     id, value: '', checked: false, textContent: '', innerHTML: '', innerText: '', disabled: false,
     style: {}, dataset: {}, className: '', children: [],
     classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
-    addEventListener(){}, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){},
+    addEventListener(){}, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){}, setAttribute(){},
     querySelectorAll(){ return this.children; },
     getContext(){ return new Proxy({}, { get: () => () => {}, set: () => true }); },
     toDataURL(){ return ''; }
@@ -34,6 +34,7 @@ function makeEl(id){
 const document = {
   getElementById(id){ return els[id] || (els[id] = makeEl(id)); },
   createElement(){ return makeEl(); },
+  addEventListener(){},
   querySelectorAll(){ return []; }
 };
 const ctx = vm.createContext({
@@ -71,6 +72,7 @@ function playLive(){
 const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
   id: r.id, priority: r.priority, title: r.title, short: r.short, description: r.description,
   default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function' })))`));
+const BASE = JSON.parse(run('JSON.stringify(BASE_RULES)'));
 const RULE_IDS = CATALOG.map(r => r.id);
 const RULE_SETS = {};
 for (let mask = 0; mask < (1 << RULE_IDS.length); mask++){
@@ -80,6 +82,7 @@ for (let mask = 0; mask < (1 << RULE_IDS.length); mask++){
   RULE_SETS[on.length ? on.join('+') : 'standard'] = sets;
 }
 const failures = [];
+let exampleCount = 0;
 
 // ---- de catalogus zelf ----
 const isText = t => typeof t === 'string' && t.trim().length > 0;
@@ -97,8 +100,8 @@ for (const r of CATALOG){
 
 // ---- directe regeltests (findWinningPlayers en spelkern) ----
 // Elke regel: [kaarten die open liggen, regels, indexen van de spelers die (voorlopig) winnen]
-run(`globalThis.__fw = (ranks, rules) => findWinningPlayers(
-  ranks.map((r, i) => ({ id: i, faceCard: { rank: r, value: RANKS.indexOf(r) + 2 } })), rules).map(p => p.id)`);
+run(`globalThis.__fw = (cards, rules) => findWinningPlayers(
+  cards.map((c, i) => ({ id: i, faceCard: parseExampleCard(c) })), rules).map(p => p.id)`);
 const OFF = RULE_SETS['standard'], TWO = RULE_SETS['twoBeatsAce'], BF = RULE_SETS['battleFirst'], BOTH = RULE_SETS['twoBeatsAce+battleFirst'];
 const ruleTests = [
   ['A,3,3 zonder regel: Aas wint', ['A', '3', '3'], OFF, [0]],
@@ -116,6 +119,76 @@ const ruleTests = [
   ['2,A,7,7 met beide regels: paar gaat voor', ['2', 'A', '7', '7'], BOTH, [2, 3]],
   ['2,2,A met beide regels: de tweeën battlen', ['2', '2', 'A'], BOTH, [0, 1]]
 ];
+// Kaarten in voorbeelden: 'A' of met kleur 'A♠'. Elke kaart moet een bestaande waarde hebben.
+const validCard = c => { const p = JSON.parse(run('JSON.stringify(parseExampleCard(' + JSON.stringify(c) + '))')); return p.value >= 2 && p.value <= 14; };
+const parsed = JSON.parse(run(`JSON.stringify([parseExampleCard('A'), parseExampleCard('10♥'), parseExampleCard('3♠')])`));
+if (JSON.stringify(parsed) !== JSON.stringify([{ rank: 'A', suit: null, value: 14 }, { rank: '10', suit: '♥', value: 10 }, { rank: '3', suit: '♠', value: 3 }])) failures.push('parseExampleCard: ' + JSON.stringify(parsed));
+for (const section of [...CATALOG.map(r => ({ name: r.title, ...r })), ...BASE.map(b => ({ name: b.title, ...b }))]){
+  for (const f of ['title', 'description']) if (!isText(section[f])) failures.push('regelboek ' + section.name + ': ' + f + ' ontbreekt');
+  for (const ex of section.examples || []){
+    if (!ex.cards.every(validCard)) failures.push('voorbeeld bij "' + section.name + '": onbekende kaart in ' + JSON.stringify(ex.cards));
+    if (!isText(ex.text) || !Array.isArray(ex.winners)) failures.push('voorbeeld bij "' + section.name + '": tekst of winnaars ontbreekt');
+    if (ex.winners.some(i => i < 0 || i >= ex.cards.length)) failures.push('voorbeeld bij "' + section.name + '": winnaar buiten de kaarten');
+  }
+}
+// De voorbeelden bij de basisregels (alle extra regels uit) tegen de echte regelcode.
+for (const b of BASE){
+  for (const ex of b.examples || []){
+    exampleCount++;
+    const off = {}; for (const id of RULE_IDS) off[id] = false;
+    const got = run('__fw(' + JSON.stringify(ex.cards) + ', ' + JSON.stringify(off) + ')');
+    if (JSON.stringify(got) !== JSON.stringify(ex.winners)) failures.push('voorbeeld bij basisregel "' + b.title + '" (' + ex.cards.join(',') + '): het regelboek zegt ' + JSON.stringify(ex.winners) + ', het spel doet ' + JSON.stringify(got));
+  }
+}
+
+// ---- het regelboek is de catalogus ----
+// Loop door de gebouwde elementen en verzamel tekst en klassen.
+const walk = (node, fn) => { fn(node); for (const c of node.children || []) walk(c, fn); };
+const textOf = node => { let t = ''; walk(node, n => { if (n.textContent) t += n.textContent + '\n'; }); return t; };
+const byClass = (node, cls) => { const out = []; walk(node, n => { if ((n.className || '').split(' ').includes(cls)) out.push(n); }); return out; };
+const activeNow = { twoBeatsAce: false, battleFirst: true };
+const book = run('buildRulebook(RULES, BASE_RULES, ' + JSON.stringify(activeNow) + ')');
+const bookText = textOf(book);
+for (const b of BASE){
+  if (!bookText.includes(b.title) || !bookText.includes(b.description)) failures.push('regelboek mist basisregel "' + b.title + '"');
+}
+const ruleBoxes = byClass(book, 'rb-rule');
+if (ruleBoxes.length !== CATALOG.length) failures.push('regelboek: ' + ruleBoxes.length + ' extra regels getoond, de catalogus heeft er ' + CATALOG.length);
+CATALOG.forEach((r, i) => {
+  const box = ruleBoxes[i]; if (!box) return;
+  const t = textOf(box);
+  if (!t.includes(r.title) || !t.includes(r.description)) failures.push('regelboek: titel of uitleg van "' + r.title + '" ontbreekt');
+  const badge = byClass(box, 'rb-badge')[0];
+  if (!badge || badge.textContent !== (activeNow[r.id] ? 'aan' : 'uit')) failures.push('regelboek: aan/uit-markering van "' + r.title + '" klopt niet');
+  const examples = byClass(box, 'rb-example');
+  if (examples.length !== r.examples.length) failures.push('regelboek: ' + examples.length + ' voorbeelden bij "' + r.title + '", de catalogus heeft er ' + r.examples.length);
+  r.examples.forEach((ex, k) => {
+    const exBox = examples[k]; if (!exBox) return;
+    const cards = byClass(exBox, 'rb-card').map(n => n.textContent);
+    if (JSON.stringify(cards) !== JSON.stringify(ex.cards)) failures.push('regelboek: kaarten van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" kloppen niet met de catalogus');
+    const winners = byClass(exBox, 'rb-player').map((n, idx) => (n.className.split(' ').includes('rb-winner') ? idx : -1)).filter(idx => idx >= 0);
+    if (JSON.stringify(winners) !== JSON.stringify(ex.winners)) failures.push('regelboek: winnaars van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" kloppen niet');
+    if (!textOf(exBox).includes(ex.text)) failures.push('regelboek: uitleg van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" ontbreekt');
+    for (const id of ex.with || []) if (!textOf(exBox).includes(CATALOG.find(c => c.id === id).title)) failures.push('regelboek: "met erbij" ontbreekt bij voorbeeld ' + (k + 1) + ' van "' + r.title + '"');
+  });
+});
+// Volgorde bij botsingen: zoals de prioriteit in de catalogus.
+const orderItems = byClass(book, 'rb-order-item').map(n => n.textContent.replace(/ \((aan|uit)\)$/, ''));
+const expectedOrder = CATALOG.slice().sort((a, b) => a.priority - b.priority).map(r => r.title);
+if (JSON.stringify(orderItems) !== JSON.stringify(expectedOrder)) failures.push('regelboek: volgorde bij botsingen ' + JSON.stringify(orderItems) + ' komt niet overeen met de prioriteit ' + JSON.stringify(expectedOrder));
+// Kaartjes met kleur: een nagemaakte regel met voorbeeld in kleur (er is nog geen echte kleurregel).
+const fake = [{ id: 'fake', priority: 1, title: 'Nagemaakt', short: 'x', description: 'y', default: false,
+  examples: [{ cards: ['A♥', '3♠', '7'], winners: [0], text: 'z' }] }];
+const fakeBook = run('buildRulebook(' + JSON.stringify(fake) + ', [], { fake: true })');
+const fakeCards = byClass(fakeBook, 'rb-card');
+if (JSON.stringify(fakeCards.map(n => n.textContent)) !== JSON.stringify(['A♥', '3♠', '7'])) failures.push('regelboek: kaarten met kleur worden verkeerd getoond: ' + JSON.stringify(fakeCards.map(n => n.textContent)));
+if (JSON.stringify(fakeCards.map(n => n.className.split(' ').includes('red-suit'))) !== JSON.stringify([true, false, false])) failures.push('regelboek: alleen ♥ en ♦ horen rood te zijn');
+// De bouwstenen staan in index.html (knoppen op beide schermen en het venster).
+const pageHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookInner', 'rulebookBody', 'rulebookClose']) {
+  if (!pageHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id);
+}
+
 // Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
 const optionLabels = document.getElementById('rulesList').children;
 if (optionLabels.length !== CATALOG.length) failures.push('startscherm: ' + optionLabels.length + ' vinkjes voor ' + CATALOG.length + ' regels');
@@ -127,7 +200,6 @@ CATALOG.forEach((r, i) => {
 });
 
 // De voorbeelden uit de catalogus (die ook in het regelboek komen) tegen de echte regelcode.
-let exampleCount = 0;
 for (const r of CATALOG){
   for (const ex of r.examples || []){
     exampleCount++;
@@ -207,7 +279,7 @@ if (update){
 }
 for (const k of Object.keys(expected)) if (!actual[k]) failures.push(k + ': staat in expected.json maar wordt niet meer getest');
 
-console.log(scripts.length + ' scripts geladen, ' + CATALOG.length + ' regels in de catalogus (' + exampleCount + ' voorbeelden getest), ' +
+console.log(scripts.length + ' scripts geladen, ' + CATALOG.length + ' regels + ' + BASE.length + ' basisregels in het regelboek (' + exampleCount + ' voorbeelden getest), ' +
   cases.length + ' seeds gesimuleerd, ' + liveChecked + ' spellen live uitgespeeld.');
 if (failures.length){
   console.error('\n' + failures.length + ' fout(en):\n' + failures.map(f => ' - ' + f).join('\n'));

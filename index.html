@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/rulebook.css">
 <link rel="stylesheet" href="css/stats.css">
 </head>
 <body>
@@ -27,6 +28,7 @@
     <h2>Extra regels</h2>
     <div id="rulesList"></div>
     <button class="start-btn" id="startBtn">Begin het spel</button>
+    <button class="rulebook-btn" id="rulebookBtnSetup">📖 Spelregels</button>
 
     <div class="cycle-warning hidden" id="cycleWarning">
       <div class="cycle-warning-title">⚠ Cyclus gedetecteerd</div>
@@ -58,6 +60,7 @@
     </div>
     <button class="play-btn" id="playBtn">Speel ronde</button>
     <button class="reset-btn" id="resetBtn">Nieuw spel</button>
+    <button class="rulebook-btn" id="rulebookBtnGame">📖 Spelregels</button>
 
     <!-- ===== STATS MODULE START — verwijder dit blok om de statistiekenfunctie te verwijderen ===== -->
     <button class="stats-toggle-btn" id="statsToggleBtn">📊 Statistieken</button>
@@ -82,6 +85,14 @@
   </div>
 </div>
 
+<div class="rulebook" id="rulebook" role="dialog" aria-modal="true" aria-labelledby="rulebookTitle" aria-hidden="true">
+  <div class="rulebook-inner" id="rulebookInner">
+    <button class="rulebook-close" id="rulebookClose" aria-label="Sluiten">✕</button>
+    <h2 class="rulebook-title" id="rulebookTitle">Spelregels</h2>
+    <div id="rulebookBody"></div>
+  </div>
+</div>
+
 <!-- Klassieke scripts delen één globale scope. Houd deze volgorde aan:
      basis (cards, rules, engine, simulation) eerst, dan de onderdelen die ze gebruiken,
      en stats als laatste (los te verwijderen module). -->
@@ -93,6 +104,7 @@
 <script src="js/render.js"></script>
 <script src="js/game.js"></script>
 <script src="js/controls.js"></script>
+<script src="js/rulebook.js"></script>
 <script src="js/stats.js"></script>
 </body>
 </html>
