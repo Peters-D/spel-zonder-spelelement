@@ -1,7 +1,6 @@
 // Instelscherm: spelers, namen, seed, delen en starten.
 let numPlayers = 4;
 let players = []; // {name, deck: [], out: false, faceCard: null}
-let busy = false;
 
 const countGrid = document.getElementById('countGrid');
 const namesList = document.getElementById('namesList');
