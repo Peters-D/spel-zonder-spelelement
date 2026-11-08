@@ -33,7 +33,7 @@ const RULES = [
       { cards: ['2', '2', 'A'], winners: [0, 1], text: 'Twee 2\'s: die battlen. De Aas doet niet mee.' },
       { cards: ['2', 'A', 'A'], winners: [0], text: 'De 2 wint van beide Azen.' },
       { cards: ['2', 'A', '7', '7'], with: ['battleFirst'], winners: [2, 3],
-        text: 'Met "Gelijke kaarten gaan voor" erbij gaat het paar voor: de zevens battlen.' }
+        text: 'Het paar gaat voor: de zevens battlen.' }
     ],
     decide(inPlay){
       const twos = inPlay.filter(p => p.faceCard.rank === '2');
@@ -57,7 +57,7 @@ const RULES = [
       { cards: ['3', '3', '3', 'A'], winners: [0, 1, 2], text: 'Drie gelijke kaarten battlen allemaal.' },
       { cards: ['A', 'K', 'Q'], winners: [0], text: 'Zonder paar wint gewoon de hoogste kaart.' },
       { cards: ['2', 'A', 'A'], with: ['twoBeatsAce'], winners: [1, 2],
-        text: 'Met "2 verslaat Aas" erbij gaat het paar voor: de Azen battlen, de 2 doet niet mee.' }
+        text: 'Het paar gaat voor: de Azen battlen, de 2 doet niet mee.' }
     ],
     decide(inPlay){
       const groups = new Map(); // waarde -> spelers met die kaart
