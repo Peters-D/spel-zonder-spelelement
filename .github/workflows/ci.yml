@@ -15,9 +15,13 @@ jobs:
           node-version: 20
       - name: Syntaxcontrole van alle JavaScript-bestanden
         run: |
-          for f in js/*.js tests/*.js; do
+          for f in js/*.js tests/*.js tools/*.js; do
             echo "node --check $f"
             node --check "$f"
           done
       - name: Rooktest (laden + vaste seeds + live spel)
         run: node tests/smoke.js
+      - name: README klopt met de regels
+        run: |
+          node tests/readme-check.js
+          node tools/build-readme.js --check
