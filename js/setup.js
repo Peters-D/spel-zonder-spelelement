@@ -71,6 +71,7 @@ function dealNewGame(){
     idx++;
   }
   game = createGameState(dealt, rules);
+  game.seed = seedValue || null; // de gebruikte seed, om te tonen (null = willekeurig spel)
   players = game.players;
 }
 
@@ -79,6 +80,7 @@ function launchGame(){
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
   document.getElementById('endBanner').innerHTML = '';
+  document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
   visitedStates = new Set();
   visitedStates.add(stateSignature(players));
   phase = 'idle';
@@ -107,11 +109,12 @@ document.getElementById('cycleProceedBtn').addEventListener('click', () => {
   launchGame();
 });
 
+// Kiest de volgende seed (zie nextSeed in cards.js). Het spel start niet vanzelf: "Begin het spel" probeert de nieuwe seed.
 document.getElementById('cycleNewSeedBtn').addEventListener('click', () => {
   document.getElementById('cycleWarning').classList.add('hidden');
   const seedInput = document.getElementById('seedInput');
-  seedInput.focus();
-  seedInput.select();
+  seedInput.value = nextSeed(seedInput.value);
+  document.getElementById('startBtn').focus();
 });
 
 document.getElementById('resetBtn').addEventListener('click', () => {

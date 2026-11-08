@@ -25,7 +25,7 @@ function makeEl(id){
     id, value: '', checked: false, textContent: '', innerHTML: '', innerText: '', disabled: false,
     style: {}, dataset: {}, className: '', children: [],
     classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
-    addEventListener(){}, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){}, setAttribute(){},
+    addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){}, setAttribute(){},
     querySelectorAll(){ return this.children; },
     getContext(){ return new Proxy({}, { get: () => () => {}, set: () => true }); },
     toDataURL(){ return ''; }
@@ -185,9 +185,43 @@ if (JSON.stringify(fakeCards.map(n => n.textContent)) !== JSON.stringify(['A♥'
 if (JSON.stringify(fakeCards.map(n => n.className.split(' ').includes('red-suit'))) !== JSON.stringify([true, false, false])) failures.push('regelboek: alleen ♥ en ♦ horen rood te zijn');
 // De bouwstenen staan in index.html (knoppen op beide schermen en het venster).
 const pageHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookInner', 'rulebookBody', 'rulebookClose']) {
+for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookInner', 'rulebookBody', 'rulebookClose', 'seedLine', 'cycleNewSeedBtn']) {
   if (!pageHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id);
 }
+
+// ---- seed: de volgende seed en de knop "Nieuwe seed proberen" ----
+const seedSteps = [['1000', '1001'], ['test', 'test2'], ['test2', 'test3'], ['test123', 'test124'], ['007', '008'], ['0099', '0100'],
+  ['999', '1000'], ['  42 ', '43'], ['a1b', 'a1b2'], ['99999999999999999999', '100000000000000000000']];
+for (const [from, to] of seedSteps){
+  const got = run('nextSeed(' + JSON.stringify(from) + ')');
+  if (got !== to) failures.push('nextSeed(' + JSON.stringify(from) + ') geeft ' + JSON.stringify(got) + ', verwacht ' + JSON.stringify(to));
+}
+for (const [r, exp] of [[0, '1000'], [0.5, '5500'], [0.9999, '9999']]){
+  const got = run('nextSeed("", () => ' + r + ')');
+  if (got !== exp) failures.push('nextSeed("") met random ' + r + ' geeft ' + got + ', verwacht ' + exp);
+}
+const chain = JSON.parse(run(`(() => { const out = []; let s = '1000'; for (let i = 0; i < 100; i++){ s = nextSeed(s); out.push(s); } return JSON.stringify(out); })()`));
+if (new Set(chain).size !== 100) failures.push('nextSeed: de volgende seeds zijn niet allemaal verschillend');
+// De seeds 1000 en 1001 geven een ander spel (andere verdeling).
+const dealFor = seed => { document.getElementById('seedInput').value = seed; document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
+  return run('numPlayers = 4; dealNewGame(); JSON.stringify(players.map(p => p.deck.map(c => c.rank + c.suit)))'); };
+if (dealFor('1000') === dealFor('1001')) failures.push('seed 1000 en 1001 geven dezelfde verdeling');
+if (dealFor('1000') !== dealFor('1000')) failures.push('dezelfde seed geeft niet dezelfde verdeling');
+// De knop zelf: kiest de volgende seed in het seedveld (zonder het spel te starten).
+const seedBtn = document.getElementById('cycleNewSeedBtn');
+const seedField = document.getElementById('seedInput');
+if (!seedBtn.handlers || !seedBtn.handlers.click) failures.push('knop "Nieuwe seed proberen" heeft geen klik-actie');
+else {
+  seedField.value = '1000'; seedBtn.handlers.click();
+  if (seedField.value !== '1001') failures.push('knop "Nieuwe seed proberen": 1000 werd ' + seedField.value + ', verwacht 1001');
+  seedBtn.handlers.click();
+  if (seedField.value !== '1002') failures.push('knop "Nieuwe seed proberen": tweede klik gaf ' + seedField.value + ', verwacht 1002');
+  seedField.value = ''; seedBtn.handlers.click();
+  if (!/^[1-9]\d{3}$/.test(seedField.value)) failures.push('knop "Nieuwe seed proberen" bij een leeg veld gaf "' + seedField.value + '", verwacht vier cijfers');
+}
+// Zonder seed (willekeurig spel) staat dat ook zo in het spelscherm.
+seedField.value = ''; run('numPlayers = 4; dealNewGame(); launchGame();');
+if (run('game.seed') !== null || !/geen/.test(document.getElementById('seedLine').textContent)) failures.push('spel zonder seed: seedregel is "' + document.getElementById('seedLine').textContent + '"');
 
 // Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
 const optionLabels = document.getElementById('rulesList').children;
@@ -246,6 +280,7 @@ for (const c of cases){
   document.getElementById("battleFirstInput").checked = RULE_SETS[c.rules].battleFirst;
   document.getElementById("namesList").children = Array.from({ length: c.n }, () => ({ value: '' }));
   run('numPlayers = ' + c.n + '; dealNewGame();');
+  if (run('game.seed') !== c.seed) failures.push(key(c) + ': game.seed is ' + run('game.seed') + ', verwacht ' + c.seed);
   const sim = JSON.parse(run(`(() => {
     const r = simulateFullTrace(players, SIM_ROUND_CAP, typeof game !== 'undefined' && game ? game.rules : undefined);
     return JSON.stringify({ outcome: r.outcome, rounds: r.rounds, decks: r.finalPlayers.map(p => p.deck.length) });
@@ -266,6 +301,7 @@ for (const c of cases){
     run('numPlayers = ' + c.n + '; dealNewGame();');
     const live = playLive();
     liveChecked++;
+    if (document.getElementById('seedLine').textContent !== 'Seed: ' + c.seed) failures.push(key(c) + ': seed in het spelscherm is "' + document.getElementById('seedLine').textContent + '"');
     if (live.phase !== 'game-over' || JSON.stringify(live.decks) !== JSON.stringify(sim.decks)){
       failures.push(key(c) + ': zichtbaar spel wijkt af van simulatie\n    simulatie ' + JSON.stringify(sim.decks) + '\n    live      ' + live.phase + ' ' + JSON.stringify(live.decks));
     }

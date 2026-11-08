@@ -51,7 +51,7 @@ Dezelfde uitleg staat in het spel zelf, onder de knop **📖 Spelregels**.
 ## Functies
 
 - Stap voor stap spelen, auto-play met instelbare snelheid, of direct doorspoelen naar de winnaar (⏩).
-- **Seed:** met dezelfde seed wordt altijd hetzelfde spel gedeeld. Laat het veld leeg voor een willekeurig spel.
+- **Seed:** met dezelfde seed wordt altijd hetzelfde spel gedeeld, en de gebruikte seed staat in het spel. Laat het veld leeg voor een willekeurig spel. Loopt een spel vast, dan kiest **Nieuwe seed proberen** de volgende seed (1000 wordt 1001).
 - **Cyclusdetectie:** het spel controleert vooraf en tijdens het spelen of een verdeling eindeloos doorgaat.
 - Tik op een speler om diens stapel te bekijken.
 - Statistieken: verloop van het aantal kaarten per speler, gewonnen rondes en battles.

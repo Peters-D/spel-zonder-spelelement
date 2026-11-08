@@ -31,6 +31,17 @@ function mulberry32(seed){
   };
 }
 
+// De volgende seed, afgeleid van de huidige zodat het te herhalen is:
+//   "1000" -> "1001", "test123" -> "test124", "007" -> "008" (voorloopnullen blijven), "test" -> "test2".
+// Is er geen seed (leeg veld), dan een willekeurig getal van vier cijfers (randomFn is er voor de test).
+function nextSeed(seed, randomFn){
+  const s = String(seed || '').trim();
+  if (s === '') return String(1000 + Math.floor((randomFn || Math.random)() * 9000));
+  const m = s.match(/^(.*?)(\d+)$/);
+  if (!m) return s + '2';
+  return m[1] + (BigInt(m[2]) + 1n).toString().padStart(m[2].length, '0');
+}
+
 function shuffle(arr){
   for (let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return arr;
