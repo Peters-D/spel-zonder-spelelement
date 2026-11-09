@@ -253,7 +253,7 @@ if (JSON.stringify(names('__s.pot')) !== JSON.stringify(['7♠']) || run('__s.di
 run(`engineDiscardCards(__s, [__card('4', '♦')]); __s.players[3].out = true;`);
 if (run(`engineReturnFromDiscard(__s, 1, { player: 3 })`) !== 1 || run('__s.discard.length') !== 0 || run('__s.players[3].out') !== false)
   failures.push('aflegstapel: een uitgeschakelde speler die kaarten terugkrijgt hoort weer mee te doen');
-if (JSON.stringify(run('__s.moved')) !== JSON.stringify({ discarded: 6, returned: 6, revived: [3] })) failures.push('aflegstapel: tellers kloppen niet: ' + JSON.stringify(run('__s.moved')));
+if (JSON.stringify(run('__s.moved')) !== JSON.stringify({ discarded: 6, returned: 6, revived: [3], transferred: 0, transfers: [] })) failures.push('aflegstapel: tellers kloppen niet: ' + JSON.stringify(run('__s.moved')));
 // Weer meedoen: alleen als er echt kaarten komen, en alleen voor wie uit was.
 run(`globalThis.__r = __state([['A♠'], [], ['K♠']]); __r.players[1].out = true;`);
 if (run(`engineReturnFromDiscard(__r, 1, { player: 1 })`) !== 0 || run('__r.players[1].out') !== true) failures.push('aflegstapel: zonder kaarten om terug te krijgen blijft een speler uitgeschakeld');
@@ -269,6 +269,45 @@ run(`__r.players[1].out = true; __r.players[1].deck = []; engineDiscardCards(__r
 if (run('__r.players[1].out') !== true) failures.push('aflegstapel: kaarten naar de pot laten niemand terugkomen');
 // Een nieuwe spelstand begint met een lege aflegstapel.
 if (run('createGameState([{ id: 0, name: "a", deck: [] }], {}).discard.length') !== 0) failures.push('aflegstapel: begint niet leeg');
+
+// ---- kaarten tussen spelers ----
+// De spelers zitten in een kring; met de klok mee tellen zit het volgende nummer links van je.
+run(`globalThis.__k = __state([['A♠'], ['K♠'], ['Q♠'], ['J♠'], ['10♠']]);`);
+const nb = (state, id, dir) => run(`(() => { const p = engineNeighbor(${state}, ${id}, '${dir}'); return p ? p.id : null; })()`);
+const nbCases = [[0, 'left', 1], [0, 'right', 4], [4, 'left', 0], [4, 'right', 3], [2, 'left', 3], [2, 'right', 1]];
+for (const [id, dir, exp] of nbCases) if (nb('__k', id, dir) !== exp) failures.push('buur: ' + dir + ' van speler ' + id + ' is ' + nb('__k', id, dir) + ', verwacht ' + exp);
+run(`__k.players[1].deck = []; __k.players[4].out = true; __k.players[4].deck = [];`); // speler 1 heeft niets, speler 4 ligt uit
+for (const [id, dir, exp] of [[0, 'left', 2], [0, 'right', 3], [3, 'left', 0], [2, 'right', 0]])
+  if (nb('__k', id, dir) !== exp) failures.push('buur overslaan: ' + dir + ' van speler ' + id + ' is ' + nb('__k', id, dir) + ', verwacht ' + exp + ' (spelers zonder kaarten worden overgeslagen)');
+run(`for (const p of __k.players) if (p.id !== 0) p.deck = [];`);
+if (nb('__k', 0, 'left') !== null || nb('__k', 0, 'right') !== null) failures.push('buur: als niemand anders kaarten heeft hoort het null te zijn');
+run(`globalThis.__two = __state([['A♠'], ['K♠']]);`);
+if (nb('__two', 0, 'left') !== 1 || nb('__two', 0, 'right') !== 1) failures.push('buur: bij twee spelers zijn links en rechts dezelfde speler');
+if (run(`engineNeighbor(__state([['A♠']]), 0, 'left')`) !== null) failures.push('buur: een speler alleen heeft geen buur');
+
+// De speler met de meeste kaarten; bij een gelijk aantal de speler die het eerst links van je zit.
+run(`globalThis.__m = __state([['2♠', '3♠'], ['A♠', 'K♠', 'Q♠', 'J♠', '10♠'], ['9♠', '8♠', '7♠', '6♠', '5♠'], ['4♠']]);`);
+const rich = (state, id) => run(`(() => { const p = engineRichestPlayer(${state}, ${id}); return p ? p.id : null; })()`);
+for (const [id, exp] of [[0, 1], [1, 2], [2, 1], [3, 1]]) if (rich('__m', id) !== exp) failures.push('rijkste speler: voor speler ' + id + ' is dat ' + rich('__m', id) + ', verwacht ' + exp);
+run(`globalThis.__m2 = __state([['A♠', 'K♠', 'Q♠', 'J♠', '10♠'], ['2♠'], ['9♠', '8♠', '7♠', '6♠', '5♠'], ['4♠', '3♠', '2♣', '2♦', '2♥']]);`);
+if (rich('__m2', 2) !== 3) failures.push('rijkste speler: bij gelijk aantal geldt degene die het eerst links zit (verwacht 3 voor speler 2, kreeg ' + rich('__m2', 2) + ')');
+if (rich('__m2', 3) !== 0) failures.push('rijkste speler: voor speler 3 verwacht 0 (eerst links, rond de kring), kreeg ' + rich('__m2', 3));
+if (rich('__state([[\'A♠\'], [], []])', 0) !== null) failures.push('rijkste speler: als niemand anders kaarten heeft hoort het null te zijn');
+
+// De overdracht: de bovenste kaarten, in volgorde, onderaan (of bovenop), en een uitgeschakelde ontvanger doet weer mee.
+run(`globalThis.__t = __state([['A♠', 'K♠', 'Q♠', 'J♠'], ['2♥'], []]); __t.players[2].out = true;`);
+if (run('engineTransferCards(__t, 0, 1, 2)') !== 2 || JSON.stringify(names('__t.players[1].deck')) !== JSON.stringify(['2♥', 'A♠', 'K♠']) || JSON.stringify(names('__t.players[0].deck')) !== JSON.stringify(['Q♠', 'J♠']))
+  failures.push('overdracht: de bovenste kaarten horen onderaan de stapel van de ontvanger te komen, in volgorde: ' + JSON.stringify(names('__t.players[1].deck')));
+run(`engineTransferCards(__t, 0, 1, 1, 'top');`);
+if (JSON.stringify(names('__t.players[1].deck')) !== JSON.stringify(['Q♠', '2♥', 'A♠', 'K♠'])) failures.push('overdracht naar bovenop klopt niet: ' + JSON.stringify(names('__t.players[1].deck')));
+if (run('engineTransferCards(__t, 1, 2, 0)') !== 0 || run('__t.players[2].out') !== true) failures.push('overdracht: 0 kaarten laat een uitgeschakelde speler niet terugkomen');
+if (run('engineTransferCards(__t, 1, 2, 2)') !== 2 || run('__t.players[2].out') !== false || JSON.stringify(names('__t.players[2].deck')) !== JSON.stringify(['Q♠', '2♥']))
+  failures.push('overdracht: een uitgeschakelde ontvanger hoort weer mee te doen en de kaarten te krijgen');
+if (run('engineTransferCards(__t, 0, 2, 5)') !== 1 || run('__t.players[0].deck.length') !== 0) failures.push('overdracht: meer vragen dan er is hoort alleen te geven wat er is');
+if (run('engineTransferCards(__t, 1, 1, 1)') !== 0) failures.push('overdracht: aan jezelf geven hoort niets te doen');
+if (JSON.stringify(run('__t.moved')) !== JSON.stringify({ discarded: 0, returned: 0, revived: [2], transferred: 6, transfers: [{ from: 0, to: 1, count: 2 }, { from: 0, to: 1, count: 1 }, { from: 1, to: 2, count: 2 }, { from: 0, to: 2, count: 1 }] }))
+  failures.push('overdracht: tellers kloppen niet: ' + JSON.stringify(run('__t.moved')));
+if (run('__t.players.reduce((n, p) => n + p.deck.length, 0)') !== 5) failures.push('overdracht: het totaal aantal kaarten verandert');
 
 // 2. De vingerafdruk (cycluscheck) neemt de aflegstapel mee, en is zonder afgelegde kaarten gelijk aan voorheen.
 const sigs = JSON.parse(run(`JSON.stringify((() => { const st = __state([['A♠'], ['K♠']]);
@@ -292,8 +331,19 @@ const FAKE = `[
   // Vertrouwt op de tellers van het spel: legt aan het einde van elke ronde een kaart af, maar nooit meer dan 4 in totaal.
   // Een simulatie midden in een spel moet daarom met dezelfde tellers beginnen als het spel.
   { id: 'testLimited', priority: 903, title: 't', short: 't', description: 't', default: false, examples: [], usesDiscard: true,
-    onRoundEnd(ctx){ if (ctx.state.moved.discarded >= 4) return; const act = engineActivePlayers(ctx.state); if (act.length) engineDiscardFromDeck(ctx.state, act[0].id, 1); } }
+    onRoundEnd(ctx){ if (ctx.state.moved.discarded >= 4) return; const act = engineActivePlayers(ctx.state); if (act.length) engineDiscardFromDeck(ctx.state, act[0].id, 1); } },
+  // Redden: wie geen kaarten meer heeft (uitgeschakeld of net leeg) krijgt een kaart van de linkerbuur, de rechterbuur
+  // of de speler met de meeste kaarten. Maximaal 3 keer per spel, anders eindigt een spel nooit.
+  ...['Left', 'Right', 'Rich'].map((kind, i) => ({ id: 'testRescue' + kind, priority: 903 + i, title: 't', short: 't', description: 't', default: false, examples: [],
+    onRoundEnd(ctx){
+      if (ctx.state.moved.transfers.length >= 3) return;
+      for (const p of ctx.state.players.filter(q => q.deck.length === 0)){
+        const giver = kind === 'Rich' ? engineRichestPlayer(ctx.state, p.id) : engineNeighbor(ctx.state, p.id, kind === 'Left' ? 'left' : 'right');
+        if (giver) engineTransferCards(ctx.state, giver.id, p.id, 1);
+      }
+    } }))
 ]`;
+const FAKE_IDS = ['testBattleDiscard', 'testRoundDiscard', 'testRevive', 'testLimited', 'testRescueLeft', 'testRescueRight', 'testRescueRich'];
 const withFake = fn => { run('globalThis.__fake = ' + FAKE + '; RULES.push(...__fake);'); try { return fn(); } finally { run('RULES.length -= __fake.length; delete globalThis.__fake;'); } };
 const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
   const rules = {}; for (const id of ${JSON.stringify(ids)}) rules[id] = true;
@@ -308,20 +358,25 @@ const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
     if (all.length !== 52 || new Set(all.map(c => c.rank + c.suit)).size !== 52) return JSON.stringify({ ok: false, round: r, total: all.length, uniek: new Set(all.map(c => c.rank + c.suit)).size });
     maxDiscard = Math.max(maxDiscard, st.discard.length);
   }
-  return JSON.stringify({ ok: true, maxDiscard, revives: st.moved.revived.length });
+  return JSON.stringify({ ok: true, maxDiscard, revives: st.moved.revived.length, transfers: st.moved.transfers.length });
 })()`));
 run(`globalThis.shuffleWith = seed => { rng = mulberry32(hashSeed(seed)); return shuffle(buildDeck()); };`);
-const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testBattleDiscard+testRoundDiscard': 0, 'testBattleDiscard+testRevive': 0 }, compared: 0, revives: 0, reviveGames: 0 };
+const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testBattleDiscard+testRoundDiscard': 0, 'testBattleDiscard+testRevive': 0 }, compared: 0, revives: 0, reviveGames: 0, transferGames: { testRescueLeft: 0, testRescueRight: 0, testRescueRich: 0 } };
 withFake(() => {
   let used = 0;
-  for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRoundDiscard'], ['testBattleDiscard', 'testRevive']]){
+  for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRoundDiscard'], ['testBattleDiscard', 'testRevive'], ['testRescueLeft'], ['testRescueRight'], ['testRescueRich'], ['testBattleDiscard', 'testRescueRich']]){
     for (const n of [2, 3, 4, 8]) for (const seed of ['d1', 'd2', 'd3', 'd4', 'd5']){
       const r = conserveCheck(ids, n, seed, 400);
       if (!r.ok) failures.push('aflegstapel (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + r.round + ' zijn er ' + r.total + ' kaarten (' + r.uniek + ' verschillende) in plaats van 52');
-      else { if (r.maxDiscard > 0){ used++; discardStats.used[ids.join('+')]++; } discardStats.revives += r.revives; if (r.revives > 0) discardStats.reviveGames++; }
+      else {
+        if (r.maxDiscard > 0 && discardStats.used[ids.join('+')] !== undefined){ used++; discardStats.used[ids.join('+')]++; }
+        discardStats.revives += r.revives; if (r.revives > 0) discardStats.reviveGames++;
+        if (ids.length === 1 && discardStats.transferGames[ids[0]] !== undefined && r.transfers > 0) discardStats.transferGames[ids[0]]++;
+      }
     }
   }
   if (discardStats.reviveGames < 3) failures.push('aflegstapel: de nagemaakte terugkeer-regel heeft in te weinig spellen een speler terug laten komen (' + discardStats.reviveGames + ')');
+  for (const k of Object.keys(discardStats.transferGames)) if (discardStats.transferGames[k] < 10) failures.push('overdracht: de nagemaakte regel "' + k + '" heeft in te weinig spellen kaarten overgedragen om iets te bewijzen (' + discardStats.transferGames[k] + ' van 20)');
   for (const k of Object.keys(discardStats.used)) if (discardStats.used[k] < 10) failures.push('aflegstapel: de nagemaakte regel "' + k + '" heeft in te weinig spellen kaarten afgelegd om iets te bewijzen (' + discardStats.used[k] + ' van 20)');
 
   // Een regel zonder decide wordt overgeslagen bij het bepalen van de winnaar.
@@ -355,23 +410,42 @@ withFake(() => {
   const notes = JSON.parse(run(`JSON.stringify([revivedNote([]), revivedNote([{ name: 'Anna' }]), revivedNote([{ name: 'Anna' }, { name: 'Bram' }])])`));
   if (JSON.stringify(notes) !== JSON.stringify(['', 'Anna doet weer mee.', 'Anna en Bram doen weer mee.'])) failures.push('melding bij terugkomen klopt niet: ' + JSON.stringify(notes));
 
+  // 4c. Overdracht: de gebeurtenis meldt wie wat aan wie gaf, een regel aan het einde van de ronde kan redden
+  // (ook een speler die net zijn laatste kaart speelde) en het einde van het spel voorkomen, en de meldingen kloppen.
+  const evGive = JSON.parse(run(`(() => { const st = __state([['A♠', 'K♠'], [], ['Q♠'], []]); st.players[3].out = true; st.rules = Object.assign({}, st.rules, { testRescueLeft: true });
+    const end = engineEndRound(st);
+    return JSON.stringify({ transfers: end.transfers.map(t => [t.from.id, t.to.id, t.count]), revived: end.revived.map(p => p.id), out: st.players.map(p => p.out), decks: st.players.map(p => p.deck.length) }); })()`));
+  if (JSON.stringify(evGive) !== JSON.stringify({ transfers: [[2, 1, 1], [0, 3, 1]], revived: [3], out: [false, false, true, false], decks: [1, 1, 0, 1] }))
+    failures.push('einde ronde met overdracht klopt niet: ' + JSON.stringify(evGive));
+  const savedGive = JSON.parse(run(`(() => { const make = rules => { const st = __state([['A♠', 'K♠'], [], []]); st.players[1].out = true; st.players[2].out = true; st.rules = Object.assign({}, st.rules, rules);
+      return engineEndRound(st).gameOver; };
+    return JSON.stringify({ zonder: make({}), met: make({ testRescueLeft: true }) }); })()`));
+  if (savedGive.zonder !== true || savedGive.met !== false) failures.push('een regel die kaarten geeft moet het einde van het spel kunnen voorkomen: ' + JSON.stringify(savedGive));
+  const tnotes = JSON.parse(run(`JSON.stringify([transferNote([]), transferNote([{ from: { name: 'Anna' }, to: { name: 'Bram' }, count: 1 }]),
+    transferNote([{ from: { name: 'Anna' }, to: { name: 'Bram' }, count: 3 }, { from: { name: 'Bram' }, to: { name: 'Cor' }, count: 1 }])])`));
+  if (JSON.stringify(tnotes) !== JSON.stringify(['', 'Anna geeft 1 kaart aan Bram.', 'Anna geeft 3 kaarten aan Bram. Bram geeft 1 kaart aan Cor.'])) failures.push('melding bij overdracht klopt niet: ' + JSON.stringify(tnotes));
+
   // 5. Simulatie, zichtbaar spel en fast-forward komen op dezelfde stand uit (stapels én aflegstapel).
   let compared = 0;
   const seedField = document.getElementById('seedInput');
   for (const n of [2, 3, 4, 8]) for (const seed of ['f1', 'f2', 'f3', 'f4', 'f5', 'f6']){
-    for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRevive']]){
+    for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRevive'], ['testRescueLeft'], ['testRescueRight'], ['testRescueRich']]){
       const id = ids.join('+');
       document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
       for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
-      for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive', 'testLimited']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
+      for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = ids.includes(fid);
       seedField.value = seed;
       run('numPlayers = ' + n + '; dealNewGame();');
       const sim = JSON.parse(run(`(() => { const r = simulateFullTrace(players, 3000, game.rules);
         return JSON.stringify({ o: r.outcome, rounds: r.rounds, decks: r.finalPlayers.map(p => p.deck.length), discard: __names(r.finalDiscard) }); })()`));
       if (sim.o !== 'win' || sim.rounds > 400) continue;
       run('numPlayers = ' + n + '; dealNewGame();');
-      const live = JSON.parse(run(`(() => { launchGame(); let i = 0, note = false; while (phase !== 'game-over' && phase !== 'cycle-over' && i < 20000){ advance(); i++; if (/weer mee/.test(document.getElementById('dispatch').textContent)) note = true; }
-        return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard), revives: game.moved.revived.length, note }); })()`));
+      const live = JSON.parse(run(`(() => { launchGame(); let i = 0, note = false, give = false; while (phase !== 'game-over' && phase !== 'cycle-over' && i < 20000){ advance(); i++;
+          const t = document.getElementById('dispatch').textContent; if (/weer mee/.test(t)) note = true; if (/ geeft \\d+ kaart/.test(t)) give = true; }
+        return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard), revives: game.moved.revived.length, transfers: game.moved.transfers.length, note, give }); })()`));
+      discardStats.liveTransfers = (discardStats.liveTransfers || 0) + (ids[0].startsWith('testRescue') ? live.transfers : 0);
+      if (ids[0].startsWith('testRescue') && live.transfers > 0 && !live.give) failures.push('overdracht: er werden kaarten gegeven maar het spel meldde dat niet (' + id + ', ' + n + ' spelers, seed ' + seed + ')');
+      if (ids[0].startsWith('testRescue') && live.revives > 0 && !live.note) failures.push('overdracht: een speler kwam terug maar het spel meldde dat niet (' + id + ', ' + n + ' spelers, seed ' + seed + ')');
       if (ids.includes('testRevive') && live.revives > 0 && !live.note) failures.push('aflegstapel: een speler kwam terug maar het spel meldde dat niet (' + n + ' spelers, seed ' + seed + ')');
       discardStats.liveRevives = (discardStats.liveRevives || 0) + (ids.includes('testRevive') ? live.revives : 0);
       run('numPlayers = ' + n + '; dealNewGame();');
@@ -390,10 +464,10 @@ withFake(() => {
   run('globalThis.__orig = { renderGrid, showStamp, setDispatch }; renderGrid = () => {}; showStamp = () => {}; setDispatch = () => {};');
   let midGame = 0;
   // Met de terugkeer-regel duren spellen met 8 spelers erg lang; daar zijn 3 en 4 spelers genoeg voor.
-  for (const ids of [['testBattleDiscard'], ['testBattleDiscard', 'testRevive'], ['testLimited']]) for (const n of (ids.length > 1 || ids[0] === 'testLimited' ? [3, 4] : [3, 4, 8])) for (const seed of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']){
+  for (const ids of [['testBattleDiscard'], ['testBattleDiscard', 'testRevive'], ['testLimited'], ['testBattleDiscard', 'testRescueLeft']]) for (const n of (ids.length > 1 || ids[0] === 'testLimited' ? [3, 4] : [3, 4, 8])) for (const seed of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']){
     document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
     for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
-    for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive', 'testLimited']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
+    for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = ids.includes(fid);
     seedField.value = seed;
     const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.discard.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, discard: game.discard.length }); })()'));
     if (snap.phase !== 'round-over') continue;
@@ -411,6 +485,7 @@ withFake(() => {
   run('renderGrid = __orig.renderGrid; showStamp = __orig.showStamp; setDispatch = __orig.setDispatch;');
 
   if ((discardStats.liveRevives || 0) < 3) failures.push('aflegstapel: in de vergeleken spellen kwam te weinig een speler terug om simulatie, zichtbaar spel en fast-forward daarop te vergelijken (' + (discardStats.liveRevives || 0) + ')');
+  if ((discardStats.liveTransfers || 0) < 10) failures.push('overdracht: in de vergeleken spellen werden te weinig kaarten overgedragen om simulatie, zichtbaar spel en fast-forward daarop te vergelijken (' + (discardStats.liveTransfers || 0) + ')');
   if (compared < 6) failures.push('aflegstapel: te weinig spellen eindigden om simulatie, zichtbaar spel en fast-forward te vergelijken (' + compared + ')');
 
   // 6. Het scherm: zichtbaarheid van de aflegstapel, de tekst bij de kaartentelling en het venster met de kaarten.

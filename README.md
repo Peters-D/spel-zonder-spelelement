@@ -68,7 +68,7 @@ git clone https://github.com/Peters-D/spel-zonder-spelelement.git
 
 De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het starten, het regelboek in het spel en het regel-gedeelte van deze README volgen daaruit vanzelf.
 
-1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd` en de handelingen voor de aflegstapel uit `js/engine.js`, en zet `usesDiscard: true`.
+1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd` en de handelingen voor de aflegstapel en voor kaarten tussen spelers uit `js/engine.js`, en zet `usesDiscard: true`.
 2. Draai `node tools/build-readme.js`. Dat werkt het regel-gedeelte van deze README bij. Pas dat gedeelte niet met de hand aan.
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.
