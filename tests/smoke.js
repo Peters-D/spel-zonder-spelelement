@@ -35,6 +35,7 @@ function makeEl(id){
 }
 const document = {
   getElementById(id){ return els[id] || (els[id] = makeEl(id)); },
+  documentElement: { dataset: {} },
   createElement(){ return makeEl(); },
   addEventListener(){},
   querySelectorAll(){ return []; }
@@ -138,6 +139,34 @@ for (const r of CATALOG){
   const htmlText = read('index.html');
   if (!/<html[^>]*data-theme="oorlog"/.test(htmlText)) failures.push('index.html: het <html>-element mist data-theme="oorlog"');
   if (htmlText.indexOf('css/themes.css') === -1 || htmlText.indexOf('css/themes.css') > htmlText.indexOf('css/style.css')) failures.push('index.html: css/themes.css hoort vóór css/style.css te staan');
+}
+
+// ---- themakeuze (js/theme.js) ----
+{
+  const themeIds = JSON.parse(run('JSON.stringify(THEMES.map(t => t.id))'));
+  const cssText = fs.readFileSync(path.join(root, 'css/themes.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const cssIds = [...new Set([...cssText.matchAll(/\[data-theme="([a-z]+)"\]/g)].map(m => m[1]))];
+  if (JSON.stringify([...themeIds].sort()) !== JSON.stringify([...cssIds].sort())) failures.push('thema\'s: THEMES in js/theme.js ' + JSON.stringify(themeIds) + ' komt niet overeen met css/themes.css ' + JSON.stringify(cssIds));
+  if (!themeIds.includes(run('DEFAULT_THEME'))) failures.push('thema: het standaardthema staat niet in THEMES');
+  if (new Set(themeIds).size !== themeIds.length || !themeIds.every(id => /^[a-z]+$/.test(id))) failures.push('thema: ids in THEMES moeten uniek zijn en uit kleine letters bestaan (het scriptje in de <head> controleert dat)');
+  if (run("themeButtons.some(b => b.className.split(' ').includes('count-btn'))")) failures.push('thema: een themaknop mag niet de klasse count-btn hebben (setup.js haalt daar de markering van weg)');
+  if (run('themeButtons.length') !== themeIds.length) failures.push('thema: er hoort een knop per thema te zijn');
+  const theme = () => run('document.documentElement.dataset.theme');
+  const activeButtons = () => JSON.parse(run('JSON.stringify(themeButtons.filter(b => b.classList.contains("active")).map(b => b.dataset.theme))'));
+  if (theme() !== 'oorlog' || JSON.stringify(activeButtons()) !== '["oorlog"]') failures.push('thema: zonder keuze hoort het thema oorlog te zijn, kreeg ' + theme());
+  if (run("applyTheme('sovjet')") !== 'sovjet' || theme() !== 'sovjet' || JSON.stringify(activeButtons()) !== '["sovjet"]') failures.push('thema: sovjet kiezen werkt niet');
+  if (run("applyTheme('bestaat-niet')") !== 'oorlog' || theme() !== 'oorlog') failures.push('thema: een onbekend thema hoort het standaardthema te worden');
+  // Onthouden: klikken bewaart de keuze; opslag die niet werkt geeft geen fout.
+  run(`globalThis.localStorage = { data: {}, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.data[k] = v; } };`);
+  run("themeButtons.find(b => b.dataset.theme === 'sovjet').handlers.click();");
+  if (theme() !== 'sovjet' || run('themeStored()') !== 'sovjet') failures.push('thema: klikken op een knop zet en bewaart het thema niet');
+  if (run('applyTheme(themeStored())') !== 'sovjet') failures.push('thema: een bewaarde keuze wordt niet teruggezet');
+  run(`localStorage.setItem(THEME_STORAGE_KEY, 'weg');`);
+  if (run('applyTheme(themeStored())') !== 'oorlog') failures.push('thema: een bewaard onbekend thema hoort het standaardthema te worden');
+  run(`globalThis.localStorage = { getItem(){ throw new Error('geblokkeerd'); }, setItem(){ throw new Error('geblokkeerd'); } };`);
+  try { run("themeSave('sovjet'); themeStored();"); } catch (e){ failures.push('thema: geblokkeerde opslag mag geen fout geven: ' + e.message); }
+  run('delete globalThis.localStorage; applyTheme("oorlog");');
+  if (!/id="themeGrid"/.test(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) failures.push('index.html mist het element met id themeGrid');
 }
 
 // ---- directe regeltests (findWinningPlayers en spelkern) ----

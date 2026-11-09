@@ -209,17 +209,42 @@ h1{
   box-shadow: 0 2px 0 rgba(0,0,0,0.25);
   transition: transform 0.25s ease;
 }
-.card.back{ background: repeating-linear-gradient(45deg, var(--red), var(--red) 4px, var(--red-deep) 4px, var(--red-deep) 8px); }
+.card.back{ background: var(--star) no-repeat center/22px 22px, repeating-linear-gradient(45deg, var(--red), var(--red) 4px, var(--red-deep) 4px, var(--red-deep) 8px); }
 .card.red-suit{ color: var(--red); }
 .card.flip{ animation: flipin 0.35s ease; }
 @keyframes flipin{ 0%{ transform: rotateY(90deg);} 100%{ transform: rotateY(0deg);} }
 .pcount{ font-family:'Space Mono', monospace; font-size:11px; color: var(--paper-dim); }
 
 .stamp{
-  position:absolute; border:3px solid var(--brass); color: var(--brass);
+  position:absolute; border:3px solid var(--brass); color: var(--stamp-text); background: var(--stamp-bg);
   font-family:'Special Elite', monospace; font-size:13px; letter-spacing:0.08em;
   padding:4px 10px; border-radius:4px; transform: rotate(-8deg) scale(0); opacity:0;
   text-transform:uppercase; pointer-events:none; top:6px; left:50%; margin-left:-70px;
+}
+
+.theme-switch{ display:flex; justify-content:flex-end; gap:6px; margin-bottom:12px; }
+.theme-btn{
+  background: transparent; border:1px solid var(--line); color: var(--paper-dim);
+  border-radius:999px; padding:5px 13px;
+  font-family:'Inter', sans-serif; font-size:12px; cursor:pointer;
+  transition: all 0.15s ease;
+}
+.theme-btn:hover{ color: var(--paper); border-color: var(--paper-dim); }
+.theme-btn.active{ background: var(--brass); color: var(--ink); border-color: var(--brass); font-weight:600; }
+
+/* Versiering uit het thema (zie css/themes.css). Met --deco: none bestaan deze elementen niet, dus verandert er niets. */
+body::before{
+  content: var(--deco); position:fixed; top:-40px; right:-50px; width:260px; height:260px; z-index:-1;
+  background: var(--star-gold) no-repeat center/contain; opacity:0.07; pointer-events:none;
+}
+header{ position:relative; padding-left: var(--header-indent); }
+header::before{
+  content: var(--deco); position:absolute; left:0; top:4px; width:48px; height:48px;
+  background: var(--star) no-repeat center/contain;
+}
+.stamp::before{
+  content: var(--deco); display:inline-block; width: var(--stamp-star); height: var(--stamp-star); margin-right: calc(var(--stamp-star) / 2);
+  vertical-align:-2px; background: var(--star-gold) no-repeat center/contain;
 }
 
 .deck-viewer{
