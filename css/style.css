@@ -139,7 +139,7 @@ h1{
   position:absolute;
   width:26px; height:36px;
   border-radius:4px;
-  background: var(--stack-mark) no-repeat center/100% 100%, repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 3px, var(--back-b) 3px, var(--back-b) 6px);
+  background: var(--stack-mark) no-repeat center/var(--stack-mark-size), repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 3px, var(--back-b) 3px, var(--back-b) 6px);
   border: var(--stack-border);
   box-shadow: 0 2px 0 rgba(0,0,0,0.2);
 }
