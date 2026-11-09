@@ -5,7 +5,7 @@
 const THEMES = [
   { id: 'oorlog', name: 'Oorlog', icon: '\u{1FA96}' },        // 🪖
   { id: 'sovjet', name: 'Sovjet', icon: '\u{1F6E0}\uFE0F' },   // 🛠️
-  { id: 'sport', name: 'Sport', icon: '\u{1F45F}' }           // 👟
+  { id: 'adidas', name: 'Adidas', icon: '\u{1F45F}' }        // 👟
 ];
 const DEFAULT_THEME = 'oorlog';
 const THEME_STORAGE_KEY = 'spelzonderspelelement.thema'; // dezelfde sleutel staat in het scriptje in de <head> van index.html
