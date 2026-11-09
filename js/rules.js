@@ -102,6 +102,34 @@ const RULES = [
     onAward(ctx){
       if (ctx.state.battleLevel > 0) engineDiscardPot(ctx.state);
     }
+  },
+  {
+    id: 'secondChance',
+    priority: 40,
+    title: 'Tweede kans',
+    short: 'Wie zonder kaarten valt, krijgt de bovenste kaart van de linkerbuur (zolang minstens 3 spelers kaarten hebben)',
+    description: 'Heeft een speler aan het einde van een ronde geen kaarten meer, dan krijgt die speler de bovenste kaart van de speler links van hem ' +
+      '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dit gebeurt alleen zolang er op dat moment nog minstens 3 spelers kaarten hebben; ' +
+      'zijn het er minder, dan komt niemand terug en eindigt het spel gewoon. Met 2 of 3 spelers doet de regel dus niets. ' +
+      'Vallen er meer spelers tegelijk af, dan gaat dat in de volgorde van de tafel; heeft de buur geen kaart meer te geven, dan krijgt die speler niets. ' +
+      'Raakt een buur zijn laatste kaart kwijt, dan valt die zelf af en komt aan het einde van een volgende ronde in aanmerking voor een kaart.',
+    default: false,
+    examples: [
+      { decks: [['K', '4'], ['3'], ['9', '5', '6'], ['2', '8']], after: [['4', 'K', '3', '9', '2'], ['5'], ['6'], ['8']], discarded: 0,
+        text: 'Speler 1 wint de ronde. Speler 2 had maar één kaart en is die kwijt, maar krijgt de bovenste kaart van speler 3 (de linkerbuur) en doet de volgende ronde weer mee.' },
+      { decks: [['K', '4'], ['3'], ['5'], ['9', '6', '7', '4'], ['2', '8']], after: [['4', 'K', '3', '5', '9', '2'], ['6'], ['7'], ['4'], ['8']], discarded: 0,
+        text: 'Speler 2 en 3 vallen tegelijk af. Voor allebei is speler 4 de eerste buur met kaarten: speler 2 krijgt de bovenste kaart van speler 4, speler 3 de volgende.' },
+      { decks: [['K', '4'], ['3'], ['9', '5']], after: [['4', 'K', '3', '9'], [], ['5']], discarded: 0,
+        text: 'Nog maar 2 spelers houden kaarten over, dus speler 2 komt niet terug.' }
+    ],
+    onRoundEnd(ctx){
+      const state = ctx.state;
+      if (state.players.filter(p => p.deck.length > 0).length < 3) return;
+      const dead = state.players.filter(p => p.deck.length === 0);
+      // De gevers worden bepaald vóór er kaarten verschuiven, zodat een speler die net een kaart kreeg niet meteen weer geeft.
+      const givers = dead.map(p => engineNeighbor(state, p.id, 'left'));
+      dead.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, 1); });
+    }
   }
 ];
 
