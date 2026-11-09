@@ -88,7 +88,7 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.
 
-De test verdeelt zichzelf over de processorkernen (ten hoogste 4) en duurt dan ongeveer 25 seconden. Met `--serial` draait hij in één proces (ongeveer een minuut), handig om te zoeken waar iets misgaat. De test zelf staat in `tests/smoke-run.js`.
+De test verdeelt zichzelf over de processorkernen (ten hoogste 4) en duurt dan op een computer met 4 kernen ongeveer 25 seconden (op GitHub kan dat anders uitvallen). Met `--serial` draait hij in één proces (ongeveer een minuut), handig om te zoeken waar iets misgaat. De test zelf staat in `tests/smoke-run.js`.
 
 ## Thema's
 
