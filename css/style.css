@@ -411,6 +411,7 @@ header::before{
   background: color-mix(in srgb, var(--brass) 15%, transparent); color: var(--brass); border:1px solid var(--brass);
 }
 
+.end-banner-sub{ font-family:Inter; font-size:13px; }
 .end-banner.end-banner-warning{
   background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); border-color: var(--red);
 }

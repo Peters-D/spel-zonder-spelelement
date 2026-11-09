@@ -38,6 +38,7 @@ const document = {
   getElementById(id){ return els[id] || (els[id] = makeEl(id)); },
   documentElement: { dataset: {} },
   createElement(){ return makeEl(); },
+  createTextNode(t){ return { textContent: String(t), nodeType: 3 }; },
   addEventListener(){},
   querySelectorAll(){ return []; }
 };
@@ -142,6 +143,33 @@ for (const r of CATALOG){
   const htmlText = read('index.html');
   if (!/<html[^>]*data-theme="oorlog"/.test(htmlText)) failures.push('index.html: het <html>-element mist data-theme="oorlog"');
   if (htmlText.indexOf('css/themes.css') === -1 || htmlText.indexOf('css/themes.css') > htmlText.indexOf('css/style.css')) failures.push('index.html: css/themes.css hoort vóór css/style.css te staan');
+}
+
+// ---- namen en andere tekst nooit als HTML lezen ----
+{
+  // Geen enkele plek in de code zet nog tekst als HTML in de pagina: alleen wissen (innerHTML = '') mag.
+  const bad = [];
+  for (const f of scripts){
+    if (!f.endsWith('.js')) continue;
+    const text = fs.readFileSync(path.join(root, f), 'utf8');
+    for (const m of text.matchAll(/\.(?:inner|outer)HTML\s*\+?=\s*([^;\n]*)/g)) if (m[1].trim() !== "''") bad.push(f + ': ' + m[0].slice(0, 60));
+    if (/insertAdjacentHTML|document\.write\s*\(/.test(text)) bad.push(f + ': insertAdjacentHTML of document.write');
+  }
+  if (bad.length) failures.push('tekst wordt als HTML in de pagina gezet (gebruik textContent of createTextNode, zodat een naam met HTML niets kan uitvoeren): ' + JSON.stringify(bad));
+  const textIn = node => { let t = ''; const walkNode = n => { if (n.textContent) t += n.textContent + '\n'; (n.children || []).forEach(walkNode); }; walkNode(node); return t; };
+  // Een naam met HTML erin verschijnt als gewone tekst in de eindbanner en de statistieken.
+  const evil = '<img src=x onerror=1>';
+  const banner = document.getElementById('endBanner');
+  run('endGame({ name: ' + JSON.stringify(evil) + ' });');
+  if (banner.innerHTML !== '' || !textIn(banner).includes(evil.toUpperCase())) failures.push('een naam met HTML in de eindbanner wordt als HTML gelezen of ontbreekt: ' + JSON.stringify(banner.innerHTML) + ' / ' + JSON.stringify(textIn(banner)));
+  run('players = [{ id: 0, name: ' + JSON.stringify(evil) + ', deck: [] }, { id: 1, name: "Bram", deck: [] }]; renderStatsLegend(); renderStatsSummary();');
+  for (const id of ['statsLegend', 'statsSummary']){
+    const el = document.getElementById(id);
+    if (el.innerHTML !== '' || !textIn(el).includes(evil)) failures.push('een naam met HTML in de statistieken (' + id + ') wordt als HTML gelezen of ontbreekt: ' + JSON.stringify(el.innerHTML) + ' / ' + JSON.stringify(textIn(el)));
+  }
+  const sumText = textIn(document.getElementById('statsSummary'));
+  if (!/Totaal battles:/.test(sumText) || !/Bram: /.test(sumText)) failures.push('de samenvatting van de statistieken toont niet alle regels: ' + JSON.stringify(sumText));
+  run('players = [];');
 }
 
 // ---- themakeuze (js/theme.js) ----
@@ -494,9 +522,9 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
     return JSON.stringify({ type: ev.type, how: ev.how, discarded: ev.discarded, gameOver: end.gameOver, winner: end.winner }); })()`));
   if (draw.type !== 'win' || draw.discarded !== 3 || draw.gameOver !== true || draw.winner !== null) failures.push('battleDiscard: gelijkspel klopt niet: ' + JSON.stringify(draw));
   run('endGame(null);');
-  if (!/GELIJKSPEL/.test(document.getElementById('endBanner').innerHTML)) failures.push('einde van het spel zonder winnaar toont geen gelijkspel');
+  if (!/GELIJKSPEL/.test(textOf(document.getElementById('endBanner')))) failures.push('einde van het spel zonder winnaar toont geen gelijkspel');
   run('endGame({ name: "Anna" });');
-  if (!/ANNA WINT/.test(document.getElementById('endBanner').innerHTML)) failures.push('einde van het spel met winnaar toont de winnaar niet');
+  if (!/ANNA WINT/.test(textOf(document.getElementById('endBanner')))) failures.push('einde van het spel met winnaar toont de winnaar niet');
 }
 // De echte regel "Tweede kans": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 3 spelers kaarten hebben.
 {
