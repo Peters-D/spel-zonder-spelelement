@@ -7,6 +7,7 @@
 }
 .stats-toggle-btn:hover{ color: var(--paper); border-color: var(--paper-dim); }
 .stats-panel{
+  position:relative;
   background: var(--olive);
   border:1px solid var(--line);
   border-radius:14px;
@@ -14,6 +15,15 @@
   margin-bottom:10px;
 }
 .stats-panel.hidden{ display:none; }
+/* Het embleem van het thema, subtiel (zie css/themes.css). Met --deco: none bestaan deze elementen niet. */
+.stats-panel::after{
+  content: var(--deco); position:absolute; right:12px; bottom:12px; width:64px; height:64px; opacity:0.07; pointer-events:none;
+  background: var(--mark-flat) no-repeat center/contain;
+}
+.stats-heading::before{
+  content: var(--deco); display:inline-block; width:12px; height:12px; margin-right:8px; vertical-align:-1px; opacity:0.8;
+  background: var(--mark-flat) no-repeat center/contain;
+}
 .stats-heading{
   font-family:'Special Elite', monospace;
   font-size:11px; letter-spacing:0.1em; text-transform:uppercase;

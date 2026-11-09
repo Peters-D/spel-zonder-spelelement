@@ -26,7 +26,8 @@
  *   --chart-1 … --chart-8   kleuren van de spelers in de grafiek en de samenvatting
  *   --deco           none of "": met "" bestaan de versieringen hieronder, met none bestaat er niets (dan verandert er niets aan de pagina)
  *   --mark           het embleem van het thema (url(...) of none): bij de titel
- *   --mark-flat      dat embleem in één kleur (url(...) of none): vage achtergrond en in het stempel
+ *   --mark-flat      dat embleem in één kleur (url(...) of none): vage achtergrond, in het stempel en bij de statistieken
+ *   --mark-on-paper  het embleem voor op lichte vlakken (url(...) of none): in het regelboek
  *   --header-indent  ruimte links van de titel voor het embleem (0px zonder embleem)
  *   --stamp-bg       achtergrond van het stempel bij een gewonnen ronde
  *   --stamp-text     tekstkleur van dat stempel
@@ -63,13 +64,14 @@
   --chart-6: #8ac9c2;
   --chart-7: #c9895a;
   --chart-8: #9a9a9a;
-  --deco: none;
-  --mark: none;
-  --mark-flat: none;
-  --header-indent: 0px;
+  --deco: "";
+  --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23c9a227' stroke='%23c9a227' stroke-width='2' stroke-linejoin='round'%3E%3Cpolygon points='10,6 50,28 90,6 90,20 50,42 10,20'/%3E%3Cpolygon points='10,34 50,56 90,34 90,48 50,70 10,48'/%3E%3Cpolygon points='10,62 50,84 90,62 90,76 50,98 10,76'/%3E%3C/svg%3E");
+  --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23c9a227' stroke='%23c9a227' stroke-width='2' stroke-linejoin='round'%3E%3Cpolygon points='10,6 50,28 90,6 90,20 50,42 10,20'/%3E%3Cpolygon points='10,34 50,56 90,34 90,48 50,70 10,48'/%3E%3Cpolygon points='10,62 50,84 90,62 90,76 50,98 10,76'/%3E%3C/svg%3E");
+  --mark-on-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%232b3428' stroke='%232b3428' stroke-width='2' stroke-linejoin='round'%3E%3Cpolygon points='10,6 50,28 90,6 90,20 50,42 10,20'/%3E%3Cpolygon points='10,34 50,56 90,34 90,48 50,70 10,48'/%3E%3Cpolygon points='10,62 50,84 90,62 90,76 50,98 10,76'/%3E%3C/svg%3E");
+  --header-indent: 62px;
   --stamp-bg: transparent;
   --stamp-text: var(--brass);
-  --stamp-mark: 0px;
+  --stamp-mark: 14px;
   --back-a: var(--red);
   --back-b: var(--red-deep);
   --back-mark: none;
@@ -108,6 +110,7 @@
   --deco: "";
   --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23e02a20' stroke='%23f6c630' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E");
   --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23f6c630'/%3E%3C/svg%3E");
+  --mark-on-paper: var(--mark);
   --header-indent: 62px;
   --stamp-bg: var(--red);
   --stamp-text: var(--paper);
@@ -121,8 +124,8 @@
   --stack-border: 1px solid rgba(0,0,0,0.3);
 }
 
-/* Sport: zwart en wit met drie schuine strepen. */
-[data-theme="sport"]{
+/* Semechki: zwart en wit met drie schuine strepen. */
+[data-theme="semechki"]{
   --olive: #1b1b1b;
   --olive-dark: #0b0b0b;
   --paper: #f5f5f5;
@@ -150,6 +153,7 @@
   --deco: "";
   --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23ffffff'%3E%3Cpolygon points='2,100 18,100 42,0 26,0'/%3E%3Cpolygon points='30,100 46,100 70,0 54,0'/%3E%3Cpolygon points='58,100 74,100 98,0 82,0'/%3E%3C/svg%3E");
   --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23ffffff'%3E%3Cpolygon points='2,100 18,100 42,0 26,0'/%3E%3Cpolygon points='30,100 46,100 70,0 54,0'/%3E%3Cpolygon points='58,100 74,100 98,0 82,0'/%3E%3C/svg%3E");
+  --mark-on-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%230b0b0b'%3E%3Cpolygon points='2,100 18,100 42,0 26,0'/%3E%3Cpolygon points='30,100 46,100 70,0 54,0'/%3E%3Cpolygon points='58,100 74,100 98,0 82,0'/%3E%3C/svg%3E");
   --header-indent: 62px;
   --stamp-bg: #0b0b0b;
   --stamp-text: #ffffff;
