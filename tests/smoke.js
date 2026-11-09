@@ -569,6 +569,10 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   // Met "Gelijke kaarten gaan voor" battlen de zevens, dus ook dan geen Heer die wint.
   r = play([['K', '4'], ['Q', '7'], ['7', '5', '6'], ['7', '8', '3']], { battleFirst: true });
   if (r.shared.length !== 0) failures.push('Koninklijk gezin: met Gelijke kaarten gaan voor wint een zeven en wordt er niet gedeeld: ' + JSON.stringify(r));
+  // Zeldzaam: in een battle hebben alle spelers geen kaart meer, dus niemand wint. De pot gaat dan naar de eerste speler die nog meedoet,
+  // ook als die met een Heer begon en er een Vrouw ligt: er is geen winnende Heer, dus er wordt niet gedeeld.
+  r = play([['K', '4'], ['Q', '7'], ['7'], ['7']], { battleFirst: true });
+  if (!same(r.after, [['4', 'K', 'Q', '7', '7'], ['7'], [], []])) failures.push('Koninklijk gezin: als niemand een battle wint, wordt de pot niet gedeeld: ' + JSON.stringify(r));
   // Twee Vrouwen en een Heer die direct wint (zonder battle): de Heer en beide Vrouwen delen de pot van drie, elk één kaart.
   r = play([['Q', '9', '2'], ['Q', '5', '3'], ['K', '6', '4']]);
   if (!same(r.shared, [2, 0, 1]) || !same(r.after, [['9', '2', 'Q'], ['5', '3', 'Q'], ['6', '4', 'K']])) failures.push('Koninklijk gezin: een Heer met twee Vrouwen klopt niet: ' + JSON.stringify(r));
