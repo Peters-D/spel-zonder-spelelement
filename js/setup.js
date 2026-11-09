@@ -82,7 +82,7 @@ function launchGame(){
   document.getElementById('endBanner').innerHTML = '';
   document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
   visitedStates = new Set();
-  visitedStates.add(stateSignature(players));
+  visitedStates.add(stateSignature(players, game.discard));
   phase = 'idle';
   displayPot = 0; // pot-teller van een vorig spel niet meenemen
   updateButtonLabel();

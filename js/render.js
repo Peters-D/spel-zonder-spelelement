@@ -44,20 +44,23 @@ function renderGrid(faceDown, warFlags){
     grid.appendChild(slot);
   });
   updatePotPile();
+  updateDiscardPile();
   updateIntegrity();
 }
 
-function showDeckViewer(p){
-  document.getElementById('deckViewerTitle').textContent = p.name + ' — stapel (' + p.deck.length + ')';
+// Venster met een lijst kaarten, bovenste kaart eerst (stapel van een speler of de aflegstapel).
+function showCardList(title, subtitle, cards, emptyText){
+  document.getElementById('deckViewerTitle').textContent = title;
+  document.getElementById('deckViewerSub').textContent = subtitle;
   const listEl = document.getElementById('deckViewerList');
   listEl.innerHTML = '';
-  if (p.deck.length === 0){
+  if (cards.length === 0){
     const empty = document.createElement('div');
     empty.className = 'deck-viewer-empty';
-    empty.textContent = 'Geen kaarten meer.';
+    empty.textContent = emptyText;
     listEl.appendChild(empty);
   } else {
-    p.deck.forEach(c => {
+    cards.forEach(c => {
       const cd = document.createElement('div');
       cd.className = 'deck-viewer-card' + (isRed(c) ? ' red-suit' : '');
       cd.textContent = c.rank + c.suit;
@@ -67,10 +70,20 @@ function showDeckViewer(p){
   document.getElementById('deckViewer').classList.add('show');
 }
 
+function showDeckViewer(p){
+  showCardList(p.name + ' — stapel (' + p.deck.length + ')', 'Bovenste kaart eerst', p.deck, 'Geen kaarten meer.');
+}
+
+// De aflegstapel ligt gesloten, maar op volgorde: hier zie je de kaarten.
+function showDiscardViewer(){
+  showCardList('Aflegstapel (' + game.discard.length + ')', 'Ligt gesloten, op volgorde. Bovenste kaart eerst.', game.discard, 'De aflegstapel is leeg.');
+}
+
 function hideDeckViewer(){
   document.getElementById('deckViewer').classList.remove('show');
 }
 document.getElementById('deckViewerClose').addEventListener('click', hideDeckViewer);
+document.getElementById('discardPile').addEventListener('click', showDiscardViewer);
 document.getElementById('deckViewer').addEventListener('click', (e) => {
   if (e.target.id === 'deckViewer') hideDeckViewer();
 });
@@ -79,15 +92,25 @@ function updateIntegrity(){
   const line = document.getElementById('integrityLine');
   const totalEl = document.getElementById('totalCount');
   const statusEl = document.getElementById('integrityStatus');
-  const total = players.reduce((sum, p) => sum + p.deck.length, 0) + game.pot.length;
-  totalEl.textContent = total;
-  if (total === 52){
+  // "In het spel" zijn de stapels en de pot; afgelegde kaarten staan er apart bij. Samen moeten het er 52 zijn.
+  const inGame = players.reduce((sum, p) => sum + p.deck.length, 0) + game.pot.length;
+  const away = game.discard.length;
+  totalEl.textContent = inGame;
+  document.getElementById('discardNote').textContent = away > 0 ? ' (afgelegd: ' + away + ')' : '';
+  if (inGame + away === 52){
     statusEl.textContent = '✓ klopt';
     line.classList.remove('mismatch');
   } else {
     statusEl.textContent = '⚠ klopt niet (verwacht 52)';
     line.classList.add('mismatch');
   }
+}
+
+// De aflegstapel is alleen zichtbaar als een actieve regel hem gebruikt of er kaarten op liggen.
+function updateDiscardPile(){
+  const used = game.discard.length > 0 || RULES.some(r => r.usesDiscard && game.rules[r.id]);
+  document.getElementById('discardPile').classList.toggle('hidden', !used);
+  document.getElementById('discardCount').textContent = game.discard.length;
 }
 
 function updatePotPile(){

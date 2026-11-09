@@ -4,10 +4,12 @@
 // eindigt, als om in één klap naar de winnaar te springen.
 // De simulatie gebruikt dezelfde spelkern (engine.js) als het zichtbare spel.
 
-function stateSignature(playerList){
-  return playerList.map(p =>
+// De aflegstapel (met zijn volgorde) hoort bij de stand; zonder afgelegde kaarten is de tekst gelijk aan voorheen.
+function stateSignature(playerList, discard){
+  const sig = playerList.map(p =>
     p.id + ':' + (p.out ? 'UIT' : p.deck.map(c => c.rank + c.suit).join(','))
   ).join('|');
+  return discard && discard.length ? sig + '|AFGELEGD:' + discard.map(c => c.rank + c.suit).join(',') : sig;
 }
 
 const SIM_ROUND_CAP = 3000;
@@ -15,19 +17,21 @@ const SIM_ROUND_CAP = 3000;
 // Simuleert vanaf een gegeven spelerstand tot een winnaar, een cyclus, of de rondelimiet.
 // trace bevat per gebeurtenis een 'battle'-entry (voor statsRecordBattle) en/of een
 // 'win'-entry (voor statsRecordRoundWin), in de exacte volgorde zoals live zou gebeuren.
-function simulateFullTrace(startPlayers, capRounds, rules){
+// startDiscard: de aflegstapel waarmee de simulatie begint (bij fast-forward midden in een spel ligt er al iets op).
+function simulateFullTrace(startPlayers, capRounds, rules, startDiscard){
   const state = createGameState(startPlayers, rules);
+  if (startDiscard) state.discard = startDiscard.slice();
   const seen = new Set();
   let rounds = 0;
   const trace = [];
   while (rounds < capRounds){
     const active = engineActivePlayers(state);
     if (active.length <= 1){
-      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, rounds, trace, finalPlayers: state.players };
+      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, rounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
     }
-    const sig = stateSignature(state.players);
+    const sig = stateSignature(state.players, state.discard);
     if (seen.has(sig)){
-      return { outcome: 'cycle', rounds, trace, finalPlayers: state.players };
+      return { outcome: 'cycle', rounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
     }
     seen.add(sig);
     const result = enginePlayRound(state);
@@ -41,7 +45,7 @@ function simulateFullTrace(startPlayers, capRounds, rules){
       trace.push({ type: 'win', winnerId: result.winner.id, counts });
     }
   }
-  return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players };
+  return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
 }
 
 function simulateOutcome(dealtPlayers, rules){
@@ -53,7 +57,7 @@ function simulateOutcome(dealtPlayers, rules){
 let visitedStates = new Set();
 
 function checkLiveCycle(){
-  const sig = stateSignature(players);
+  const sig = stateSignature(players, game.discard);
   if (visitedStates.has(sig)) return true;
   visitedStates.add(sig);
   return false;

@@ -24,7 +24,8 @@ function makeEl(id){
   return {
     id, value: '', checked: false, textContent: '', innerHTML: '', innerText: '', disabled: false,
     style: {}, dataset: {}, className: '', children: [],
-    classList: { add(){}, remove(){}, toggle(){}, contains(){ return false; } },
+    classList: (() => { const set = new Set(); return { add(c){ set.add(c); }, remove(c){ set.delete(c); },
+      toggle(c, force){ const on = force === undefined ? !set.has(c) : !!force; if (on) set.add(c); else set.delete(c); return on; }, contains(c){ return set.has(c); } }; })(),
     addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){}, setAttribute(){},
     querySelectorAll(){ return this.children; },
     getContext(){ return new Proxy({}, { get: () => () => {}, set: () => true }); },
@@ -71,7 +72,8 @@ function playLive(){
 // de regels die aan staan, in catalogusvolgorde, gescheiden door '+'.
 const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
   id: r.id, priority: r.priority, title: r.title, short: r.short, description: r.description,
-  default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function' })))`));
+  default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function',
+  hasHook: typeof r.onAward === 'function' || typeof r.onRoundEnd === 'function', usesDiscard: r.usesDiscard })))`));
 const BASE = JSON.parse(run('JSON.stringify(BASE_RULES)'));
 const RULE_IDS = CATALOG.map(r => r.id);
 const RULE_SETS = {};
@@ -94,7 +96,8 @@ for (const r of CATALOG){
   for (const f of ['id', 'title', 'short', 'description']) if (!isText(r[f])) failures.push('catalogus ' + r.id + ': ' + f + ' ontbreekt');
   if (!Number.isFinite(r.priority)) failures.push('catalogus ' + r.id + ': priority ontbreekt');
   if (typeof r.default !== 'boolean') failures.push('catalogus ' + r.id + ': default moet true of false zijn');
-  if (!r.hasDecide) failures.push('catalogus ' + r.id + ': decide ontbreekt');
+  if (!r.hasDecide && !r.hasHook) failures.push('catalogus ' + r.id + ': een regel heeft een decide of een haak (onAward, onRoundEnd) nodig');
+  if (r.usesDiscard !== undefined && typeof r.usesDiscard !== 'boolean') failures.push('catalogus ' + r.id + ': usesDiscard moet true of false zijn');
   if (!Array.isArray(r.examples) || r.examples.length === 0) failures.push('catalogus ' + r.id + ': minstens één voorbeeld nodig (die laten zien en testen wat de regel doet)');
 }
 
@@ -185,7 +188,7 @@ if (JSON.stringify(fakeCards.map(n => n.textContent)) !== JSON.stringify(['A♥'
 if (JSON.stringify(fakeCards.map(n => n.className.split(' ').includes('red-suit'))) !== JSON.stringify([true, false, false])) failures.push('regelboek: alleen ♥ en ♦ horen rood te zijn');
 // De bouwstenen staan in index.html (knoppen op beide schermen en het venster).
 const pageHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookInner', 'rulebookBody', 'rulebookClose', 'seedLine', 'cycleNewSeedBtn']) {
+for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookInner', 'rulebookBody', 'rulebookClose', 'seedLine', 'cycleNewSeedBtn', 'discardPile', 'discardCount', 'discardNote', 'deckViewerSub']) {
   if (!pageHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id);
 }
 
@@ -222,6 +225,189 @@ else {
 // Zonder seed (willekeurig spel) staat dat ook zo in het spelscherm.
 seedField.value = ''; run('numPlayers = 4; dealNewGame(); launchGame();');
 if (run('game.seed') !== null || !/geen/.test(document.getElementById('seedLine').textContent)) failures.push('spel zonder seed: seedregel is "' + document.getElementById('seedLine').textContent + '"');
+
+// ---- aflegstapel ----
+// Er is nog geen echte regel die kaarten aflegt; daarom gebruiken deze tests nagemaakte regels, die alleen tijdens
+// deze tests in RULES staan. Ze bewijzen dat de aflegstapel klopt: kaarten gaan nooit verloren of dubbel, het spel
+// blijft herhaalbaar, en simulatie, zichtbaar spel en fast-forward komen op dezelfde stand uit.
+run(`globalThis.__card = (rank, suit) => ({ rank, suit, value: RANKS.indexOf(rank) + 2 });
+globalThis.__names = cards => cards.map(c => c.rank + c.suit);
+globalThis.__state = decks => createGameState(decks.map((d, i) => ({ id: i, name: 'S' + i, deck: d.map(x => __card(x[0], x[1])) })), {});`);
+const names = expr => JSON.parse(run('JSON.stringify(__names(' + expr + '))'));
+
+// 1. De handelingen: volgorde, tellers, terughalen naar een stapel of de pot.
+run(`globalThis.__s = __state([['A♠', 'K♠', 'Q♠'], ['2♥', '3♥'], ['9♦'], ['5♣', '6♣']]);`);
+run(`engineDiscardCards(__s, [__card('7', '♠'), __card('8', '♠'), __card('9', '♠')]);`);
+if (JSON.stringify(names('__s.discard')) !== JSON.stringify(['9♠', '8♠', '7♠'])) failures.push('aflegstapel: de laatst afgelegde kaart hoort bovenop te liggen, kreeg ' + JSON.stringify(names('__s.discard')));
+run(`engineDiscardFromDeck(__s, 0, 2);`); // A♠ en K♠ van de stapel van speler 0
+if (JSON.stringify(names('__s.discard')) !== JSON.stringify(['K♠', 'A♠', '9♠', '8♠', '7♠']) || JSON.stringify(names('__s.players[0].deck')) !== JSON.stringify(['Q♠']))
+  failures.push('aflegstapel: afleggen van de bovenste kaarten van een stapel klopt niet');
+run(`engineReturnFromDiscard(__s, 2, { player: 1, position: 'bottom' });`); // K♠, A♠ terug, onderaan
+if (JSON.stringify(names('__s.players[1].deck')) !== JSON.stringify(['2♥', '3♥', 'K♠', 'A♠']) || JSON.stringify(names('__s.discard')) !== JSON.stringify(['9♠', '8♠', '7♠']))
+  failures.push('aflegstapel: terughalen onderaan een stapel klopt niet: ' + JSON.stringify(names('__s.players[1].deck')));
+run(`engineReturnFromDiscard(__s, 2, { player: 2, position: 'top' });`); // 9♠, 8♠ terug, bovenop (9♠ bovenaan)
+if (JSON.stringify(names('__s.players[2].deck')) !== JSON.stringify(['9♠', '8♠', '9♦'])) failures.push('aflegstapel: terughalen bovenop een stapel klopt niet: ' + JSON.stringify(names('__s.players[2].deck')));
+run(`engineReturnFromDiscard(__s, 5, 'pot');`); // vraagt meer dan er ligt: alleen 7♠
+if (JSON.stringify(names('__s.pot')) !== JSON.stringify(['7♠']) || run('__s.discard.length') !== 0) failures.push('aflegstapel: terughalen naar de pot of meer vragen dan er ligt klopt niet');
+run(`engineDiscardCards(__s, [__card('4', '♦')]); __s.players[3].out = true;`);
+if (run(`engineReturnFromDiscard(__s, 1, { player: 3 })`) !== 0 || run('__s.discard.length') !== 1) failures.push('aflegstapel: een uitgeschakelde speler hoort niets terug te krijgen');
+if (JSON.stringify(run('__s.moved')) !== JSON.stringify({ discarded: 6, returned: 5 })) failures.push('aflegstapel: tellers kloppen niet: ' + JSON.stringify(run('__s.moved')));
+// Een nieuwe spelstand begint met een lege aflegstapel.
+if (run('createGameState([{ id: 0, name: "a", deck: [] }], {}).discard.length') !== 0) failures.push('aflegstapel: begint niet leeg');
+
+// 2. De vingerafdruk (cycluscheck) neemt de aflegstapel mee, en is zonder afgelegde kaarten gelijk aan voorheen.
+const sigs = JSON.parse(run(`JSON.stringify((() => { const st = __state([['A♠'], ['K♠']]);
+  const leeg = stateSignature(st.players, st.discard), zonder = stateSignature(st.players);
+  const a = stateSignature(st.players, [__card('2', '♥'), __card('3', '♥')]), b = stateSignature(st.players, [__card('3', '♥'), __card('2', '♥')]);
+  return { gelijk: leeg === zonder, andere: a !== leeg, volgorde: a !== b }; })())`));
+if (!sigs.gelijk) failures.push('vingerafdruk: met een lege aflegstapel hoort hij gelijk te zijn aan voorheen');
+if (!sigs.andere) failures.push('vingerafdruk: afgelegde kaarten horen de vingerafdruk te veranderen');
+if (!sigs.volgorde) failures.push('vingerafdruk: de volgorde van de aflegstapel hoort mee te tellen');
+
+// 3. Nagemaakte regels met haken, tijdelijk in RULES.
+const FAKE = `[
+  { id: 'testBattleDiscard', priority: 900, title: 't', short: 't', description: 't', default: false, examples: [], usesDiscard: true,
+    onAward(ctx){ if (ctx.how !== 'normal') engineDiscardPot(ctx.state); } },
+  { id: 'testRoundDiscard', priority: 901, title: 't', short: 't', description: 't', default: false, examples: [], usesDiscard: true,
+    onRoundEnd(ctx){ const act = engineActivePlayers(ctx.state); if (act.length === 0) return;
+      for (const p of act) engineDiscardFromDeck(ctx.state, p.id, 1);
+      engineReturnFromDiscard(ctx.state, 1, { player: act[0].id, position: 'bottom' }); } }
+]`;
+const withFake = fn => { run('globalThis.__fake = ' + FAKE + '; RULES.push(...__fake);'); try { return fn(); } finally { run('RULES.length -= __fake.length; delete globalThis.__fake;'); } };
+const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
+  const rules = {}; for (const id of ${JSON.stringify(ids)}) rules[id] = true;
+  const deck = shuffleWith(${JSON.stringify(seed)});
+  const dealt = []; for (let i = 0; i < ${n}; i++) dealt.push({ id: i, name: 'S' + i, deck: [] });
+  deck.forEach((c, i) => dealt[i % ${n}].deck.push(c));
+  const st = createGameState(dealt, rules); let maxDiscard = 0;
+  for (let r = 0; r < ${rounds}; r++){
+    if (engineActivePlayers(st).length <= 1) break;
+    enginePlayRound(st);
+    const all = [...st.players.flatMap(p => p.deck), ...st.pot, ...st.discard];
+    if (all.length !== 52 || new Set(all.map(c => c.rank + c.suit)).size !== 52) return JSON.stringify({ ok: false, round: r, total: all.length, uniek: new Set(all.map(c => c.rank + c.suit)).size });
+    maxDiscard = Math.max(maxDiscard, st.discard.length);
+  }
+  return JSON.stringify({ ok: true, maxDiscard });
+})()`));
+run(`globalThis.shuffleWith = seed => { rng = mulberry32(hashSeed(seed)); return shuffle(buildDeck()); };`);
+const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, both: 0 }, compared: 0 };
+withFake(() => {
+  let used = 0;
+  for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRoundDiscard']]){
+    for (const n of [2, 3, 4, 8]) for (const seed of ['d1', 'd2', 'd3', 'd4', 'd5']){
+      const r = conserveCheck(ids, n, seed, 400);
+      if (!r.ok) failures.push('aflegstapel (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + r.round + ' zijn er ' + r.total + ' kaarten (' + r.uniek + ' verschillende) in plaats van 52');
+      else if (r.maxDiscard > 0){ used++; discardStats.used[ids.length === 2 ? 'both' : ids[0]]++; }
+    }
+  }
+  for (const k of Object.keys(discardStats.used)) if (discardStats.used[k] < 10) failures.push('aflegstapel: de nagemaakte regel "' + k + '" heeft in te weinig spellen kaarten afgelegd om iets te bewijzen (' + discardStats.used[k] + ' van 20)');
+
+  // Een regel zonder decide wordt overgeslagen bij het bepalen van de winnaar.
+  const only = run(`(() => { RULES_BY_PRIORITY.push(...__fake); try { return JSON.stringify(findWinningPlayers(
+      [0, 1, 2].map(i => ({ id: i, faceCard: parseExampleCard(['A', '3', '3'][i]) })), { testBattleDiscard: true })); } finally { RULES_BY_PRIORITY.length -= __fake.length; } })()`);
+  if (only !== '[0]' && JSON.stringify(JSON.parse(only).map(p => p.id)) !== '[0]') failures.push('een regel zonder decide hoort overgeslagen te worden');
+
+  // 4. De gebeurtenis meldt wat er is afgelegd: alles na een battle gaat naar de aflegstapel, de winnaar krijgt niets.
+  const ev = JSON.parse(run(`(() => {
+    const st = __state([['A♠', '2♠', '3♠'], ['A♥', '4♥', '5♥'], ['9♦', '6♦', '7♦']]); st.rules = Object.assign({}, st.rules, { testBattleDiscard: true });
+    engineStartRound(st); let ev = engineResolve(st);                    // A♠ en A♥ zijn gelijk: battle
+    ev = engineLayBattleCards(st); if (ev.type === 'battle-revealed') ev = engineResolve(st);   // 2♠ tegen 4♥: S1 wint
+    return JSON.stringify({ type: ev.type, how: ev.how, potSize: ev.potSize, discarded: ev.discarded, toWinner: ev.toWinner,
+      winnerDeck: ev.winner.deck.length, discard: __names(st.discard).length, pot: st.pot.length }); })()`));
+  if (ev.type !== 'win' || ev.how !== 'battle' || ev.discarded !== ev.potSize || ev.toWinner !== 0 || ev.discard !== ev.potSize || ev.pot !== 0)
+    failures.push('gebeurtenis bij afleggen na een battle klopt niet: ' + JSON.stringify(ev));
+  const evNormal = JSON.parse(run(`(() => { const st = __state([['A♠'], ['2♥']]); st.rules = Object.assign({}, st.rules, { testBattleDiscard: true });
+    engineStartRound(st); const ev = engineResolve(st); return JSON.stringify({ how: ev.how, discarded: ev.discarded, toWinner: ev.toWinner, potSize: ev.potSize }); })()`));
+  if (evNormal.how !== 'normal' || evNormal.discarded !== 0 || evNormal.toWinner !== evNormal.potSize) failures.push('zonder battle hoort er niets te worden afgelegd: ' + JSON.stringify(evNormal));
+
+  // 5. Simulatie, zichtbaar spel en fast-forward komen op dezelfde stand uit (stapels én aflegstapel).
+  let compared = 0;
+  const seedField = document.getElementById('seedInput');
+  for (const n of [2, 3, 4, 8]) for (const seed of ['f1', 'f2', 'f3', 'f4', 'f5', 'f6']){
+    for (const id of ['testBattleDiscard', 'testRoundDiscard']){
+      document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+      for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
+      document.getElementById('testBattleDiscardInput').checked = id === 'testBattleDiscard';
+      document.getElementById('testRoundDiscardInput').checked = id === 'testRoundDiscard';
+      seedField.value = seed;
+      run('numPlayers = ' + n + '; dealNewGame();');
+      const sim = JSON.parse(run(`(() => { const r = simulateFullTrace(players, 3000, game.rules);
+        return JSON.stringify({ o: r.outcome, rounds: r.rounds, decks: r.finalPlayers.map(p => p.deck.length), discard: __names(r.finalDiscard) }); })()`));
+      if (sim.o !== 'win' || sim.rounds > 400) continue;
+      run('numPlayers = ' + n + '; dealNewGame();');
+      const live = JSON.parse(run(`(() => { launchGame(); let i = 0; while (phase !== 'game-over' && phase !== 'cycle-over' && i < 20000){ advance(); i++; }
+        return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
+      run('numPlayers = ' + n + '; dealNewGame();');
+      const ff = JSON.parse(run(`(() => { launchGame(); fastForward(); return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
+      compared++; discardStats.compared++;
+      const label = n + ' spelers, seed ' + seed + ', ' + id;
+      if (live.phase !== 'game-over' || JSON.stringify(live.decks) !== JSON.stringify(sim.decks) || JSON.stringify(live.discard) !== JSON.stringify(sim.discard))
+        failures.push('aflegstapel, zichtbaar spel wijkt af van simulatie (' + label + '): stapels ' + JSON.stringify(live.decks) + ' / ' + JSON.stringify(sim.decks) + ', aflegstapel ' + live.discard.length + ' / ' + sim.discard.length);
+      if (ff.phase !== 'game-over' || JSON.stringify(ff.decks) !== JSON.stringify(sim.decks) || JSON.stringify(ff.discard) !== JSON.stringify(sim.discard))
+        failures.push('aflegstapel, fast-forward wijkt af van simulatie (' + label + '): aflegstapel ' + ff.discard.length + ' / ' + sim.discard.length);
+    }
+  }
+  // 5b. Fast-forward midden in een spel: wat er al op de aflegstapel ligt moet blijven liggen (totaal 52), en de
+  // eindstand is dezelfde als wanneer je het spel zelf uitspeelt.
+  let midGame = 0;
+  for (const n of [3, 4, 8]) for (const seed of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']){
+    document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+    for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
+    document.getElementById('testBattleDiscardInput').checked = true;
+    document.getElementById('testRoundDiscardInput').checked = false;
+    seedField.value = seed;
+    const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.discard.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, discard: game.discard.length }); })()'));
+    if (snap.phase !== 'round-over') continue;
+    const ffEnd = JSON.parse(run(`(() => { const had = game.discard.length; fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+      return JSON.stringify({ had, total, phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
+    const liveEnd = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 40000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()'));
+    midGame++;
+    const label = n + ' spelers, seed ' + seed + ' (fast-forward na ' + snap.steps + ' stappen, ' + ffEnd.had + ' afgelegd)';
+    if (ffEnd.total !== 52) failures.push('fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total + ' in plaats van 52');
+    if (ffEnd.phase === 'game-over' && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks) || JSON.stringify(ffEnd.discard) !== JSON.stringify(liveEnd.discard)))
+      failures.push('fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
+  }
+  if (midGame < 6) failures.push('aflegstapel: te weinig spellen om fast-forward midden in een spel te testen (' + midGame + ')');
+  discardStats.midGame = midGame;
+
+  if (compared < 6) failures.push('aflegstapel: te weinig spellen eindigden om simulatie, zichtbaar spel en fast-forward te vergelijken (' + compared + ')');
+
+  // 6. Het scherm: zichtbaarheid van de aflegstapel, de tekst bij de kaartentelling en het venster met de kaarten.
+  const pile = document.getElementById('discardPile');
+  run(`players = __state([['A♠']]).players; game = __state([['A♠']]); game.rules = Object.assign({}, game.rules, { testBattleDiscard: true }); updateDiscardPile();`);
+  if (pile.classList.contains('hidden')) failures.push('aflegstapel hoort zichtbaar te zijn als een actieve regel hem gebruikt, ook als hij nog leeg is');
+  run(`game.rules.testBattleDiscard = false; updateDiscardPile();`);
+  if (!pile.classList.contains('hidden')) failures.push('aflegstapel hoort verborgen te zijn als geen regel hem gebruikt en hij leeg is');
+  run(`game.discard.push(__card('Q', '♥')); updateDiscardPile();`);
+  if (pile.classList.contains('hidden')) failures.push('aflegstapel hoort zichtbaar te zijn zodra er kaarten op liggen');
+});
+
+// Tekst bij de kaartentelling: zonder afgelegde kaarten gelijk aan voorheen; met afgelegde kaarten staat die er apart bij.
+seedField.value = '1000'; document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
+run('numPlayers = 4; dealNewGame(); updateIntegrity();');
+const integ = () => [document.getElementById('totalCount').textContent, document.getElementById('discardNote').textContent, document.getElementById('integrityStatus').textContent];
+if (JSON.stringify(integ()) !== JSON.stringify([52, '', '✓ klopt']) && JSON.stringify(integ()) !== JSON.stringify(['52', '', '✓ klopt'])) failures.push('kaartentelling zonder aflegstapel: ' + JSON.stringify(integ()));
+run('engineDiscardFromDeck(game, 0, 4); updateIntegrity();');
+if (JSON.stringify(integ().map(String)) !== JSON.stringify(['48', ' (afgelegd: 4)', '✓ klopt'])) failures.push('kaartentelling met 4 afgelegde kaarten: ' + JSON.stringify(integ()));
+run('game.discard.pop(); updateIntegrity();'); // een kaart verdwijnt: dat moet opvallen
+if (!/klopt niet/.test(document.getElementById('integrityStatus').textContent)) failures.push('een verdwenen kaart moet opvallen in de kaartentelling');
+
+// Het venster met de afgelegde kaarten: op volgorde, bovenste kaart eerst, met de aflegstapel-knop als ingang.
+run(`game.discard = [__card('Q', '♥'), __card('3', '♠'), __card('A', '♦')];`);
+const pileBtn = document.getElementById('discardPile');
+if (!pileBtn.handlers || !pileBtn.handlers.click) failures.push('de aflegstapel heeft geen klik-actie om de kaarten te bekijken');
+else {
+  pileBtn.handlers.click();
+  const listed = document.getElementById('deckViewerList').children.map(n => n.textContent);
+  if (JSON.stringify(listed) !== JSON.stringify(['Q♥', '3♠', 'A♦'])) failures.push('venster aflegstapel toont ' + JSON.stringify(listed) + ' in plaats van op volgorde, bovenste eerst');
+  if (document.getElementById('deckViewerTitle').textContent !== 'Aflegstapel (3)') failures.push('venster aflegstapel: titel is "' + document.getElementById('deckViewerTitle').textContent + '"');
+  if (!/gesloten/i.test(document.getElementById('deckViewerSub').textContent)) failures.push('venster aflegstapel hoort te zeggen dat de stapel gesloten ligt');
+  run('game.discard = []; showDiscardViewer();');
+  if (!/leeg/.test(document.getElementById('deckViewerList').children.map(n => n.textContent).join(''))) failures.push('venster aflegstapel: lege stapel hoort "leeg" te melden');
+}
+// De stapel van een speler toont nog steeds zoals voorheen.
+run(`showDeckViewer({ name: 'Anna', deck: [__card('K', '♣')] });`);
+if (document.getElementById('deckViewerTitle').textContent !== 'Anna — stapel (1)' || document.getElementById('deckViewerSub').textContent !== 'Bovenste kaart eerst') failures.push('venster van een spelersstapel is veranderd');
 
 // Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
 const optionLabels = document.getElementById('rulesList').children;
@@ -316,7 +502,8 @@ if (update){
 for (const k of Object.keys(expected)) if (!actual[k]) failures.push(k + ': staat in expected.json maar wordt niet meer getest');
 
 console.log(scripts.length + ' scripts geladen, ' + CATALOG.length + ' regels + ' + BASE.length + ' basisregels in het regelboek (' + exampleCount + ' voorbeelden getest), ' +
-  cases.length + ' seeds gesimuleerd, ' + liveChecked + ' spellen live uitgespeeld.');
+  cases.length + ' seeds gesimuleerd, ' + liveChecked + ' spellen live uitgespeeld, aflegstapel: ' + Object.values(discardStats.used).reduce((a, b) => a + b, 0) +
+  ' van 60 testspellen met afgelegde kaarten, ' + discardStats.compared + ' spellen vergeleken (simulatie, zichtbaar spel, fast-forward), ' + discardStats.midGame + ' keer fast-forward midden in een spel.');
 if (failures.length){
   console.error('\n' + failures.length + ' fout(en):\n' + failures.map(f => ' - ' + f).join('\n'));
   process.exit(1);

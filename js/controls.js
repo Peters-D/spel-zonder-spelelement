@@ -50,7 +50,7 @@ function fastForward(){
   if (!(phase === 'idle' || phase === 'round-over' || phase === 'cleared')) return;
   stopAutoPlay();
 
-  const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules);
+  const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, game.discard);
 
   // Speel de volledige trace na in de statistieken, ronde voor ronde.
   result.trace.forEach(entry => {
@@ -68,6 +68,7 @@ function fastForward(){
     players[i].faceCard = null;
   });
   game.pot = [];
+  game.discard = result.finalDiscard;
   displayPot = 0;
 
   if (result.outcome === 'win'){
