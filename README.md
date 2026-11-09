@@ -79,13 +79,13 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 
 ## Thema's
 
-Het spel heeft twee thema's: **Oorlog** (groen met goud, standaard) en **Sovjet** (rood met goud en de rode ster). Rechtsboven staan knoppen om te kiezen (altijd zichtbaar, ook tijdens het spel); de keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
+Het spel heeft twee thema's: **Oorlog** (groen met goud, standaard) en **Sovjet** (rood met goud en de rode ster). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
 
 Alle kleuren en versieringen staan in `css/themes.css`, als variabelen per thema (uitleg bovenaan dat bestand). De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element.
 
 Een nieuw thema toevoegen:
 1. Voeg in `css/themes.css` een blok `[data-theme="naam"]` toe met dezelfde variabelen als de andere thema's.
-2. Voeg het thema toe aan `THEMES` in `js/theme.js`, dan komt er een knop voor.
+2. Voeg het thema toe aan `THEMES` in `js/theme.js` (id, naam en icoon), dan komt het in het menu.
 3. Draai `node tests/smoke.js`. De test controleert dat een thema geen variabele vergeet, dat er buiten `themes.css` geen vaste kleuren staan en dat `THEMES` en de CSS overeenkomen.
 
 ## Online spelen
