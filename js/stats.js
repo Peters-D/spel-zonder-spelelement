@@ -82,27 +82,48 @@ function renderStatsChart(){
   });
 }
 
+// Namen van spelers gaan als gewone tekst in de pagina (nooit als HTML), zodat een naam met HTML erin niets kan uitvoeren.
 function renderStatsLegend(){
   const el = document.getElementById('statsLegend');
   if (!el) return;
   const colors = statsColors();
-  el.innerHTML = players.map((p, i) =>
-    '<span class="stats-legend-item"><span class="stats-dot" style="background:' + colors[i % colors.length] + '"></span>' + p.name + '</span>'
-  ).join('');
+  el.innerHTML = '';
+  players.forEach((p, i) => {
+    const item = document.createElement('span');
+    item.className = 'stats-legend-item';
+    const dot = document.createElement('span');
+    dot.className = 'stats-dot';
+    dot.style.background = colors[i % colors.length];
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(p.name));
+    el.appendChild(item);
+  });
+}
+
+// Eén regel van de samenvatting: tekst, een vetgedrukt stuk en eventueel tekst erna.
+function statsLine(el, label, boldText, rest){
+  const row = document.createElement('div');
+  row.className = 'stats-summary-item';
+  row.appendChild(document.createTextNode(label));
+  const strong = document.createElement('strong');
+  strong.textContent = boldText;
+  row.appendChild(strong);
+  if (rest) row.appendChild(document.createTextNode(rest));
+  el.appendChild(row);
 }
 
 function renderStatsSummary(){
   const el = document.getElementById('statsSummary');
   if (!el) return;
-  let html = '<div class="stats-summary-item">Totaal battles: <strong>' + statsTotalBattles + '</strong></div>';
-  html += '<div class="stats-summary-item">Langste tie-break: <strong>' + statsLongestTie + '</strong> ' + (statsLongestTie === 1 ? 'niveau' : 'niveaus') + '</div>';
-  html += '<div class="stats-summary-item">Rondes gespeeld: <strong>' + statsRoundCount + '</strong></div>';
+  el.innerHTML = '';
+  statsLine(el, 'Totaal battles: ', String(statsTotalBattles));
+  statsLine(el, 'Langste tie-break: ', String(statsLongestTie), ' ' + (statsLongestTie === 1 ? 'niveau' : 'niveaus'));
+  statsLine(el, 'Rondes gespeeld: ', String(statsRoundCount));
   players.forEach(p => {
     const wins = statsWins[p.id] || 0;
     const pct = statsRoundCount > 0 ? Math.round((wins / statsRoundCount) * 100) : 0;
-    html += '<div class="stats-summary-item">' + p.name + ': <strong>' + pct + '%</strong> (' + wins + '/' + statsRoundCount + ')</div>';
+    statsLine(el, p.name + ': ', pct + '%', ' (' + wins + '/' + statsRoundCount + ')');
   });
-  el.innerHTML = html;
 }
 
 function renderStatsPanel(){

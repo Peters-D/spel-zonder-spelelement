@@ -1,0 +1,8 @@
+# Houdt de gebruikte GitHub Actions (checkout, setup-node) bij: Dependabot opent een PR als er een nieuwe versie is.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3

@@ -142,18 +142,29 @@ function finalizeRoundOver(){
   updateButtonLabel();
 }
 
-function endGame(winner){
+// Zet een banner onder de titel. De tekst gaat als gewone tekst in de pagina (nooit als HTML), zodat een naam met HTML erin
+// niets kan uitvoeren.
+function showEndBanner(title, sub, extraClass){
   const banner = document.getElementById('endBanner');
-  if (winner){
-    banner.innerHTML = '<div class="end-banner">★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★<br><span style="font-family:Inter;font-size:13px;">Alle andere spelers hebben geen kaarten meer.</span></div>';
-  } else {
-    banner.innerHTML = '<div class="end-banner">★ GELIJKSPEL ★<br><span style="font-family:Inter;font-size:13px;">Niemand heeft nog kaarten.</span></div>';
-  }
+  banner.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'end-banner' + (extraClass ? ' ' + extraClass : '');
+  box.appendChild(document.createTextNode(title));
+  box.appendChild(document.createElement('br'));
+  const small = document.createElement('span');
+  small.className = 'end-banner-sub';
+  small.textContent = sub;
+  box.appendChild(small);
+  banner.appendChild(box);
+}
+
+function endGame(winner){
+  if (winner) showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
+  else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
 }
 
 function endCycleDetected(){
-  const banner = document.getElementById('endBanner');
-  banner.innerHTML = '<div class="end-banner end-banner-warning">⚠ CYCLUS GEDETECTEERD ★<br><span style="font-family:Inter;font-size:13px;">Deze spelstand kwam al eerder voor — het spel zou nooit eindigen. Onbeslist.</span></div>';
+  showEndBanner('⚠ CYCLUS GEDETECTEERD ★', 'Deze spelstand kwam al eerder voor — het spel zou nooit eindigen. Onbeslist.', 'end-banner-warning');
   if (typeof stopAutoPlay === 'function' && autoPlayActive) stopAutoPlay();
 }
 
