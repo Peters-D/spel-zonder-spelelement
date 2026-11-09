@@ -72,17 +72,22 @@ function compareAndResolve(){
 function showRoundResult(ev){
   displayPot = ev.potSize;
   if (ev.type !== 'win'){
+    if (ev.discarded > 0) setDispatch(ev.discarded + ' kaarten gaan naar de aflegstapel.');
     finalizeRoundOver();
     renderGrid(false);
     return;
   }
   const w = ev.winner;
+  // Zonder afgelegde kaarten zijn de teksten gelijk aan voorheen.
+  const outcome = ev.discarded === 0 ? null
+    : ev.toWinner === 0 ? w.name + ' wint, maar alle ' + ev.potSize + ' kaarten gaan naar de aflegstapel.'
+    : w.name + ' verovert ' + ev.toWinner + ' van de ' + ev.potSize + ' kaarten. De rest (' + ev.discarded + ') gaat naar de aflegstapel.';
   if (ev.how === 'last-standing'){
     showStamp('LAATSTE OVER', '#c9a227');
-    setDispatch(w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
+    setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
   } else {
     showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
-    setDispatch(w.name + ' verovert ' + displayPot + ' kaarten!');
+    setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
   finalizeRoundOver();
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.id); // STATS HOOK

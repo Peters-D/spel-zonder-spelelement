@@ -156,6 +156,22 @@ h1{
 .pot-stack div:nth-child(1){ top:4px; left:4px; transform: rotate(-6deg); }
 .pot-stack div:nth-child(2){ top:2px; left:2px; transform: rotate(3deg); }
 .pot-stack div:nth-child(3){ top:0; left:0; transform: rotate(-2deg); }
+.discard-pile{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  width:100%; background:transparent; border:none; border-bottom:1px dashed var(--line);
+  padding:0 0 12px; margin-bottom:14px; cursor:pointer;
+  font-family:'Special Elite', monospace; font-size:12px; letter-spacing:0.05em; color: var(--paper-dim);
+}
+.discard-pile:hover{ color: var(--paper); }
+.discard-stack{ position:relative; width:24px; height:30px; flex-shrink:0; }
+.discard-stack span{
+  position:absolute; width:20px; height:28px; border-radius:3px;
+  background: repeating-linear-gradient(45deg, #5d6b57, #5d6b57 3px, #46523f 3px, #46523f 6px);
+  border:1px solid rgba(0,0,0,0.3); box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+}
+.discard-stack span:nth-child(1){ top:3px; left:3px; transform: rotate(-5deg); }
+.discard-stack span:nth-child(2){ top:0; left:0; transform: rotate(3deg); }
+.discard-hint{ font-family:'Inter', sans-serif; font-size:9px; letter-spacing:0; color: rgba(237,228,208,0.3); }
 .pot-label{
   font-family:'Special Elite', monospace;
   font-size:12px;

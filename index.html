@@ -43,13 +43,19 @@
   <!-- GAME -->
   <div id="game" class="hidden">
     <div class="dispatch" id="dispatch">Klaar om te beginnen.</div>
-    <div class="integrity-line" id="integrityLine">Kaarten in het spel: <span id="totalCount">52</span> / 52 <span id="integrityStatus">✓ klopt</span></div>
+    <div class="integrity-line" id="integrityLine">Kaarten in het spel: <span id="totalCount">52</span> / 52<span id="discardNote"></span> <span id="integrityStatus">✓ klopt</span></div>
     <div class="integrity-line seed-line" id="seedLine"></div>
     <div class="battlefield" id="battlefield">
       <div class="pot-pile" id="potPile">
         <div class="pot-stack"><div></div><div></div><div></div></div>
         <div class="pot-label">Pot: <span id="potCount">0</span> kaarten</div>
       </div>
+      <!-- De aflegstapel staat alleen op het scherm als een regel hem gebruikt (usesDiscard) of er kaarten op liggen. -->
+      <button class="discard-pile hidden" id="discardPile" type="button" aria-label="Aflegstapel bekijken">
+        <span class="discard-stack"><span></span><span></span></span>
+        <span class="discard-label">Aflegstapel: <span id="discardCount">0</span> kaarten</span>
+        <span class="discard-hint">tik om te bekijken</span>
+      </button>
       <div class="player-grid" id="playerGrid"></div>
     </div>
     <div id="endBanner"></div>
@@ -81,7 +87,7 @@
   <div class="deck-viewer-inner" id="deckViewerInner">
     <button class="deck-viewer-close" id="deckViewerClose">✕</button>
     <div class="deck-viewer-title" id="deckViewerTitle">Speler</div>
-    <div class="deck-viewer-sub">Bovenste kaart eerst</div>
+    <div class="deck-viewer-sub" id="deckViewerSub">Bovenste kaart eerst</div>
     <div class="deck-viewer-list" id="deckViewerList"></div>
   </div>
 </div>

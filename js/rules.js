@@ -11,8 +11,12 @@
 //               spelers die (voorlopig) winnen of gaan battlen], text: uitleg, with: [andere regels
 //               die in dit voorbeeld ook aan staan] }. Ze worden getoond in het regelboek EN door de
 //               test uitgevoerd tegen decide(): een voorbeeld dat het spel anders speelt, laat de test falen.
-//   decide      decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
+//   decide      (optioneel) decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
+//   usesDiscard (optioneel) true als de regel kaarten aflegt of terughaalt: dan staat de aflegstapel op het scherm
+//   onAward(ctx), onRoundEnd(ctx)  (optioneel) haken voor regels die iets doen na de beslissing, bijvoorbeeld kaarten
+//               afleggen. Zie engine.js voor ctx en voor de handelingen voor de aflegstapel.
+// Een regel heeft minstens een decide of een haak nodig.
 //
 // Een nieuwe regel toevoegen = een object toevoegen aan RULES. De volgorde van RULES is de volgorde
 // van de vinkjes op het scherm.
@@ -144,7 +148,7 @@ const RULES_BY_PRIORITY = RULES.slice().sort((a, b) => a.priority - b.priority);
 // betekent gelijkspel → battle.
 function decideRound(inPlay, rules){
   for (const rule of RULES_BY_PRIORITY){
-    if (!rules[rule.id]) continue;
+    if (!rules[rule.id] || typeof rule.decide !== 'function') continue;
     const winners = rule.decide(inPlay);
     if (winners) return { winners, rule };
   }
