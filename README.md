@@ -79,7 +79,7 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 
 ## Thema's
 
-Het spel heeft drie thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster) en **Semechki** (zwart en wit met drie schuine strepen). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
+Het spel heeft drie thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster) en **Semechki** (zwart en wit, met een zonnebloempit met drie strepen als embleem). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
 
 Alle kleuren en versieringen staan in `css/themes.css`, als variabelen per thema (uitleg bovenaan dat bestand). De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element.
 
