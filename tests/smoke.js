@@ -288,7 +288,11 @@ const FAKE = `[
       for (const p of act) engineDiscardFromDeck(ctx.state, p.id, 1);
       engineReturnFromDiscard(ctx.state, 1, { player: act[0].id, position: 'bottom' }); } },
   { id: 'testRevive', priority: 902, title: 't', short: 't', description: 't', default: false, examples: [], usesDiscard: true,
-    onRoundEnd(ctx){ const out = ctx.state.players.find(p => p.out); if (out) engineReturnFromDiscard(ctx.state, 1, { player: out.id }); } }
+    onRoundEnd(ctx){ const out = ctx.state.players.find(p => p.out); if (out) engineReturnFromDiscard(ctx.state, 1, { player: out.id }); } },
+  // Vertrouwt op de tellers van het spel: legt aan het einde van elke ronde een kaart af, maar nooit meer dan 4 in totaal.
+  // Een simulatie midden in een spel moet daarom met dezelfde tellers beginnen als het spel.
+  { id: 'testLimited', priority: 903, title: 't', short: 't', description: 't', default: false, examples: [], usesDiscard: true,
+    onRoundEnd(ctx){ if (ctx.state.moved.discarded >= 4) return; const act = engineActivePlayers(ctx.state); if (act.length) engineDiscardFromDeck(ctx.state, act[0].id, 1); } }
 ]`;
 const withFake = fn => { run('globalThis.__fake = ' + FAKE + '; RULES.push(...__fake);'); try { return fn(); } finally { run('RULES.length -= __fake.length; delete globalThis.__fake;'); } };
 const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
@@ -359,7 +363,7 @@ withFake(() => {
       const id = ids.join('+');
       document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
       for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
-      for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
+      for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive', 'testLimited']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
       seedField.value = seed;
       run('numPlayers = ' + n + '; dealNewGame();');
       const sim = JSON.parse(run(`(() => { const r = simulateFullTrace(players, 3000, game.rules);
@@ -386,10 +390,10 @@ withFake(() => {
   run('globalThis.__orig = { renderGrid, showStamp, setDispatch }; renderGrid = () => {}; showStamp = () => {}; setDispatch = () => {};');
   let midGame = 0;
   // Met de terugkeer-regel duren spellen met 8 spelers erg lang; daar zijn 3 en 4 spelers genoeg voor.
-  for (const ids of [['testBattleDiscard'], ['testBattleDiscard', 'testRevive']]) for (const n of (ids.includes('testRevive') ? [3, 4] : [3, 4, 8])) for (const seed of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']){
+  for (const ids of [['testBattleDiscard'], ['testBattleDiscard', 'testRevive'], ['testLimited']]) for (const n of (ids.length > 1 || ids[0] === 'testLimited' ? [3, 4] : [3, 4, 8])) for (const seed of ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']){
     document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
     for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
-    for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
+    for (const fid of ['testBattleDiscard', 'testRoundDiscard', 'testRevive', 'testLimited']) document.getElementById(fid + 'Input').checked = ids.includes(fid);
     seedField.value = seed;
     const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.discard.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, discard: game.discard.length }); })()'));
     if (snap.phase !== 'round-over') continue;

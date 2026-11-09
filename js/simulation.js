@@ -17,21 +17,26 @@ const SIM_ROUND_CAP = 3000;
 // Simuleert vanaf een gegeven spelerstand tot een winnaar, een cyclus, of de rondelimiet.
 // trace bevat per gebeurtenis een 'battle'-entry (voor statsRecordBattle) en/of een
 // 'win'-entry (voor statsRecordRoundWin), in de exacte volgorde zoals live zou gebeuren.
-// startDiscard: de aflegstapel waarmee de simulatie begint (bij fast-forward midden in een spel ligt er al iets op).
-function simulateFullTrace(startPlayers, capRounds, rules, startDiscard){
+// start: de rest van de spelstand waarmee de simulatie begint ({ discard, moved }). Bij fast-forward midden in een
+// spel ligt er al iets op de aflegstapel en tellen de tellers al: regels mogen daarop vertrouwen, dus de simulatie
+// moet van precies dezelfde stand uitgaan als het spel.
+function simulateFullTrace(startPlayers, capRounds, rules, start){
   const state = createGameState(startPlayers, rules);
-  if (startDiscard) state.discard = startDiscard.slice();
+  if (start){
+    state.discard = start.discard.slice();
+    state.moved = JSON.parse(JSON.stringify(start.moved));
+  }
   const seen = new Set();
   let rounds = 0;
   const trace = [];
   while (rounds < capRounds){
     const active = engineActivePlayers(state);
     if (active.length <= 1){
-      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, rounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
+      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
     }
     const sig = stateSignature(state.players, state.discard);
     if (seen.has(sig)){
-      return { outcome: 'cycle', rounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
+      return { outcome: 'cycle', rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
     }
     seen.add(sig);
     const result = enginePlayRound(state);
@@ -45,7 +50,7 @@ function simulateFullTrace(startPlayers, capRounds, rules, startDiscard){
       trace.push({ type: 'win', winnerId: result.winner.id, counts });
     }
   }
-  return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players, finalDiscard: state.discard };
+  return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
 }
 
 function simulateOutcome(dealtPlayers, rules){
