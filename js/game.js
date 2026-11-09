@@ -69,10 +69,18 @@ function compareAndResolve(){
 }
 
 // De ronde is beslist: toon de winnaar (of, zeldzaam, dat niemand de pot kon winnen).
+// "Speler 3 doet weer mee." (leeg als er niemand terug is).
+function revivedNote(list){
+  if (!list || list.length === 0) return '';
+  return formatNamesNL(list.map(p => p.name)) + (list.length > 1 ? ' doen' : ' doet') + ' weer mee.';
+}
+
 function showRoundResult(ev){
   displayPot = ev.potSize;
   if (ev.type !== 'win'){
-    if (ev.discarded > 0) setDispatch(ev.discarded + ' kaarten gaan naar de aflegstapel.');
+    if (ev.discarded > 0 || (ev.revived && ev.revived.length > 0)){
+      setDispatch([ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', revivedNote(ev.revived)].filter(Boolean).join(' '));
+    }
     finalizeRoundOver();
     renderGrid(false);
     return;
@@ -89,6 +97,8 @@ function showRoundResult(ev){
     showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
+  const back = revivedNote(ev.revived);
+  if (back) document.getElementById('dispatch').textContent += ' ' + back;
   finalizeRoundOver();
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.id); // STATS HOOK
   renderGrid(false, players.map(p => p === w));
@@ -96,6 +106,9 @@ function showRoundResult(ev){
 
 function finalizeRoundOver(){
   const end = engineEndRound(game);
+  // Berichten over wat regels aan het einde van de ronde deden (zonder zulke regels verandert er niets).
+  const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', revivedNote(end.revived)].filter(Boolean);
+  if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
     endGame(end.winner);
     phase = 'game-over';

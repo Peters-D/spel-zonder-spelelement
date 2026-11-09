@@ -8,7 +8,8 @@
 //     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     discard:     de aflegstapel: kaarten die zijn afgelegd, bovenste kaart eerst (index 0)
-//     moved:       tellers { discarded, returned } van alle kaarten die zijn afgelegd/teruggehaald
+//     moved:       { discarded, returned, revived }: tellers van afgelegde/teruggehaalde kaarten en de ids van spelers
+//                  die weer meedoen
 //     contenders:  ids van de spelers die nog meedingen naar de pot
 //     battleLevel: hoeveel battles er deze ronde al zijn geweest
 //   }
@@ -24,6 +25,8 @@
 //   engineDiscardFromDeck(state, spelerId, n)     legt de bovenste n kaarten van een stapel af
 //   engineReturnFromDiscard(state, n, naar)       haalt de bovenste n kaarten van de aflegstapel terug, op volgorde,
 //                                                 naar 'pot' of naar { player: id, position: 'top' | 'bottom' }
+// Wie kaarten terugkrijgt doet weer mee: een uitgeschakelde speler is dan niet meer uitgeschakeld en speelt vanaf de
+// volgende ronde mee. Is er niets om terug te krijgen, dan blijft hij uitgeschakeld.
 // en via twee haken die een regel kan hebben (alleen aangeroepen voor regels die aan staan):
 //   onAward(ctx)     bij het toekennen van de pot; ctx = { state, winner, how, potSize }. Kaarten die de haak uit de pot
 //                    haalt (bijv. afleggen) gaan niet naar de winnaar; wat er in de pot blijft, krijgt de winnaar.
@@ -40,7 +43,7 @@ function createGameState(players, rules){
     rules: Object.assign({}, DEFAULT_RULES, rules),
     pot: [],
     discard: [],
-    moved: { discarded: 0, returned: 0 },
+    moved: { discarded: 0, returned: 0, revived: [] },
     contenders: [],
     battleLevel: 0
   };
@@ -119,7 +122,7 @@ function engineEndRound(state){
   const moved = engineRunHooks(state, 'onRoundEnd', {});
   state.players.forEach(p => { if (p.deck.length === 0) p.out = true; });
   const alive = engineActivePlayers(state);
-  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned };
+  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned, revived: moved.revived };
 }
 
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
@@ -130,7 +133,7 @@ function engineAwardPot(state, winner, how){
   const toWinner = state.pot.length;
   winner.deck.push(...state.pot);
   state.pot = [];
-  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner };
+  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived };
 }
 
 function engineAwardToFirstActive(state){
@@ -140,7 +143,7 @@ function engineAwardToFirstActive(state){
   const toWinner = state.pot.length;
   if (alive.length) alive[0].deck.push(...state.pot);
   state.pot = [];
-  return { type: 'void', potSize, discarded: moved.discarded, toWinner };
+  return { type: 'void', potSize, discarded: moved.discarded, toWinner, revived: moved.revived };
 }
 
 // ---- aflegstapel en haken ----
@@ -153,11 +156,22 @@ function engineActiveRules(state){
 // Roept een haak ('onAward', 'onRoundEnd') aan bij elke actieve regel die hem heeft.
 // Geeft terug hoeveel kaarten de haken hebben afgelegd en teruggehaald.
 function engineRunHooks(state, hook, info){
-  const before = { discarded: state.moved.discarded, returned: state.moved.returned };
+  const before = { discarded: state.moved.discarded, returned: state.moved.returned, revived: state.moved.revived.length };
   for (const rule of engineActiveRules(state)){
     if (typeof rule[hook] === 'function') rule[hook](Object.assign({ state }, info));
   }
-  return { discarded: state.moved.discarded - before.discarded, returned: state.moved.returned - before.returned };
+  return {
+    discarded: state.moved.discarded - before.discarded,
+    returned: state.moved.returned - before.returned,
+    revived: state.moved.revived.slice(before.revived).map(id => enginePlayerById(state, id))
+  };
+}
+
+// Een uitgeschakelde speler die kaarten krijgt doet weer mee.
+function engineRevive(state, player){
+  if (!player.out) return;
+  player.out = false;
+  state.moved.revived.push(player.id);
 }
 
 // Legt kaarten af die de aanroeper al uit hun plek heeft gehaald. De kaarten worden een voor een op de
@@ -179,14 +193,14 @@ function engineDiscardFromDeck(state, playerId, count){
 
 // Haalt de bovenste kaarten van de aflegstapel terug, in de volgorde waarin ze lagen (niet geschud).
 //   naar: 'pot' of { player: id, position: 'top' | 'bottom' } (standaard onderaan de stapel)
-// Een uitgeschakelde speler krijgt niets terug (geeft 0): een regel die dat wil, moet hem eerst weer meedoen.
+// Een uitgeschakelde speler die kaarten terugkrijgt doet weer mee (zie engineRevive).
 function engineReturnFromDiscard(state, count, to){
   const target = to === 'pot' ? null : enginePlayerById(state, to.player);
-  if (target && target.out) return 0;
   const cards = state.discard.splice(0, Math.max(0, count | 0));
   if (!target) state.pot.push(...cards);
   else if (to.position === 'top') target.deck.unshift(...cards);
   else target.deck.push(...cards);
+  if (target && cards.length > 0) engineRevive(state, target);
   state.moved.returned += cards.length;
   return cards.length;
 }
