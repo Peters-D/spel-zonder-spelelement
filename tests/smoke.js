@@ -166,7 +166,7 @@ for (const r of CATALOG){
   if (toggleIcon() !== icons[0]) failures.push('thema: de knop hoort het icoon van het huidige thema te tonen');
   if (isOpen() || expanded() !== 'false') failures.push('thema: het menu hoort dicht te beginnen');
   if (run("applyTheme('sovjet')") !== 'sovjet' || theme() !== 'sovjet' || JSON.stringify(activeItems()) !== '["sovjet"]' || toggleIcon() !== icons[1]) failures.push('thema: sovjet kiezen werkt niet');
-  if (JSON.stringify(checked()) !== '["false","true"]') failures.push('thema: aria-checked in het menu klopt niet: ' + JSON.stringify(checked()));
+  if (JSON.stringify(checked()) !== JSON.stringify(themeIds.map(id => id === 'sovjet' ? 'true' : 'false'))) failures.push('thema: aria-checked in het menu klopt niet: ' + JSON.stringify(checked()));
   if (run("applyTheme('bestaat-niet')") !== 'oorlog' || theme() !== 'oorlog') failures.push('thema: een onbekend thema hoort het standaardthema te worden');
   // Het menu: openen, sluiten (knop, Escape, klik ernaast) en door de items lopen met de pijltjes.
   clickToggle();
@@ -182,7 +182,7 @@ for (const r of CATALOG){
   if (!run('globalThis.__stopped === true')) failures.push('thema: een klik binnen de themakeuze mag het menu niet via het document sluiten (stopPropagation)');
   clickToggle(); run("themeOnKeydown({ key: 'ArrowDown' })");
   if (!focusIs('themeItems[1]')) failures.push('thema: pijltje omlaag hoort naar het volgende item te gaan');
-  run("themeOnKeydown({ key: 'ArrowDown' })");
+  for (let k = 1; k < themeIds.length; k++) run("themeOnKeydown({ key: 'ArrowDown' })"); // van het tweede item rond naar het eerste
   if (!focusIs('themeItems[0]')) failures.push('thema: pijltje omlaag bij het laatste item hoort naar het eerste te gaan');
   run("themeOnKeydown({ key: 'ArrowUp' })");
   if (!focusIs('themeItems[themeItems.length - 1]')) failures.push('thema: pijltje omhoog bij het eerste item hoort naar het laatste te gaan');
