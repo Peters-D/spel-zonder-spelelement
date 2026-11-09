@@ -101,10 +101,10 @@ function showRoundResult(ev){
     : ev.toWinner === 0 ? w.name + ' wint, maar alle ' + ev.potSize + ' kaarten gaan naar de aflegstapel.'
     : w.name + ' verovert ' + ev.toWinner + ' van de ' + ev.potSize + ' kaarten. De rest (' + ev.discarded + ') gaat naar de aflegstapel.';
   if (ev.how === 'last-standing'){
-    showStamp('LAATSTE OVER', '#c9a227');
+    showStamp('LAATSTE OVER');
     setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
   } else {
-    showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
+    showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
   const more = playerNotes(ev);
@@ -146,7 +146,7 @@ function endGame(winner){
 
 function endCycleDetected(){
   const banner = document.getElementById('endBanner');
-  banner.innerHTML = '<div class="end-banner" style="background:rgba(168,64,43,0.15);color:var(--red);border-color:var(--red);">⚠ CYCLUS GEDETECTEERD ★<br><span style="font-family:Inter;font-size:13px;">Deze spelstand kwam al eerder voor — het spel zou nooit eindigen. Onbeslist.</span></div>';
+  banner.innerHTML = '<div class="end-banner end-banner-warning">⚠ CYCLUS GEDETECTEERD ★<br><span style="font-family:Inter;font-size:13px;">Deze spelstand kwam al eerder voor — het spel zou nooit eindigen. Onbeslist.</span></div>';
   if (typeof stopAutoPlay === 'function' && autoPlayActive) stopAutoPlay();
 }
 

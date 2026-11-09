@@ -102,6 +102,44 @@ for (const r of CATALOG){
   if (!Array.isArray(r.examples) || r.examples.length === 0) failures.push('catalogus ' + r.id + ': minstens één voorbeeld nodig (die laten zien en testen wat de regel doet)');
 }
 
+// ---- thema's: alle kleuren staan in css/themes.css ----
+{
+  const read = f => fs.readFileSync(path.join(root, f), 'utf8');
+  const themesCss = read('css/themes.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const themeBlocks = [...themesCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => ({ selector: m[1].trim(), vars: [...m[2].matchAll(/(--[a-z0-9-]+)\s*:/g)].map(v => v[1]) }));
+  const base = themeBlocks.find(b => /^:root\b/.test(b.selector));
+  if (!base) failures.push('thema: css/themes.css heeft geen standaardthema (:root, [data-theme="oorlog"])');
+  else {
+    const want = [...base.vars].sort();
+    for (const b of themeBlocks){
+      const got = [...b.vars].sort();
+      const missing = want.filter(v => !got.includes(v)), extra = got.filter(v => !want.includes(v));
+      if (missing.length || extra.length) failures.push('thema ' + b.selector + ': mist ' + JSON.stringify(missing) + ', te veel ' + JSON.stringify(extra));
+    }
+    // Elke variabele die de opmaak gebruikt bestaat in het thema.
+    const used = new Set();
+    for (const f of fs.readdirSync(path.join(root, 'css')).filter(n => n.endsWith('.css') && n !== 'themes.css')){
+      for (const m of read('css/' + f).matchAll(/var\((--[a-z0-9-]+)/g)) used.add(m[1]);
+    }
+    for (const v of used) if (!want.includes(v)) failures.push('thema: de opmaak gebruikt ' + v + ' maar het thema definieert die niet');
+  }
+  // Buiten themes.css staan geen vaste kleuren (neutraal zwart voor schaduwen en verduistering mag).
+  const colorIn = text => [...text.matchAll(/#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\((?!\s*0\s*,\s*0\s*,\s*0\s*[,)])[^)]*\)/g)].map(m => m[0]);
+  for (const f of fs.readdirSync(path.join(root, 'css')).filter(n => n.endsWith('.css') && n !== 'themes.css')){
+    const bodies = [...read('css/' + f).replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/\{([^{}]*)\}/g)].map(m => m[1]).join('\n');
+    const found = colorIn(bodies);
+    if (found.length) failures.push('css/' + f + ' bevat vaste kleuren ' + JSON.stringify(found) + ': zet ze in css/themes.css');
+  }
+  for (const f of scripts){
+    if (!f.endsWith('.js')) continue;
+    const found = [...read(f).matchAll(/['"`](#[0-9a-fA-F]{3,8})['"`]|\b(?:rgba?|hsla?)\(/g)].map(m => m[0]);
+    if (found.length) failures.push(f + ' bevat vaste kleuren ' + JSON.stringify(found) + ': lees ze uit het thema');
+  }
+  const htmlText = read('index.html');
+  if (!/<html[^>]*data-theme="oorlog"/.test(htmlText)) failures.push('index.html: het <html>-element mist data-theme="oorlog"');
+  if (htmlText.indexOf('css/themes.css') === -1 || htmlText.indexOf('css/themes.css') > htmlText.indexOf('css/style.css')) failures.push('index.html: css/themes.css hoort vóór css/style.css te staan');
+}
+
 // ---- directe regeltests (findWinningPlayers en spelkern) ----
 // Elke regel: [kaarten die open liggen, regels, indexen van de spelers die (voorlopig) winnen]
 run(`globalThis.__fw = (cards, rules) => findWinningPlayers(

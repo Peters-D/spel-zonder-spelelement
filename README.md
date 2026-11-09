@@ -77,6 +77,10 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.
 
+## Thema's
+
+Alle kleuren van het spel staan in `css/themes.css`, als variabelen per thema. De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element; nu is dat `oorlog`. Een nieuw thema is een blok `[data-theme="naam"]` met dezelfde variabelen. De test controleert dat een thema er geen vergeet en dat er buiten dat bestand geen vaste kleuren staan. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
+
 ## Online spelen
 
 Speel het spel online: https://peters-d.github.io/spel-zonder-spelelement/
