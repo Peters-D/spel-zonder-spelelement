@@ -163,6 +163,7 @@ function showEndBanner(title, sub, extraClass){
 function endGame(winner){
   if (winner) showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
   else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
+  if (winner) showWinnerRuleChoice(winner); // de winnaar zet één regel om voor het volgende spel (winner-rule.js)
 }
 
 function endCycleDetected(){

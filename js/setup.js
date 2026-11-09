@@ -31,23 +31,49 @@ function renderNameInputs(){
 }
 renderNameInputs();
 
-// Eén vinkje per extra regel, opgebouwd uit de catalogus (RULES in rules.js).
+// Eén vinkje per extra regel, opgebouwd uit de catalogus (RULES in rules.js). Heeft een winnaar een regel omgezet
+// (zie winner-rule.js), dan is dat de stand van het vinkje, met "gekozen door ..." erachter.
+const ruleChoiceInputs = {}, ruleChoiceLabels = {}, ruleChoiceNotes = {};
 function renderRuleOptions(){
   const list = document.getElementById('rulesList');
   list.innerHTML = '';
+  const chosen = loadWinnerRules();
+  for (const k of Object.keys(ruleChoiceNotes)) delete ruleChoiceNotes[k];
   for (const rule of RULES){
     const label = document.createElement('label');
     label.className = 'rule-check';
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.id = rule.id + 'Input';
-    input.checked = rule.default;
+    input.checked = chosen[rule.id] ? chosen[rule.id].on : rule.default;
     const text = document.createElement('span');
     text.textContent = rule.short;
     label.appendChild(input);
     label.appendChild(text);
     list.appendChild(label);
+    ruleChoiceInputs[rule.id] = input;
+    ruleChoiceLabels[rule.id] = label;
+    if (chosen[rule.id] && chosen[rule.id].by) markRuleNote(rule.id, chosen[rule.id].by);
   }
+}
+
+// Zet "gekozen door ..." achter het vinkje van een regel (alleen tekst).
+function markRuleNote(ruleId, byName){
+  let note = ruleChoiceNotes[ruleId];
+  if (!note){
+    note = document.createElement('span');
+    note.className = 'rule-by';
+    ruleChoiceLabels[ruleId].appendChild(note);
+    ruleChoiceNotes[ruleId] = note;
+  }
+  note.textContent = '(gekozen door ' + byName + ')';
+}
+
+// Een winnaar zette een regel om: het vinkje op het startscherm volgt, de andere vinkjes blijven zoals ze staan.
+function markRuleChoice(ruleId, on, byName){
+  if (!ruleChoiceInputs[ruleId]) return;
+  ruleChoiceInputs[ruleId].checked = on;
+  if (byName) markRuleNote(ruleId, byName);
 }
 renderRuleOptions();
 
