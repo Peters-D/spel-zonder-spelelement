@@ -88,6 +88,8 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.
 
+De test verdeelt zichzelf over de processorkernen (ten hoogste 4) en duurt dan op een computer met 4 kernen ongeveer 25 seconden (op GitHub kan dat anders uitvallen). Met `--serial` draait hij in één proces (ongeveer een minuut), handig om te zoeken waar iets misgaat. De test zelf staat in `tests/smoke-run.js`.
+
 ## Thema's
 
 Het spel heeft drie thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster) en **Semechki** (zwart en wit, met een zonnebloempit met drie strepen als embleem). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
