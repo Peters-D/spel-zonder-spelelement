@@ -156,9 +156,9 @@
   --stamp-mark: 14px;
   --back-a: #0f0f0f;
   --back-b: #0f0f0f;
-  --back-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='-4,60 4,60 16,0 8,0'/%3E%3Cpolygon points='10,60 18,60 30,0 22,0'/%3E%3Cpolygon points='24,60 32,60 44,0 36,0'/%3E%3C/svg%3E");
+  --back-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='1.5,60 6.5,60 18.5,0 13.5,0'/%3E%3Cpolygon points='13.5,60 18.5,60 30.5,0 25.5,0'/%3E%3Cpolygon points='25.5,60 30.5,60 42.5,0 37.5,0'/%3E%3C/svg%3E");
   --back-mark-size: 100% 100%;
   --back-border: 1px solid #ffffff;
-  --stack-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='-4,60 4,60 16,0 8,0'/%3E%3Cpolygon points='10,60 18,60 30,0 22,0'/%3E%3Cpolygon points='24,60 32,60 44,0 36,0'/%3E%3C/svg%3E");
+  --stack-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='1.5,60 6.5,60 18.5,0 13.5,0'/%3E%3Cpolygon points='13.5,60 18.5,60 30.5,0 25.5,0'/%3E%3Cpolygon points='25.5,60 30.5,60 42.5,0 37.5,0'/%3E%3C/svg%3E");
   --stack-border: 1px solid #ffffff;
 }
