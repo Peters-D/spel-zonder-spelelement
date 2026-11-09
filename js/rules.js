@@ -131,6 +131,41 @@ const RULES = [
       const givers = dead.map(p => engineNeighbor(state, p.id, 'left'));
       dead.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, 1); });
     }
+  },
+  {
+    id: 'royalFamily',
+    priority: 50,
+    title: 'Koninklijk gezin',
+    short: 'Wint een Heer terwijl er een Vrouw op tafel ligt, dan winnen ze samen (de Heer kiest eerst)',
+    description: 'Begon de winnaar van de ronde met een Heer (K) en lag er die ronde ook een Vrouw (Q) van een andere speler open, dan winnen zij samen. ' +
+      'De pot wordt verdeeld van hoog naar laag: de Heer kiest de hoogste kaart, de Vrouw de tweede, de Heer de derde, enzovoort. ' +
+      'Zo krijgen ze evenveel kaarten (bij een oneven pot krijgt de Heer er één meer), maar de Heer krijgt altijd de beste. ' +
+      'Liggen er meer Vrouwen, dan delen ze allemaal mee, in de volgorde van de tafel. Gaat de pot naar de aflegstapel (Battle ruimt de pot op), dan is er niets te verdelen. ' +
+      'Een Vrouw telt ook als winnaar van de ronde in de statistieken.',
+    default: false,
+    examples: [
+      { decks: [['K', '4', '2'], ['Q', '7', '3'], ['9', '5', '6']], after: [['4', '2', 'K', '9'], ['7', '3', 'Q'], ['5', '6']], discarded: 0,
+        text: 'De Heer van speler 1 wint en er ligt een Vrouw van speler 2. De pot (K, Q, 9) gaat van hoog naar laag: de Heer krijgt K, de Vrouw Q, de Heer de 9.' },
+      { decks: [['K', '4'], ['Q', '7'], ['Q', '3'], ['9', '5']], after: [['4', 'K', '9'], ['7', 'Q'], ['3', 'Q'], ['5']], discarded: 0,
+        text: 'Twee Vrouwen: ze delen allebei mee. De Heer kiest K, de eerste Vrouw Q, de tweede Vrouw Q, daarna weer de Heer (9).' },
+      { decks: [['A', '4'], ['K', '7'], ['Q', '3']], after: [['4', 'A', 'K', 'Q'], ['7'], ['3']], discarded: 0,
+        text: 'Wint de Aas, dan is er geen Heer die wint en krijgt speler 1 de hele pot.' },
+      { decks: [['K', '4'], ['J', '7'], ['3', '3']], after: [['4', 'K', 'J', '3'], ['7'], ['3']], discarded: 0,
+        text: 'Er ligt een Heer maar geen Vrouw: de Heer wint de hele pot, zoals altijd.' },
+      { decks: [['K', '9', '2'], ['K', '5', '3'], ['Q', '6', '4']], after: [['2', 'K', 'Q', '5'], ['3'], ['6', '4', 'K', '9']], discarded: 0,
+        text: 'Twee Heren battlen en speler 1 wint met de 9. Er ligt ook een Vrouw (speler 3), dus de pot (K, K, Q, 9, 5) wordt verdeeld: de Heer kiest K, de Vrouw de andere K, de Heer Q, de Vrouw 9, de Heer 5.' },
+      { decks: [['K', '9', '2'], ['K', '5', '3'], ['Q', '6', '4']], after: [['2'], ['3'], ['6', '4']], discarded: 5, with: ['battleDiscard'],
+        text: 'Dezelfde battle, maar de hele pot gaat naar de aflegstapel: er is dan niets meer te verdelen.' }
+    ],
+    onAward(ctx){
+      const state = ctx.state;
+      if (ctx.how === 'void' || !ctx.winner || state.pot.length === 0) return;
+      const start = state.opening[ctx.winner.id];
+      if (!start || start.rank !== 'K') return;
+      const women = state.players.filter(p => p.id !== ctx.winner.id && state.opening[p.id] && state.opening[p.id].rank === 'Q');
+      if (women.length === 0) return;
+      engineSharePot(state, [ctx.winner.id].concat(women.map(p => p.id)));
+    }
   }
 ];
 

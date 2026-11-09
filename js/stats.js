@@ -29,8 +29,9 @@ function statsRecordBattle(depth){
   statsLongestTie = Math.max(statsLongestTie, depth);
 }
 
+// winnerId is één speler-id, of een lijst met ids als meer spelers de ronde samen winnen (dan telt de ronde voor allemaal).
 function statsRecordRoundWin(winnerId, countsOverride){
-  statsWins[winnerId] = (statsWins[winnerId] || 0) + 1;
+  for (const id of (Array.isArray(winnerId) ? winnerId : [winnerId])) statsWins[id] = (statsWins[id] || 0) + 1;
   statsRoundCount++;
   let counts = countsOverride;
   if (!counts){

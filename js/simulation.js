@@ -47,7 +47,7 @@ function simulateFullTrace(startPlayers, capRounds, rules, start){
     if (result.winner){
       const counts = {};
       state.players.forEach(p => { counts[p.id] = p.deck.length; });
-      trace.push({ type: 'win', winnerId: result.winner.id, counts });
+      trace.push({ type: 'win', winnerId: result.winner.id, winnerIds: result.shared.length > 0 ? result.shared : [result.winner.id], counts });
     }
   }
   return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };

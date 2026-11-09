@@ -8,8 +8,10 @@
 //     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     discard:     de aflegstapel: kaarten die zijn afgelegd, bovenste kaart eerst (index 0)
-//     moved:       { discarded, returned, revived, transferred, transfers }: tellers van afgelegde, teruggehaalde en
-//                  tussen spelers verplaatste kaarten, de ids van spelers die weer meedoen en de overdrachten
+//     opening:     per speler-id de kaart waarmee die speler deze ronde begon (een battle overschrijft faceCard, dit blijft staan)
+//     moved:       { discarded, returned, revived, transferred, transfers, shared }: tellers van afgelegde, teruggehaalde en
+//                  tussen spelers verplaatste kaarten, de ids van spelers die weer meedoen, de overdrachten en de verdeelde potten
+//                  (shared: [{ to, count }], zie engineSharePot)
 //     contenders:  ids van de spelers die nog meedingen naar de pot
 //     battleLevel: hoeveel battles er deze ronde al zijn geweest
 //   }
@@ -39,6 +41,7 @@
 // en via twee haken die een regel kan hebben (alleen aangeroepen voor regels die aan staan):
 //   onAward(ctx)     bij het toekennen van de pot; ctx = { state, winner, how, potSize }. Kaarten die de haak uit de pot
 //                    haalt (bijv. afleggen) gaan niet naar de winnaar; wat er in de pot blijft, krijgt de winnaar.
+//                    Met engineSharePot kan de haak de pot verdelen over meer winnaars (state.opening zegt wie met welke kaart begon).
 //   onRoundEnd(ctx)  aan het einde van de ronde, vóór het uitschakelen; ctx = { state }
 //
 // Verloop van één ronde:
@@ -51,8 +54,9 @@ function createGameState(players, rules){
     })),
     rules: Object.assign({}, DEFAULT_RULES, rules),
     pot: [],
+    opening: {},
     discard: [],
-    moved: { discarded: 0, returned: 0, revived: [], transferred: 0, transfers: [] },
+    moved: { discarded: 0, returned: 0, revived: [], transferred: 0, transfers: [], shared: [] },
     contenders: [],
     battleLevel: 0
   };
@@ -73,6 +77,8 @@ function engineStartRound(state){
   state.battleLevel = 0;
   state.players.forEach(p => { if (!p.out) p.faceCard = p.deck.length ? p.deck.shift() : null; });
   state.players.forEach(p => { if (!p.out && p.faceCard) state.pot.push(p.faceCard); });
+  state.opening = {};
+  state.players.forEach(p => { if (!p.out && p.faceCard) state.opening[p.id] = p.faceCard; });
 }
 
 // Vergelijkt de open kaarten van de spelers die nog meedingen. Geeft terug:
@@ -142,7 +148,7 @@ function engineAwardPot(state, winner, how){
   const toWinner = state.pot.length;
   winner.deck.push(...state.pot);
   state.pot = [];
-  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers };
+  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared };
 }
 
 function engineAwardToFirstActive(state){
@@ -152,7 +158,7 @@ function engineAwardToFirstActive(state){
   const toWinner = state.pot.length;
   if (alive.length) alive[0].deck.push(...state.pot);
   state.pot = [];
-  return { type: 'void', potSize, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers };
+  return { type: 'void', potSize, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared };
 }
 
 // ---- aflegstapel en haken ----
@@ -166,7 +172,7 @@ function engineActiveRules(state){
 // Geeft terug hoeveel kaarten de haken hebben afgelegd en teruggehaald.
 function engineRunHooks(state, hook, info){
   const before = { discarded: state.moved.discarded, returned: state.moved.returned, revived: state.moved.revived.length,
-    transfers: state.moved.transfers.length };
+    transfers: state.moved.transfers.length, shared: state.moved.shared.length };
   for (const rule of engineActiveRules(state)){
     if (typeof rule[hook] === 'function') rule[hook](Object.assign({ state }, info));
   }
@@ -174,7 +180,8 @@ function engineRunHooks(state, hook, info){
     discarded: state.moved.discarded - before.discarded,
     returned: state.moved.returned - before.returned,
     revived: state.moved.revived.slice(before.revived).map(id => enginePlayerById(state, id)),
-    transfers: state.moved.transfers.slice(before.transfers).map(t => ({ from: enginePlayerById(state, t.from), to: enginePlayerById(state, t.to), count: t.count }))
+    transfers: state.moved.transfers.slice(before.transfers).map(t => ({ from: enginePlayerById(state, t.from), to: enginePlayerById(state, t.to), count: t.count })),
+    shared: state.moved.shared.slice(before.shared).map(x => ({ player: enginePlayerById(state, x.to), count: x.count }))
   };
 }
 
@@ -234,6 +241,31 @@ function engineTransferCards(state, fromId, toId, count, position){
   return cards.length;
 }
 
+// ---- de pot delen ----
+
+// Verdeelt de hele pot over een groep spelers die samen winnen. memberIds staat in kiesvolgorde: de pot gaat van hoog naar
+// laag (bij gelijke waarde in de volgorde van leggen) en de eerste kiest de hoogste kaart, de tweede de volgende, enzovoort
+// en daarna weer van voren af aan. Elke speler krijgt zijn kaarten onderop zijn stapel, in de volgorde waarin ze lagen.
+// Bedoeld voor onAward: de pot is daarna leeg, dus de winnaar krijgt niets meer. Geeft per speler het aantal kaarten.
+function engineSharePot(state, memberIds){
+  const members = memberIds.map(id => enginePlayerById(state, id));
+  const picks = state.pot.map((card, i) => ({ card, i })).sort((a, b) => (b.card.value - a.card.value) || (a.i - b.i));
+  const shares = members.map(() => []);
+  picks.forEach((x, k) => shares[k % members.length].push(x));
+  const result = [];
+  members.forEach((m, j) => {
+    const cards = shares[j].sort((a, b) => a.i - b.i).map(x => x.card);
+    m.deck.push(...cards);
+    if (cards.length > 0){
+      state.moved.shared.push({ to: m.id, count: cards.length });
+      engineRevive(state, m);
+    }
+    result.push({ id: m.id, count: cards.length });
+  });
+  state.pot = [];
+  return result;
+}
+
 // Legt kaarten af die de aanroeper al uit hun plek heeft gehaald. De kaarten worden een voor een op de
 // aflegstapel gelegd, in de gegeven volgorde: de laatste kaart komt bovenop.
 function engineDiscardCards(state, cards){
@@ -276,5 +308,6 @@ function enginePlayRound(state){
     if (ev.type === 'battle-revealed') ev = engineResolve(state);
   }
   const end = engineEndRound(state);
-  return { winner: ev.type === 'win' ? ev.winner : null, battleLevels, end };
+  const shared = ev.type === 'win' && ev.shared.length > 0 ? ev.shared.map(x => x.player.id) : [];
+  return { winner: ev.type === 'win' ? ev.winner : null, shared, battleLevels, end };
 }

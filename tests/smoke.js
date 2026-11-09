@@ -70,7 +70,7 @@ function playLive(){
   })()`);
 }
 
-// Regelcombinaties, afgeleid uit de catalogus RULES (rules.js): alle combinaties van aan/uit.
+// Regelcombinaties, afgeleid uit de catalogus RULES (rules.js): geen, elke regel apart, alle paren en alle regels aan.
 // De namen zijn de sleutels in tests/expected.json: 'standard' (geen extra regels) of de ids van
 // de regels die aan staan, in catalogusvolgorde, gescheiden door '+'.
 const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
@@ -80,8 +80,10 @@ const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
 const BASE = JSON.parse(run('JSON.stringify(BASE_RULES)'));
 const RULE_IDS = CATALOG.map(r => r.id);
 const RULE_SETS = {};
+// Niet alle combinaties (dat verdubbelt bij elke nieuwe regel): geen regels, elke regel apart, alle paren en alle regels aan.
 for (let mask = 0; mask < (1 << RULE_IDS.length); mask++){
   const on = RULE_IDS.filter((id, i) => mask & (1 << i));
+  if (on.length > 2 && on.length < RULE_IDS.length) continue;
   const sets = {};
   for (const id of RULE_IDS) sets[id] = on.includes(id);
   RULE_SETS[on.length ? on.join('+') : 'standard'] = sets;
@@ -371,7 +373,7 @@ if (JSON.stringify(names('__s.players[0].deck')) !== JSON.stringify(['Q♠', '7�
 run(`engineDiscardCards(__s, [__card('4', '♦')]); __s.players[3].out = true;`);
 if (run(`engineReturnFromDiscard(__s, 1, { player: 3 })`) !== 1 || run('__s.discard.length') !== 0 || run('__s.players[3].out') !== false)
   failures.push('aflegstapel: een uitgeschakelde speler die kaarten terugkrijgt hoort weer mee te doen');
-if (JSON.stringify(run('__s.moved')) !== JSON.stringify({ discarded: 6, returned: 6, revived: [3], transferred: 0, transfers: [] })) failures.push('aflegstapel: tellers kloppen niet: ' + JSON.stringify(run('__s.moved')));
+if (JSON.stringify(run('__s.moved')) !== JSON.stringify({ discarded: 6, returned: 6, revived: [3], transferred: 0, transfers: [], shared: [] })) failures.push('aflegstapel: tellers kloppen niet: ' + JSON.stringify(run('__s.moved')));
 // Weer meedoen: alleen als er echt kaarten komen, en alleen voor wie uit was.
 run(`globalThis.__r = __state([['A♠'], [], ['K♠']]); __r.players[1].out = true;`);
 if (run(`engineReturnFromDiscard(__r, 1, { player: 1 })`) !== 0 || run('__r.players[1].out') !== true) failures.push('aflegstapel: zonder kaarten om terug te krijgen blijft een speler uitgeschakeld');
@@ -420,7 +422,7 @@ if (run('engineTransferCards(__t, 1, 2, 2)') !== 2 || run('__t.players[2].out') 
   failures.push('overdracht: een uitgeschakelde ontvanger hoort weer mee te doen en de kaarten te krijgen');
 if (run('engineTransferCards(__t, 0, 2, 5)') !== 1 || run('__t.players[0].deck.length') !== 0) failures.push('overdracht: meer vragen dan er is hoort alleen te geven wat er is');
 if (run('engineTransferCards(__t, 1, 1, 1)') !== 0) failures.push('overdracht: aan jezelf geven hoort niets te doen');
-if (JSON.stringify(run('__t.moved')) !== JSON.stringify({ discarded: 0, returned: 0, revived: [2], transferred: 6, transfers: [{ from: 0, to: 1, count: 2 }, { from: 0, to: 1, count: 1 }, { from: 1, to: 2, count: 2 }, { from: 0, to: 2, count: 1 }] }))
+if (JSON.stringify(run('__t.moved')) !== JSON.stringify({ discarded: 0, returned: 0, revived: [2], transferred: 6, transfers: [{ from: 0, to: 1, count: 2 }, { from: 0, to: 1, count: 1 }, { from: 1, to: 2, count: 2 }, { from: 0, to: 2, count: 1 }], shared: []}))
   failures.push('overdracht: tellers kloppen niet: ' + JSON.stringify(run('__t.moved')));
 if (run('__t.players.reduce((n, p) => n + p.deck.length, 0)') !== 5) failures.push('overdracht: het totaal aantal kaarten verandert');
 
@@ -473,7 +475,7 @@ const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
     if (all.length !== 52 || new Set(all.map(c => c.rank + c.suit)).size !== 52) return JSON.stringify({ ok: false, round: r, total: all.length, uniek: new Set(all.map(c => c.rank + c.suit)).size });
     maxDiscard = Math.max(maxDiscard, st.discard.length);
   }
-  return JSON.stringify({ ok: true, maxDiscard, revives: st.moved.revived.length, transfers: st.moved.transfers.length });
+  return JSON.stringify({ ok: true, maxDiscard, revives: st.moved.revived.length, transfers: st.moved.transfers.length, shared: st.moved.shared.length });
 })()`));
 run(`globalThis.shuffleWith = seed => { rng = mulberry32(hashSeed(seed)); return shuffle(buildDeck()); };`);
 const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testBattleDiscard+testRoundDiscard': 0, 'testBattleDiscard+testRevive': 0 }, compared: 0, revives: 0, reviveGames: 0, transferGames: { testRescueLeft: 0, testRescueRight: 0, testRescueRich: 0 } };
@@ -545,6 +547,48 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   }
   if (sc.transfers < 10) failures.push('Tweede kans: in te weinig spellen is er een kaart overgedragen om iets te bewijzen (' + sc.transfers + ' van ' + sc.games + ')');
   if (sc.small !== 0) failures.push('Tweede kans: met 2 of 3 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
+}
+// De echte regel "Koninklijk gezin": wint een Heer met een Vrouw op tafel, dan winnen ze samen en kiest de Heer eerst.
+{
+  run(`globalThis.__play = (decks, rules) => { const st = createGameState(decks.map((d, i) => ({ id: i, name: 'S' + i, deck: d.map(r => ({ rank: r, suit: '♠', value: RANKS.indexOf(r) + 2 })) })), rules);
+    const r = enginePlayRound(st); return JSON.stringify({ after: st.players.map(p => p.deck.map(c => c.rank)), discarded: st.discard.length, shared: r.shared, counts: st.moved.shared.map(x => [x.to, x.count]) }); }`);
+  const play = (decks, rules) => JSON.parse(run('__play(' + JSON.stringify(decks) + ', ' + JSON.stringify(Object.assign({ royalFamily: true }, rules || {})) + ')'));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // Een even pot: evenveel kaarten (2 en 2), de Heer krijgt de hoogste.
+  let r = play([['K', '4'], ['Q', '7'], ['9', '5'], ['2', '8']]);
+  if (!same(r.counts, [[0, 2], [1, 2]]) || !same(r.after, [['4', 'K', '9'], ['7', 'Q', '2'], ['5'], ['8']])) failures.push('Koninklijk gezin: een even pot klopt niet: ' + JSON.stringify(r));
+  // Een Vrouw die wint, deelt niet: alleen een Heer die wint, doet dat.
+  r = play([['Q', '4'], ['J', '7'], ['9', '5']]);
+  if (r.shared.length !== 0 || !same(r.after, [['4', 'Q', 'J', '9'], ['7'], ['5']])) failures.push('Koninklijk gezin: een winnende Vrouw deelt niet: ' + JSON.stringify(r));
+  // Een Heer die niet wint (de Aas wint), deelt niet.
+  r = play([['K', '4'], ['Q', '7'], ['A', '5']]);
+  if (r.shared.length !== 0 || !same(r.after, [['4'], ['7'], ['5', 'K', 'Q', 'A']])) failures.push('Koninklijk gezin: bij een winnende Aas wordt er niet gedeeld: ' + JSON.stringify(r));
+  // Met "2 verslaat Aas" wint de 2: ook dan geen Heer die wint.
+  r = play([['K', '4'], ['Q', '7'], ['A', '5'], ['2', '8']], { twoBeatsAce: true });
+  if (r.shared.length !== 0) failures.push('Koninklijk gezin: met 2 verslaat Aas wint de 2 en wordt er niet gedeeld: ' + JSON.stringify(r));
+  // Met "Gelijke kaarten gaan voor" battlen de zevens, dus ook dan geen Heer die wint.
+  r = play([['K', '4'], ['Q', '7'], ['7', '5', '6'], ['7', '8', '3']], { battleFirst: true });
+  if (r.shared.length !== 0) failures.push('Koninklijk gezin: met Gelijke kaarten gaan voor wint een zeven en wordt er niet gedeeld: ' + JSON.stringify(r));
+  // Twee Vrouwen en een Heer die direct wint (zonder battle): de Heer en beide Vrouwen delen de pot van drie, elk één kaart.
+  r = play([['Q', '9', '2'], ['Q', '5', '3'], ['K', '6', '4']]);
+  if (!same(r.shared, [2, 0, 1]) || !same(r.after, [['9', '2', 'Q'], ['5', '3', 'Q'], ['6', '4', 'K']])) failures.push('Koninklijk gezin: een Heer met twee Vrouwen klopt niet: ' + JSON.stringify(r));
+  // Statistieken: een gedeelde ronde telt voor allebei de winnaars, en de ronde zelf maar één keer.
+  const st = JSON.parse(run(`(() => { statsResetAll(); statsRecordRoundWin([0, 2], { 0: 1, 1: 2, 2: 3 }); statsRecordRoundWin(1, { 0: 1, 1: 2, 2: 3 });
+    return JSON.stringify({ wins: statsWins, rounds: statsRoundCount }); })()`));
+  if (!same(st.wins, { 0: 1, 2: 1, 1: 1 }) || st.rounds !== 2) failures.push('Koninklijk gezin: statistieken voor een gedeelde winst kloppen niet: ' + JSON.stringify(st));
+  // De simulatie meldt wie samen wonnen, zodat doorspoelen de statistieken goed vult.
+  const trace = JSON.parse(run(`JSON.stringify((() => { const mk = (id, ranks) => ({ id, name: 'S' + id, deck: ranks.map(r => ({ rank: r, suit: '♠', value: RANKS.indexOf(r) + 2 })), out: false });
+    const res = simulateFullTrace([mk(0, ['K', '4', '2']), mk(1, ['Q', '7', '3']), mk(2, ['9', '5', '6'])], 1, { royalFamily: true });
+    return res.trace.find(e => e.type === 'win'); })())`));
+  if (!same(trace.winnerIds, [0, 1]) || trace.winnerId !== 0) failures.push('Koninklijk gezin: de simulatie meldt niet wie samen won: ' + JSON.stringify(trace));
+  // Altijd 52 unieke kaarten, en in genoeg spellen wordt er echt gedeeld.
+  const rf = { games: 0, shared: 0 };
+  for (const ids of [['royalFamily'], ['royalFamily', 'battleDiscard'], ['royalFamily', 'secondChance'], ['royalFamily', 'twoBeatsAce', 'battleFirst']]) for (const n of [2, 3, 4, 6, 8]) for (const seed of ['r1', 'r2', 'r3', 'r4']){
+    const c = conserveCheck(ids, n, seed, 300);
+    if (!c.ok) failures.push('Koninklijk gezin (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + c.round + ' zijn er ' + c.total + ' kaarten (' + c.uniek + ' verschillende) in plaats van 52');
+    else { rf.games++; if (c.shared > 0) rf.shared++; }
+  }
+  if (rf.shared < 15) failures.push('Koninklijk gezin: in te weinig spellen is er een pot gedeeld om iets te bewijzen (' + rf.shared + ' van ' + rf.games + ')');
 }
 withFake(() => {
   let used = 0;
@@ -682,6 +726,28 @@ withFake(() => {
     if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks))) failures.push('Tweede kans: fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
   }
   if (midSC < 8) failures.push('Tweede kans: te weinig spellen om fast-forward midden in een spel te testen (' + midSC + ')');
+  // Hetzelfde voor "Koninklijk gezin", vanaf het moment dat er een pot is gedeeld; en de tekst van het spel meldt dat ze samen winnen.
+  let midRF = 0, rfText = 0;
+  run('setDispatch = __orig.setDispatch;'); // de tekst van het spel moet bijgewerkt worden
+  for (const ids of [['royalFamily'], ['royalFamily', 'battleDiscard'], ['royalFamily', 'secondChance']]) for (const n of [3, 4, 5]) for (const seed of ['f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8']){
+    document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+    for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = ids.includes(r.id);
+    for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = false;
+    seedField.value = seed;
+    const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.moved.shared.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, text: document.getElementById(\'dispatch\').textContent }); })()'));
+    if (snap.phase !== 'round-over') continue;
+    if (/winnen samen: .+ krijgt \d+ kaart(en)?/.test(snap.text)) rfText++; else failures.push('Koninklijk gezin: de tekst meldt niet dat ze samen winnen: "' + snap.text + '"');
+    const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+      return JSON.stringify({ total, phase, decks: players.map(p => p.deck.length) }); })()`));
+    const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length) }); })()'));
+    midRF++;
+    const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (na ' + snap.steps + ' stappen)';
+    if (ffEnd.total !== 52) failures.push('Koninklijk gezin: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
+    if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks))) failures.push('Koninklijk gezin: fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
+  }
+  if (midRF < 8) failures.push('Koninklijk gezin: te weinig spellen om fast-forward midden in een spel te testen (' + midRF + ')');
+  run('setDispatch = () => {};');
+  for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
   for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
   if (midGame < 6) failures.push('aflegstapel: te weinig spellen om fast-forward midden in een spel te testen (' + midGame + ')');
   discardStats.midGame = midGame;
@@ -825,7 +891,9 @@ for (const c of cases){
 
 // Elke regel moet in de vaste spellen echt iets veranderen; anders worden de vinkjes niet doorgegeven of doet de regel niets.
 for (const id of RULE_IDS){
-  const changed = cases.filter(c => RULE_SETS[c.rules][id] && actual[key(c)] && JSON.stringify(actual[key(c)]) !== JSON.stringify(actual[key({ ...c, rules: Object.keys(RULE_SETS).find(k => JSON.stringify(RULE_SETS[k]) === JSON.stringify({ ...RULE_SETS[c.rules], [id]: false })) })])).length;
+  const partner = c => Object.keys(RULE_SETS).find(k => JSON.stringify(RULE_SETS[k]) === JSON.stringify({ ...RULE_SETS[c.rules], [id]: false }));
+  const changed = cases.filter(c => RULE_SETS[c.rules][id] && partner(c) && actual[key(c)] && actual[key({ ...c, rules: partner(c) })] &&
+    JSON.stringify(actual[key(c)]) !== JSON.stringify(actual[key({ ...c, rules: partner(c) })])).length;
   if (changed === 0) failures.push('regel "' + id + '" verandert in geen enkel vast spel iets');
 }
 

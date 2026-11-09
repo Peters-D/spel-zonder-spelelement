@@ -96,22 +96,29 @@ function showRoundResult(ev){
     return;
   }
   const w = ev.winner;
+  // Winnen er meer spelers samen (een regel die de pot deelt), dan staan zij in ev.shared.
+  const sharedWinners = ev.shared && ev.shared.length > 0 ? ev.shared : null;
+  const sharedText = sharedWinners
+    ? formatNamesNL(sharedWinners.map(x => x.player.name)) + ' winnen samen: ' +
+      sharedWinners.map(x => x.player.name + ' krijgt ' + x.count + (x.count === 1 ? ' kaart' : ' kaarten')).join(', ') + '.'
+    : null;
   // Zonder afgelegde kaarten zijn de teksten gelijk aan voorheen.
-  const outcome = ev.discarded === 0 ? null
+  const outcome = sharedText ? sharedText : ev.discarded === 0 ? null
     : ev.toWinner === 0 ? w.name + ' wint, maar alle ' + ev.potSize + ' kaarten gaan naar de aflegstapel.'
     : w.name + ' verovert ' + ev.toWinner + ' van de ' + ev.potSize + ' kaarten. De rest (' + ev.discarded + ') gaat naar de aflegstapel.';
   if (ev.how === 'last-standing'){
     showStamp('LAATSTE OVER');
     setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
   } else {
-    showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
+    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
   const more = playerNotes(ev);
   if (more) document.getElementById('dispatch').textContent += ' ' + more;
   finalizeRoundOver();
-  if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.id); // STATS HOOK
-  renderGrid(false, players.map(p => p === w));
+  const winnerIds = sharedWinners ? sharedWinners.map(x => x.player.id) : [w.id];
+  if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(winnerIds.length > 1 ? winnerIds : w.id); // STATS HOOK
+  renderGrid(false, players.map(p => winnerIds.includes(p.id)));
 }
 
 function finalizeRoundOver(){
