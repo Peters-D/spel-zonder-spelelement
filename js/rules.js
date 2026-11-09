@@ -217,6 +217,13 @@ const BASE_RULES = [
     description: 'Een speler zonder kaarten ligt eruit. Blijft er één speler over, dan wint die het spel: de laatste speler met kaarten.'
   },
   {
+    id: 'winnaarkiest',
+    title: 'De winnaar kiest een regel',
+    description: 'Wie een spel wint, mag één van de extra regels omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond ' +
+      'gaat uit. Die keuze blijft bewaard in de browser en staat op het startscherm als vinkje met de naam van de winnaar erbij. ' +
+      'Dat vinkje kun je voor een spel nog zelf omzetten. Bij gelijkspel of een spel zonder einde kiest niemand.'
+  },
+  {
     id: 'eindeloos',
     title: 'Spellen die niet eindigen',
     description: 'Omdat de pot niet geschud wordt, kan een spel eindeloos doorgaan. Het spel rekent bij de start na of een spel zal eindigen ' +
