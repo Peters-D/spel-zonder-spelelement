@@ -14,7 +14,10 @@
 </head>
 <body>
 <div class="app">
-  <div class="theme-switch" id="themeGrid" role="group" aria-label="Thema"></div>
+  <div class="theme-switch" id="themeSwitch">
+    <button type="button" class="theme-toggle" id="themeToggle" aria-haspopup="true" aria-expanded="false" aria-controls="themeMenu" aria-label="Kies een thema"><span id="themeToggleIcon" aria-hidden="true"></span></button>
+    <div class="theme-menu hidden" id="themeMenu" role="menu" aria-label="Thema"></div>
+  </div>
   <header>
     <div class="eyebrow">Meerdere spelers, één winnaar</div>
     <h1>Spel zonder spelelement</h1>

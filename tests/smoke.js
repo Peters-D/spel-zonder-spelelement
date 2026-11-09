@@ -27,7 +27,8 @@ function makeEl(id){
     style: {}, dataset: {}, className: '', children: [],
     classList: (() => { const set = new Set(); return { add(c){ set.add(c); }, remove(c){ set.delete(c); },
       toggle(c, force){ const on = force === undefined ? !set.has(c) : !!force; if (on) set.add(c); else set.delete(c); return on; }, contains(c){ return set.has(c); } }; })(),
-    addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); }, remove(){}, focus(){}, select(){}, setAttribute(){},
+    addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); }, remove(){}, focus(){ document.activeElement = this; }, select(){},
+    setAttribute(k, v){ (this.attrs = this.attrs || {})[k] = String(v); }, getAttribute(k){ return this.attrs && k in this.attrs ? this.attrs[k] : null; },
     querySelectorAll(){ return this.children; },
     getContext(){ return new Proxy({}, { get: () => () => {}, set: () => true }); },
     toDataURL(){ return ''; }
@@ -144,29 +145,62 @@ for (const r of CATALOG){
 // ---- themakeuze (js/theme.js) ----
 {
   const themeIds = JSON.parse(run('JSON.stringify(THEMES.map(t => t.id))'));
+  const icons = JSON.parse(run('JSON.stringify(THEMES.map(t => t.icon))'));
   const cssText = fs.readFileSync(path.join(root, 'css/themes.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const cssIds = [...new Set([...cssText.matchAll(/\[data-theme="([a-z]+)"\]/g)].map(m => m[1]))];
   if (JSON.stringify([...themeIds].sort()) !== JSON.stringify([...cssIds].sort())) failures.push('thema\'s: THEMES in js/theme.js ' + JSON.stringify(themeIds) + ' komt niet overeen met css/themes.css ' + JSON.stringify(cssIds));
   if (!themeIds.includes(run('DEFAULT_THEME'))) failures.push('thema: het standaardthema staat niet in THEMES');
   if (new Set(themeIds).size !== themeIds.length || !themeIds.every(id => /^[a-z]+$/.test(id))) failures.push('thema: ids in THEMES moeten uniek zijn en uit kleine letters bestaan (het scriptje in de <head> controleert dat)');
-  if (run("themeButtons.some(b => b.className.split(' ').includes('count-btn'))")) failures.push('thema: een themaknop mag niet de klasse count-btn hebben (setup.js haalt daar de markering van weg)');
-  if (run('themeButtons.length') !== themeIds.length) failures.push('thema: er hoort een knop per thema te zijn');
+  if (!icons.every(isText) || new Set(icons).size !== icons.length) failures.push('thema: elk thema heeft een eigen icoon nodig: ' + JSON.stringify(icons));
+  if (run("themeItems.some(b => b.className.split(' ').includes('count-btn'))")) failures.push('thema: een themaknop mag niet de klasse count-btn hebben (setup.js haalt daar de markering van weg)');
+  if (run('themeItems.length') !== themeIds.length) failures.push('thema: er hoort een menu-item per thema te zijn');
   const theme = () => run('document.documentElement.dataset.theme');
-  const activeButtons = () => JSON.parse(run('JSON.stringify(themeButtons.filter(b => b.classList.contains("active")).map(b => b.dataset.theme))'));
-  if (theme() !== 'oorlog' || JSON.stringify(activeButtons()) !== '["oorlog"]') failures.push('thema: zonder keuze hoort het thema oorlog te zijn, kreeg ' + theme());
-  if (run("applyTheme('sovjet')") !== 'sovjet' || theme() !== 'sovjet' || JSON.stringify(activeButtons()) !== '["sovjet"]') failures.push('thema: sovjet kiezen werkt niet');
+  const activeItems = () => JSON.parse(run('JSON.stringify(themeItems.filter(b => b.classList.contains("active")).map(b => b.dataset.theme))'));
+  const checked = () => JSON.parse(run('JSON.stringify(themeItems.map(b => b.getAttribute("aria-checked")))'));
+  const isOpen = () => run('!themeMenu.classList.contains("hidden")');
+  const expanded = () => run('themeToggle.getAttribute("aria-expanded")');
+  const toggleIcon = () => run('themeToggleIcon.textContent');
+  const focusIs = expr => run('document.activeElement === ' + expr);
+  const clickToggle = () => run('themeToggle.handlers.click()');
+  if (theme() !== 'oorlog' || JSON.stringify(activeItems()) !== '["oorlog"]') failures.push('thema: zonder keuze hoort het thema oorlog te zijn, kreeg ' + theme());
+  if (toggleIcon() !== icons[0]) failures.push('thema: de knop hoort het icoon van het huidige thema te tonen');
+  if (isOpen() || expanded() !== 'false') failures.push('thema: het menu hoort dicht te beginnen');
+  if (run("applyTheme('sovjet')") !== 'sovjet' || theme() !== 'sovjet' || JSON.stringify(activeItems()) !== '["sovjet"]' || toggleIcon() !== icons[1]) failures.push('thema: sovjet kiezen werkt niet');
+  if (JSON.stringify(checked()) !== '["false","true"]') failures.push('thema: aria-checked in het menu klopt niet: ' + JSON.stringify(checked()));
   if (run("applyTheme('bestaat-niet')") !== 'oorlog' || theme() !== 'oorlog') failures.push('thema: een onbekend thema hoort het standaardthema te worden');
-  // Onthouden: klikken bewaart de keuze; opslag die niet werkt geeft geen fout.
+  // Het menu: openen, sluiten (knop, Escape, klik ernaast) en door de items lopen met de pijltjes.
+  clickToggle();
+  if (!isOpen() || expanded() !== 'true' || !focusIs('themeItems[0]')) failures.push('thema: een klik op de knop hoort het menu te openen met de focus op het huidige thema');
+  clickToggle();
+  if (isOpen() || expanded() !== 'false') failures.push('thema: een tweede klik op de knop hoort het menu te sluiten');
+  clickToggle(); run("themeOnKeydown({ key: 'Escape' })");
+  if (isOpen() || expanded() !== 'false' || !focusIs('themeToggle')) failures.push('thema: Escape hoort het menu te sluiten en de focus terug te geven aan de knop');
+  clickToggle(); run('themeOnDocumentClick()');
+  if (isOpen()) failures.push('thema: een klik buiten de themakeuze hoort het menu te sluiten');
+  run('themeOnDocumentClick(); themeOnKeydown({ key: "Escape" })'); // dicht: geen fouten en niets te doen
+  let stopped = false; run('globalThis.__ev = { stopPropagation(){ globalThis.__stopped = true; } }; themeSwitch.handlers.click(__ev);');
+  if (!run('globalThis.__stopped === true')) failures.push('thema: een klik binnen de themakeuze mag het menu niet via het document sluiten (stopPropagation)');
+  clickToggle(); run("themeOnKeydown({ key: 'ArrowDown' })");
+  if (!focusIs('themeItems[1]')) failures.push('thema: pijltje omlaag hoort naar het volgende item te gaan');
+  run("themeOnKeydown({ key: 'ArrowDown' })");
+  if (!focusIs('themeItems[0]')) failures.push('thema: pijltje omlaag bij het laatste item hoort naar het eerste te gaan');
+  run("themeOnKeydown({ key: 'ArrowUp' })");
+  if (!focusIs('themeItems[themeItems.length - 1]')) failures.push('thema: pijltje omhoog bij het eerste item hoort naar het laatste te gaan');
+  run('themeMenuClose()');
+  // Onthouden: kiezen bewaart de keuze en sluit het menu; opslag die niet werkt geeft geen fout.
   run(`globalThis.localStorage = { data: {}, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.data[k] = v; } };`);
-  run("themeButtons.find(b => b.dataset.theme === 'sovjet').handlers.click();");
-  if (theme() !== 'sovjet' || run('themeStored()') !== 'sovjet') failures.push('thema: klikken op een knop zet en bewaart het thema niet');
+  clickToggle();
+  run("themeItems.find(b => b.dataset.theme === 'sovjet').handlers.click();");
+  if (theme() !== 'sovjet' || run('themeStored()') !== 'sovjet') failures.push('thema: een item kiezen zet en bewaart het thema niet');
+  if (isOpen() || !focusIs('themeToggle')) failures.push('thema: na een keuze hoort het menu dicht te zijn en de focus terug te gaan naar de knop');
   if (run('applyTheme(themeStored())') !== 'sovjet') failures.push('thema: een bewaarde keuze wordt niet teruggezet');
   run(`localStorage.setItem(THEME_STORAGE_KEY, 'weg');`);
   if (run('applyTheme(themeStored())') !== 'oorlog') failures.push('thema: een bewaard onbekend thema hoort het standaardthema te worden');
   run(`globalThis.localStorage = { getItem(){ throw new Error('geblokkeerd'); }, setItem(){ throw new Error('geblokkeerd'); } };`);
   try { run("themeSave('sovjet'); themeStored();"); } catch (e){ failures.push('thema: geblokkeerde opslag mag geen fout geven: ' + e.message); }
-  run('delete globalThis.localStorage; applyTheme("oorlog");');
-  if (!/id="themeGrid"/.test(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) failures.push('index.html mist het element met id themeGrid');
+  run('delete globalThis.localStorage; delete globalThis.__ev; delete globalThis.__stopped; applyTheme("oorlog");');
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  for (const id of ['themeSwitch', 'themeToggle', 'themeToggleIcon', 'themeMenu']) if (!indexHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id);
 }
 
 // ---- directe regeltests (findWinningPlayers en spelkern) ----
