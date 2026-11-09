@@ -59,11 +59,14 @@ function simulateOutcome(dealtPlayers, rules){
 }
 
 // Live vingerafdrukken tijdens het echte spel — noodstop als er onverwacht toch een cyclus optreedt.
+// visitedLog houdt de volgorde bij, zodat "stap terug" (undo.js) de standen van de teruggezette rondes weer kan vergeten.
 let visitedStates = new Set();
+let visitedLog = [];
 
 function checkLiveCycle(){
   const sig = stateSignature(players, game.discard);
   if (visitedStates.has(sig)) return true;
   visitedStates.add(sig);
+  visitedLog.push(sig);
   return false;
 }

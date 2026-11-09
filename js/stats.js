@@ -24,6 +24,20 @@ function statsResetAll(){
   renderStatsPanel();
 }
 
+// De tellers van nu, om bij "stap terug" (undo.js) weer terug te zetten. De geschiedenis groeit alleen aan, dus de lengte is genoeg.
+function statsSnapshot(){
+  return { history: statsHistory.length, wins: Object.assign({}, statsWins), battles: statsTotalBattles, longest: statsLongestTie, rounds: statsRoundCount };
+}
+
+function statsRestore(s){
+  statsHistory.length = s.history;
+  statsWins = Object.assign({}, s.wins);
+  statsTotalBattles = s.battles;
+  statsLongestTie = s.longest;
+  statsRoundCount = s.rounds;
+  renderStatsPanel();
+}
+
 function statsRecordBattle(depth){
   statsTotalBattles++;
   statsLongestTie = Math.max(statsLongestTie, depth);

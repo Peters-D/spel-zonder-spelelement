@@ -922,6 +922,96 @@ const expected = update || !fs.existsSync(expectedFile) ? {} : JSON.parse(fs.rea
 const actual = {};
 let liveChecked = 0;
 
+// ---- stap terug (undo.js) ----
+{
+  const start = (seed, ruleSet, n = 4) => {
+    document.getElementById('seedInput').value = seed;
+    for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS[ruleSet][id];
+    document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+    run('numPlayers = ' + n + '; dealNewGame(); launchGame();');
+  };
+  const sig = () => run('stateSignature(players, game.discard)');
+  const phaseNow = () => run('phase');
+  const finishRound = () => run(`(() => { let i = 0; do { advance(); i++; } while (!['cleared', 'game-over', 'cycle-over'].includes(phase) && i < 50); return phase; })()`);
+  const stats = () => run('JSON.stringify(statsSnapshot())');
+  const visited = () => run('visitedStates.size + "/" + visitedLog.length');
+  const undoDisabled = () => run('undoBtn.disabled');
+  const undo = () => run('undoBtn.handlers.click()');
+  const fail = t => failures.push('stap terug: ' + t);
+
+  // Een paar rondes terug en weer vooruit: dezelfde standen, tellers, statistieken en geen valse cyclusmelding.
+  for (const set of ['standard', 'twoBeatsAce+battleFirst']){
+    start('11', set);
+    if (!undoDisabled()) fail('aan het begin van een spel hoort de knop uit te staan (' + set + ')');
+    const sigs = [sig()], sts = [stats()], vis = [visited()];
+    for (let i = 0; i < 6; i++){
+      if (finishRound() !== 'cleared') fail('het testspel eindigde te vroeg (' + set + ')');
+      sigs.push(sig()); sts.push(stats()); vis.push(visited());
+    }
+    if (undoDisabled()) fail('na gespeelde rondes hoort de knop aan te staan');
+    for (const k of [5, 4]){
+      undo();
+      if (sig() !== sigs[k] || phaseNow() !== 'cleared') fail('een ronde terug hoort de stand van ronde ' + k + ' te geven (' + set + ')');
+      if (stats() !== sts[k]) fail('de statistieken horen mee terug te gaan (' + set + ', ronde ' + k + '): ' + stats() + ' i.p.v. ' + sts[k]);
+      if (visited() !== vis[k]) fail('de lijst met geziene standen hoort mee terug te gaan (' + set + ', ronde ' + k + '): ' + visited() + ' i.p.v. ' + vis[k]);
+    }
+    for (const k of [5, 6]){
+      if (finishRound() !== 'cleared') fail('na terugzetten hoort het spel gewoon door te kunnen (' + set + ')');
+      if (sig() !== sigs[k] || stats() !== sts[k] || visited() !== vis[k]) fail('opnieuw spelen hoort dezelfde stand, statistieken en lijst te geven (' + set + ', ronde ' + k + ')');
+    }
+    // Midden in een ronde terug gaat naar het begin van die ronde.
+    run('advance()');
+    if (phaseNow() !== 'revealed') fail('verwacht de fase "revealed" midden in een ronde, kreeg ' + phaseNow());
+    undo();
+    if (sig() !== sigs[6] || phaseNow() !== 'cleared' || stats() !== sts[6]) fail('midden in een ronde terug hoort het begin van die ronde te geven (' + set + ')');
+    if (run('players.some(p => p.faceCard)')) fail('na terugzetten liggen er geen open kaarten op tafel');
+  }
+
+  // Ten hoogste tien rondes terug.
+  start('12', 'standard');
+  let played = 0;
+  for (let i = 0; i < 15; i++){ if (finishRound() === 'cleared') played++; else break; }
+  const depth = run('undoStack.length');
+  if (played === 15 && depth !== 10) fail('er horen ten hoogste 10 stappen bewaard te worden, er zijn er ' + depth);
+  for (let i = 0; i < depth; i++) undo();
+  if (!undoDisabled()) fail('als alle stappen terug zijn hoort de knop uit te staan');
+
+  // Doorspoelen is één stap terug.
+  start('13', 'standard');
+  for (let i = 0; i < 3; i++) finishRound();
+  const sigBefore = sig(), stBefore = stats(), visBefore = visited();
+  run('fastForward()');
+  const afterFF = { phase: phaseNow(), sig: sig() };
+  if (afterFF.phase === 'cleared') fail('doorspoelen hoort tot het einde te gaan');
+  undo();
+  if (sig() !== sigBefore || stats() !== stBefore || visited() !== visBefore || phaseNow() !== 'cleared') fail('na doorspoelen hoort een stap terug de stand van ervoor te geven');
+  run('fastForward()');
+  if (phaseNow() !== afterFF.phase || sig() !== afterFF.sig) fail('opnieuw doorspoelen na terugzetten hoort hetzelfde einde te geven');
+
+  // Na het einde van het spel: de laatste ronde opnieuw spelen, met hetzelfde einde en zonder valse cyclusmelding.
+  for (const [seed, n] of [['1', 8], ['2', 3]]){ // spellen die in tests/expected.json met een winnaar eindigen (77 en 124 rondes)
+    start(seed, 'standard', n);
+    let end = null;
+    for (let i = 0; i < 6000 && !end; i++){ const ph = finishRound(); if (ph !== 'cleared') end = ph; }
+    if (end !== 'game-over') fail('het testspel (seed ' + seed + ', ' + n + ' spelers) hoort met een winnaar te eindigen, kreeg ' + end);
+    if (!end) continue;
+    const finalSig = sig(), finalStats = stats();
+    const banner = document.getElementById('endBanner');
+    undo();
+    if (phaseNow() !== 'cleared' || banner.children.length !== 0) fail('na het einde van het spel hoort een stap terug de eindbanner weg te halen (seed ' + seed + ')');
+    if (run('playBtn.disabled')) fail('na een stap terug hoort "Speel ronde" weer te werken (seed ' + seed + ')');
+    const again = finishRound();
+    if (again !== end || sig() !== finalSig || stats() !== finalStats) fail('na een stap terug hoort het einde hetzelfde te zijn (seed ' + seed + ': ' + end + ' → ' + again + ')');
+  }
+
+  // Een nieuw spel begint zonder geschiedenis.
+  start('16', 'standard');
+  finishRound();
+  if (undoDisabled()) fail('na een ronde hoort de knop aan te staan');
+  start('17', 'standard');
+  if (!undoDisabled() || run('undoStack.length') !== 0) fail('een nieuw spel hoort zonder geschiedenis te beginnen');
+}
+
 // ---- de winnaar kiest een regel (winner-rule.js) ----
 {
   const norm = data => JSON.parse(run('JSON.stringify(normalizeWinnerRules(' + JSON.stringify(data) + '))'));
