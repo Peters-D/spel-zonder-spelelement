@@ -124,8 +124,8 @@
   --stack-border: 1px solid rgba(0,0,0,0.3);
 }
 
-/* Adidas: zwart en wit met drie schuine strepen. */
-[data-theme="adidas"]{
+/* Semechki: zwart en wit met drie schuine strepen. */
+[data-theme="semechki"]{
   --olive: #1b1b1b;
   --olive-dark: #0b0b0b;
   --paper: #f5f5f5;
