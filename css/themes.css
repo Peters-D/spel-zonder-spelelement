@@ -1,0 +1,53 @@
+/* Thema's: alle kleuren van het spel staan hier, op één plek.
+ *
+ * Een thema is een blok met alle variabelen hieronder. De rest van de opmaak (style.css, rulebook.css, stats.css) en het
+ * spel zelf gebruiken alleen deze variabelen, en bevatten zelf geen kleuren (behalve neutraal zwart voor schaduwen en de
+ * verduistering achter vensters). Een nieuw thema = een nieuw blok [data-theme="naam"] met dezelfde variabelen.
+ * De test controleert dat geen enkel thema er een vergeet en dat er buiten dit bestand geen vaste kleuren staan.
+ *
+ * Het thema staat in het attribuut data-theme van het <html>-element. Zonder attribuut geldt het thema oorlog.
+ *
+ *   --olive          achtergrond van vensters en panelen
+ *   --olive-dark     achtergrond van de pagina
+ *   --glow           lichte gloed bovenaan de pagina
+ *   --paper          tekst op donker, en het vlak van een kaart
+ *   --paper-dim      gedempte tekst en randen
+ *   --ink            tekst op papier (regelboek, kaarten)
+ *   --line           dunne lijnen op donker
+ *   --red            waarschuwing, rug van de stapel
+ *   --red-deep       tweede streep van de rode rug
+ *   --red-suit       rode kleur (hartens en ruiten) op een donkere kaart
+ *   --brass          accent (knoppen, titels, stempel)
+ *   --brass-hover    accent als de muis erboven staat
+ *   --pile           aflegstapel, eerste streep
+ *   --pile-deep      aflegstapel, tweede streep
+ *   --chart-text     tekst in de grafiek
+ *   --chart-grid     lijnen in de grafiek
+ *   --chart-1 … --chart-8   kleuren van de spelers in de grafiek en de samenvatting
+ */
+:root, [data-theme="oorlog"]{
+  --olive: #2b3428;
+  --olive-dark: #1d251a;
+  --paper: #ede4d0;
+  --paper-dim: #d8cdb2;
+  --ink: #24211a;
+  --red: #a8402b;
+  --red-deep: #8f3222;
+  --brass: #c9a227;
+  --brass-hover: #dab531;
+  --line: rgba(237,228,208,0.16);
+  --glow: rgba(237,228,208,0.04);
+  --pile: #5d6b57;
+  --pile-deep: #46523f;
+  --red-suit: #d68a7c;
+  --chart-text: rgba(237,228,208,0.35);
+  --chart-grid: rgba(237,228,208,0.15);
+  --chart-1: #c9a227;
+  --chart-2: #a8402b;
+  --chart-3: #6f8f6a;
+  --chart-4: #7a92c9;
+  --chart-5: #c97ab0;
+  --chart-6: #8ac9c2;
+  --chart-7: #c9895a;
+  --chart-8: #9a9a9a;
+}

@@ -6,8 +6,13 @@ let statsTotalBattles = 0;  // aantal keer dat een battle is gestart
 let statsLongestTie = 0;    // diepste aantal opeenvolgende battle-niveaus in één ronde
 let statsRoundCount = 0;    // aantal afgeronde rondes (met een winnaar)
 
+// De kleuren komen uit het thema (css/themes.css). Zonder pagina (de test) is het resultaat leeg.
+function statsThemeColor(name){
+  return typeof getComputedStyle === 'function' ? getComputedStyle(document.documentElement).getPropertyValue(name).trim() : '';
+}
+
 function statsColors(){
-  return ['#c9a227','#a8402b','#6f8f6a','#7a92c9','#c97ab0','#8ac9c2','#c9895a','#9a9a9a'];
+  return [1, 2, 3, 4, 5, 6, 7, 8].map(i => statsThemeColor('--chart-' + i));
 }
 
 function statsResetAll(){
@@ -43,7 +48,7 @@ function renderStatsChart(){
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
   if (statsHistory.length === 0){
-    ctx.fillStyle = 'rgba(237,228,208,0.35)';
+    ctx.fillStyle = statsThemeColor('--chart-text');
     ctx.font = '11px monospace';
     ctx.textAlign = 'center';
     ctx.fillText('Nog geen data — speel een ronde.', W/2, H/2);
@@ -53,7 +58,7 @@ function renderStatsChart(){
   const padL = 24, padB = 20, padT = 8, padR = 8;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
-  ctx.strokeStyle = 'rgba(237,228,208,0.15)';
+  ctx.strokeStyle = statsThemeColor('--chart-grid');
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(padL, padT);

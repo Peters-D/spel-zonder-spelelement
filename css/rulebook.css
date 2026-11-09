@@ -42,8 +42,8 @@
 .rb-heading{
   font-family:'Special Elite', monospace; font-weight:400;
   font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
-  color: rgba(36,33,26,0.6);
-  margin:22px 0 8px; padding-bottom:6px; border-bottom:1px dashed rgba(36,33,26,0.25);
+  color: color-mix(in srgb, var(--ink) 60%, transparent);
+  margin:22px 0 8px; padding-bottom:6px; border-bottom:1px dashed color-mix(in srgb, var(--ink) 25%, transparent);
 }
 .rb-section{ margin:0 0 16px; }
 .rb-title{
@@ -54,16 +54,16 @@
 .rb-rule-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .rb-badge{
   flex-shrink:0; font-family:'Inter', sans-serif; font-size:11px; font-weight:600;
-  padding:2px 9px; border-radius:20px; border:1px solid rgba(36,33,26,0.3);
+  padding:2px 9px; border-radius:20px; border:1px solid color-mix(in srgb, var(--ink) 30%, transparent);
 }
 .rb-badge.rb-on{ background: var(--brass); border-color: var(--brass); color: var(--ink); }
-.rb-badge.rb-off{ color: rgba(36,33,26,0.55); }
+.rb-badge.rb-off{ color: color-mix(in srgb, var(--ink) 55%, transparent); }
 
 .rb-example{
-  background: rgba(36,33,26,0.06); border-radius:10px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent); border-radius:10px;
   padding:10px 12px; margin:0 0 8px;
 }
-.rb-with{ font-family:'Inter', sans-serif; font-size:11px; color: rgba(36,33,26,0.6); margin-bottom:6px; }
+.rb-with{ font-family:'Inter', sans-serif; font-size:11px; color: color-mix(in srgb, var(--ink) 60%, transparent); margin-bottom:6px; }
 .rb-cards{ display:flex; flex-wrap:wrap; gap:10px; margin-bottom:6px; }
 .rb-player{ text-align:center; }
 .rb-card{
@@ -73,19 +73,19 @@
   display:flex; align-items:center; justify-content:center;
   font-family:'Special Elite', monospace; font-size:14px;
 }
-.rb-card.red-suit{ color:#d68a7c; }
+.rb-card.red-suit{ color:var(--red-suit); }
 .rb-winner .rb-card{ border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass); }
 .rb-out .rb-card{ opacity:0.5; }
-.rb-caption{ font-family:'Inter', sans-serif; font-size:10px; color: rgba(36,33,26,0.65); }
+.rb-caption{ font-family:'Inter', sans-serif; font-size:10px; color: color-mix(in srgb, var(--ink) 65%, transparent); }
 .rb-winner .rb-caption{ color: var(--ink); font-weight:600; }
 .rb-scenario-row{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
 .rb-scenario-name{ width:54px; flex:none; }
 .rb-scenario-deck{ display:flex; align-items:center; gap:3px; min-width:0; }
 .rb-card.rb-mini{ width:24px; height:34px; margin:0; font-size:11px; border-radius:4px; flex:none; }
-.rb-arrow{ font-family:'Inter', sans-serif; color: rgba(36,33,26,0.55); flex:none; }
-.rb-none{ font-family:'Inter', sans-serif; font-size:11px; color: rgba(36,33,26,0.55); }
+.rb-arrow{ font-family:'Inter', sans-serif; color: color-mix(in srgb, var(--ink) 55%, transparent); flex:none; }
+.rb-none{ font-family:'Inter', sans-serif; font-size:11px; color: color-mix(in srgb, var(--ink) 55%, transparent); }
 .rb-scenario-discard{ font-family:'Inter', sans-serif; font-size:12px; font-weight:600; margin:2px 0 6px; }
 .rb-example-text{ font-family:'Inter', sans-serif; font-size:12.5px; line-height:1.45; margin:0; }
 
 .rb-order-list{ margin:0; padding-left:20px; font-family:'Inter', sans-serif; font-size:13px; line-height:1.6; }
-.rb-order-item:not(.rb-on){ color: rgba(36,33,26,0.55); }
+.rb-order-item:not(.rb-on){ color: color-mix(in srgb, var(--ink) 55%, transparent); }
