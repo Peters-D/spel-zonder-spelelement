@@ -27,6 +27,9 @@
 //                                                 naar 'pot' of naar { player: id, position: 'top' | 'bottom' }
 // Wie kaarten terugkrijgt doet weer mee: een uitgeschakelde speler is dan niet meer uitgeschakeld en speelt vanaf de
 // volgende ronde mee. Is er niets om terug te krijgen, dan blijft hij uitgeschakeld.
+// Let op: de bestemming 'pot' heeft alleen betekenis binnen onAward, omdat de pot daarna aan de winnaar wordt gegeven.
+// De pot wordt niet bewaard van de ene ronde naar de volgende (engineStartRound maakt hem leeg): kaarten die in onRoundEnd
+// naar de pot gaan, zouden verloren gaan. Gebruik daar een stapel van een speler of laat ze op de aflegstapel liggen.
 //
 // Kaarten van de ene speler naar de andere (ook dan doet een uitgeschakelde ontvanger weer mee):
 //   engineTransferCards(state, vanId, naarId, n, positie)   de bovenste n kaarten van een speler gaan naar een andere,
