@@ -102,8 +102,9 @@ h1{
   font-size:11px;
   letter-spacing:0.02em;
   color: var(--paper-dim);
-  margin-bottom:14px;
+  margin-bottom:4px;
 }
+.integrity-line.seed-line{ margin-bottom:14px; }
 .integrity-line #integrityStatus{
   color: var(--brass);
   font-weight:700;
