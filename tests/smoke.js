@@ -496,6 +496,56 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   run('endGame({ name: "Anna" });');
   if (!/ANNA WINT/.test(document.getElementById('endBanner').innerHTML)) failures.push('einde van het spel met winnaar toont de winnaar niet');
 }
+// De echte regel "Tweede kans": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 3 spelers kaarten hebben.
+{
+  const end = (decks, outIdx) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, { secondChance: true });
+    for (const i of ${JSON.stringify(outIdx || [])}) st.players[i].out = true;
+    const e = engineEndRound(st);
+    return JSON.stringify({ decks: st.players.map(p => p.deck.map(c => c.rank)), out: st.players.map(p => p.out), transfers: e.transfers.map(t => [t.from.id, t.to.id, t.count]),
+      revived: e.revived.map(p => p.id), gameOver: e.gameOver, moved: st.moved.transferred }); })()`));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  // Eén speler zonder kaarten: de bovenste kaart van de linkerbuur (speler 3, want speler 1 zit rechts van speler 2).
+  let r = end([['A'], [], ['K', 'Q'], ['J']]);
+  if (!same(r.decks, [['A'], ['K'], ['Q'], ['J']]) || !same(r.transfers, [[2, 1, 1]]) || r.out.some(Boolean)) failures.push('Tweede kans: één speler zonder kaarten klopt niet: ' + JSON.stringify(r));
+  // Een speler die al uit lag komt terug.
+  r = end([['A'], [], ['K', 'Q'], ['J']], [1]);
+  if (r.out[1] !== false || !same(r.revived, [1])) failures.push('Tweede kans: een uitgeschakelde speler hoort terug te komen: ' + JSON.stringify(r));
+  // Minder dan 3 spelers met kaarten: niemand komt terug en het spel is voorbij.
+  r = end([['A'], [], ['K']]);
+  if (!same(r.decks, [['A'], [], ['K']]) || r.transfers.length !== 0 || r.out[1] !== true) failures.push('Tweede kans: met 2 spelers met kaarten komt niemand terug: ' + JSON.stringify(r));
+  r = end([['A'], [], ['K'], []]);
+  if (r.transfers.length !== 0 || r.gameOver || !same(r.out, [false, true, false, true])) failures.push('Tweede kans: met 2 spelers met kaarten gaat het spel gewoon door met die twee: ' + JSON.stringify(r));
+  r = end([['A'], [], [], []]);
+  if (r.transfers.length !== 0 || !r.gameOver) failures.push('Tweede kans: met 1 speler met kaarten is het spel voorbij: ' + JSON.stringify(r));
+  // Precies 3 spelers met kaarten: de regel werkt (hier ook voor de laatste speler van de tafel, die van speler 1 krijgt: de tafel is een kring).
+  r = end([['A'], [], ['K', 'Q'], ['J'], []]);
+  if (!same(r.transfers, [[2, 1, 1], [0, 4, 1]]) || !same(r.decks, [[], ['K'], ['Q'], ['J'], ['A']]) || r.out[0] !== true || r.out[4] !== false)
+    failures.push('Tweede kans: bij precies 3 spelers met kaarten (en de kring rond de tafel) klopt het niet: ' + JSON.stringify(r));
+  // Spelers zonder kaarten worden overgeslagen bij het zoeken naar de linkerbuur, en twee spelers zonder kaarten gaan in tafelvolgorde.
+  r = end([['A'], [], [], ['J', 'Q', 'K'], ['2']]);
+  if (!same(r.decks, [['A'], ['J'], ['Q'], ['K'], ['2']]) || !same(r.transfers, [[3, 1, 1], [3, 2, 1]])) failures.push('Tweede kans: twee spelers zonder kaarten tegelijk klopt niet: ' + JSON.stringify(r));
+  // De buur heeft maar één kaart: de eerste krijgt die, de tweede krijgt niets en blijft uit.
+  r = end([['A'], [], [], ['J'], ['2']]);
+  if (!same(r.decks, [['A'], ['J'], [], [], ['2']]) || !same(r.transfers, [[3, 1, 1]]) || r.out[2] !== true || r.out[3] !== true || r.out[1] !== false)
+    failures.push('Tweede kans: een buur met één kaart klopt niet: ' + JSON.stringify(r));
+  // Wie net een kaart kreeg, geeft die niet meteen door: de gevers worden vooraf bepaald.
+  // Speler 1 en 6 vallen af (de tafel is een kring: links van speler 6 zit speler 1). Speler 1 krijgt een kaart van speler 2. Voor speler 6 telt
+  // speler 1 nog niet mee als buur, want die had bij het begin geen kaarten: ook speler 6 krijgt dus een kaart van speler 2.
+  r = end([[], ['K', 'Q'], ['A'], ['J'], ['2'], []]);
+  if (!same(r.transfers, [[1, 0, 1], [1, 5, 1]]) || !same(r.decks, [['K'], [], ['A'], ['J'], ['2'], ['Q']])) failures.push('Tweede kans: spelers die net een kaart kregen geven die niet door: ' + JSON.stringify(r));
+  // Zonder de regel aan gebeurt er niets.
+  const off = JSON.parse(run(`(() => { const st = __state([['A'], [], ['K', 'Q'], ['J']]); const e = engineEndRound(st); return JSON.stringify({ t: e.transfers.length, out: st.players.map(p => p.out) }); })()`));
+  if (off.t !== 0 || off.out[1] !== true) failures.push('Tweede kans: zonder de regel hoort er niets te gebeuren: ' + JSON.stringify(off));
+  // Altijd 52 unieke kaarten, en er worden echt kaarten overgedragen (alleen vanaf 4 spelers).
+  const sc = { games: 0, transfers: 0, small: 0 };
+  for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [2, 3, 4, 5, 6, 8]) for (const seed of ['t1', 't2', 't3', 't4']){
+    const c = conserveCheck(ids, n, seed, 300);
+    if (!c.ok) failures.push('Tweede kans (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + c.round + ' zijn er ' + c.total + ' kaarten (' + c.uniek + ' verschillende) in plaats van 52');
+    else { sc.games++; if (c.transfers > 0) sc.transfers++; if (n < 4 && c.transfers > 0) sc.small++; }
+  }
+  if (sc.transfers < 10) failures.push('Tweede kans: in te weinig spellen is er een kaart overgedragen om iets te bewijzen (' + sc.transfers + ' van ' + sc.games + ')');
+  if (sc.small !== 0) failures.push('Tweede kans: met 2 of 3 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
+}
 withFake(() => {
   let used = 0;
   for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRoundDiscard'], ['testBattleDiscard', 'testRevive'], ['testRescueLeft'], ['testRescueRight'], ['testRescueRich'], ['testBattleDiscard', 'testRescueRich']]){
@@ -614,6 +664,25 @@ withFake(() => {
     if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks) || JSON.stringify(ffEnd.discard) !== JSON.stringify(liveEnd.discard)))
       failures.push('fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
   }
+  // Hetzelfde voor de echte regel "Tweede kans": doorspoelen vanaf het moment dat er een kaart is overgedragen.
+  let midSC = 0;
+  for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [4, 5, 6]) for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8']){
+    document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+    for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = ids.includes(r.id);
+    for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = false;
+    seedField.value = seed;
+    const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.moved.transfers.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, transfers: game.moved.transfers.length }); })()'));
+    if (snap.phase !== 'round-over') continue;
+    const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+      return JSON.stringify({ total, phase, decks: players.map(p => p.deck.length) }); })()`));
+    const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length) }); })()'));
+    midSC++;
+    const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (na ' + snap.steps + ' stappen)';
+    if (ffEnd.total !== 52) failures.push('Tweede kans: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
+    if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks))) failures.push('Tweede kans: fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
+  }
+  if (midSC < 8) failures.push('Tweede kans: te weinig spellen om fast-forward midden in een spel te testen (' + midSC + ')');
+  for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = false;
   if (midGame < 6) failures.push('aflegstapel: te weinig spellen om fast-forward midden in een spel te testen (' + midGame + ')');
   discardStats.midGame = midGame;
   run('renderGrid = __orig.renderGrid; showStamp = __orig.showStamp; setDispatch = __orig.setDispatch;');
