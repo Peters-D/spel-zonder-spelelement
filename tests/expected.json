@@ -31,6 +31,38 @@
    25
   ]
  },
+ "2|1|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 905,
+  "decks": [
+   27,
+   3
+  ]
+ },
+ "2|1|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 62,
+  "decks": [
+   30,
+   0
+  ]
+ },
+ "2|1|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 905,
+  "decks": [
+   27,
+   3
+  ]
+ },
+ "2|1|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 62,
+  "decks": [
+   30,
+   0
+  ]
+ },
  "2|2|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -61,6 +93,38 @@
   "decks": [
    25,
    27
+  ]
+ },
+ "2|2|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1396,
+  "decks": [
+   16,
+   28
+  ]
+ },
+ "2|2|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 317,
+  "decks": [
+   4,
+   20
+  ]
+ },
+ "2|2|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1396,
+  "decks": [
+   16,
+   28
+  ]
+ },
+ "2|2|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 317,
+  "decks": [
+   4,
+   20
   ]
  },
  "2|3|standard": {
@@ -95,6 +159,38 @@
    22
   ]
  },
+ "2|3|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1509,
+  "decks": [
+   28,
+   12
+  ]
+ },
+ "2|3|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 135,
+  "decks": [
+   32,
+   0
+  ]
+ },
+ "2|3|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1509,
+  "decks": [
+   28,
+   12
+  ]
+ },
+ "2|3|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 135,
+  "decks": [
+   32,
+   0
+  ]
+ },
  "2|4|standard": {
   "outcome": "cycle",
   "rounds": 173,
@@ -125,6 +221,38 @@
   "decks": [
    27,
    25
+  ]
+ },
+ "2|4|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 153,
+  "decks": [
+   13,
+   23
+  ]
+ },
+ "2|4|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 157,
+  "decks": [
+   16,
+   0
+  ]
+ },
+ "2|4|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 153,
+  "decks": [
+   13,
+   23
+  ]
+ },
+ "2|4|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 157,
+  "decks": [
+   16,
+   0
   ]
  },
  "2|5|standard": {
@@ -159,6 +287,38 @@
    25
   ]
  },
+ "2|5|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 124,
+  "decks": [
+   14,
+   14
+  ]
+ },
+ "2|5|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 105,
+  "decks": [
+   12,
+   12
+  ]
+ },
+ "2|5|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 124,
+  "decks": [
+   14,
+   14
+  ]
+ },
+ "2|5|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 105,
+  "decks": [
+   12,
+   12
+  ]
+ },
  "2|6|standard": {
   "outcome": "cycle",
   "rounds": 652,
@@ -189,6 +349,38 @@
   "decks": [
    14,
    38
+  ]
+ },
+ "2|6|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 735,
+  "decks": [
+   13,
+   15
+  ]
+ },
+ "2|6|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 480,
+  "decks": [
+   9,
+   23
+  ]
+ },
+ "2|6|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 735,
+  "decks": [
+   13,
+   15
+  ]
+ },
+ "2|6|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 480,
+  "decks": [
+   9,
+   23
   ]
  },
  "3|1|standard": {
@@ -227,6 +419,42 @@
    25
   ]
  },
+ "3|1|battleDiscard": {
+  "outcome": "win",
+  "rounds": 84,
+  "decks": [
+   0,
+   8,
+   0
+  ]
+ },
+ "3|1|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 100,
+  "decks": [
+   25,
+   0,
+   0
+  ]
+ },
+ "3|1|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 210,
+  "decks": [
+   0,
+   10,
+   4
+  ]
+ },
+ "3|1|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 78,
+  "decks": [
+   0,
+   21,
+   0
+  ]
+ },
  "3|2|standard": {
   "outcome": "win",
   "rounds": 124,
@@ -263,6 +491,42 @@
    0
   ]
  },
+ "3|2|battleDiscard": {
+  "outcome": "win",
+  "rounds": 58,
+  "decks": [
+   30,
+   0,
+   0
+  ]
+ },
+ "3|2|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 97,
+  "decks": [
+   0,
+   0,
+   15
+  ]
+ },
+ "3|2|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1041,
+  "decks": [
+   15,
+   0,
+   9
+  ]
+ },
+ "3|2|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 112,
+  "decks": [
+   4,
+   8,
+   3
+  ]
+ },
  "3|3|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -295,6 +559,42 @@
   "rounds": 579,
   "decks": [
    52,
+   0,
+   0
+  ]
+ },
+ "3|3|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 69,
+  "decks": [
+   5,
+   0,
+   3
+  ]
+ },
+ "3|3|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 81,
+  "decks": [
+   10,
+   0,
+   0
+  ]
+ },
+ "3|3|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 68,
+  "decks": [
+   0,
+   11,
+   0
+  ]
+ },
+ "3|3|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 44,
+  "decks": [
+   35,
    0,
    0
   ]
@@ -335,6 +635,42 @@
    0
   ]
  },
+ "3|4|battleDiscard": {
+  "outcome": "win",
+  "rounds": 53,
+  "decks": [
+   0,
+   6,
+   0
+  ]
+ },
+ "3|4|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 63,
+  "decks": [
+   0,
+   15,
+   0
+  ]
+ },
+ "3|4|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 55,
+  "decks": [
+   0,
+   0,
+   19
+  ]
+ },
+ "3|4|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 55,
+  "decks": [
+   0,
+   0,
+   19
+  ]
+ },
  "3|5|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -371,6 +707,42 @@
    0
   ]
  },
+ "3|5|battleDiscard": {
+  "outcome": "win",
+  "rounds": 156,
+  "decks": [
+   0,
+   0,
+   11
+  ]
+ },
+ "3|5|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 116,
+  "decks": [
+   15,
+   0,
+   0
+  ]
+ },
+ "3|5|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 2706,
+  "decks": [
+   14,
+   0,
+   20
+  ]
+ },
+ "3|5|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 302,
+  "decks": [
+   7,
+   0,
+   23
+  ]
+ },
  "3|6|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -403,6 +775,42 @@
   "rounds": 807,
   "decks": [
    52,
+   0,
+   0
+  ]
+ },
+ "3|6|battleDiscard": {
+  "outcome": "win",
+  "rounds": 69,
+  "decks": [
+   34,
+   0,
+   0
+  ]
+ },
+ "3|6|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 176,
+  "decks": [
+   17,
+   0,
+   0
+  ]
+ },
+ "3|6|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 69,
+  "decks": [
+   34,
+   0,
+   0
+  ]
+ },
+ "3|6|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 37,
+  "decks": [
+   7,
    0,
    0
   ]
@@ -447,6 +855,46 @@
    0
   ]
  },
+ "4|1|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1365,
+  "decks": [
+   12,
+   0,
+   14,
+   0
+  ]
+ },
+ "4|1|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 70,
+  "decks": [
+   13,
+   0,
+   11,
+   0
+  ]
+ },
+ "4|1|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 63,
+  "decks": [
+   0,
+   0,
+   11,
+   0
+  ]
+ },
+ "4|1|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 254,
+  "decks": [
+   8,
+   0,
+   6,
+   0
+  ]
+ },
  "4|2|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -484,6 +932,46 @@
    0,
    52,
    0,
+   0
+  ]
+ },
+ "4|2|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 637,
+  "decks": [
+   0,
+   6,
+   0,
+   16
+  ]
+ },
+ "4|2|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 57,
+  "decks": [
+   0,
+   0,
+   0,
+   30
+  ]
+ },
+ "4|2|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 37,
+  "decks": [
+   0,
+   13,
+   0,
+   0
+  ]
+ },
+ "4|2|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 51,
+  "decks": [
+   0,
+   0,
+   6,
    0
   ]
  },
@@ -527,6 +1015,46 @@
    0
   ]
  },
+ "4|3|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1395,
+  "decks": [
+   0,
+   0,
+   11,
+   17
+  ]
+ },
+ "4|3|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 53,
+  "decks": [
+   0,
+   0,
+   0,
+   16
+  ]
+ },
+ "4|3|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 30,
+  "decks": [
+   0,
+   0,
+   9,
+   0
+  ]
+ },
+ "4|3|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 30,
+  "decks": [
+   9,
+   0,
+   0,
+   0
+  ]
+ },
  "4|4|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -564,6 +1092,46 @@
    52,
    0,
    0,
+   0
+  ]
+ },
+ "4|4|battleDiscard": {
+  "outcome": "win",
+  "rounds": 59,
+  "decks": [
+   0,
+   0,
+   0,
+   16
+  ]
+ },
+ "4|4|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 339,
+  "decks": [
+   0,
+   0,
+   0,
+   14
+  ]
+ },
+ "4|4|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 29,
+  "decks": [
+   4,
+   0,
+   2,
+   0
+  ]
+ },
+ "4|4|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 29,
+  "decks": [
+   4,
+   0,
+   2,
    0
   ]
  },
@@ -607,6 +1175,46 @@
    0
   ]
  },
+ "4|5|battleDiscard": {
+  "outcome": "win",
+  "rounds": 122,
+  "decks": [
+   0,
+   0,
+   31,
+   0
+  ]
+ },
+ "4|5|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 88,
+  "decks": [
+   0,
+   0,
+   30,
+   0
+  ]
+ },
+ "4|5|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 42,
+  "decks": [
+   0,
+   0,
+   6,
+   0
+  ]
+ },
+ "4|5|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 37,
+  "decks": [
+   0,
+   0,
+   16,
+   0
+  ]
+ },
  "4|6|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -645,6 +1253,46 @@
    0,
    52,
    0
+  ]
+ },
+ "4|6|battleDiscard": {
+  "outcome": "win",
+  "rounds": 62,
+  "decks": [
+   9,
+   0,
+   0,
+   0
+  ]
+ },
+ "4|6|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 70,
+  "decks": [
+   0,
+   28,
+   0,
+   0
+  ]
+ },
+ "4|6|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 43,
+  "decks": [
+   7,
+   0,
+   0,
+   5
+  ]
+ },
+ "4|6|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 25,
+  "decks": [
+   0,
+   0,
+   0,
+   13
   ]
  },
  "6|1|standard": {
@@ -695,6 +1343,54 @@
    52
   ]
  },
+ "6|1|battleDiscard": {
+  "outcome": "win",
+  "rounds": 94,
+  "decks": [
+   0,
+   0,
+   3,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|1|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 49,
+  "decks": [
+   0,
+   18,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|1|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 34,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   11
+  ]
+ },
+ "6|1|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 26,
+  "decks": [
+   0,
+   0,
+   7,
+   0,
+   0,
+   0
+  ]
+ },
  "6|2|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -743,6 +1439,54 @@
    52
   ]
  },
+ "6|2|battleDiscard": {
+  "outcome": "win",
+  "rounds": 27,
+  "decks": [
+   0,
+   0,
+   0,
+   25,
+   0,
+   0
+  ]
+ },
+ "6|2|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 70,
+  "decks": [
+   0,
+   8,
+   0,
+   4,
+   0,
+   0
+  ]
+ },
+ "6|2|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 16,
+  "decks": [
+   0,
+   0,
+   0,
+   11,
+   0,
+   0
+  ]
+ },
+ "6|2|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 22,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   6
+  ]
+ },
  "6|3|standard": {
   "outcome": "cycle",
   "rounds": 1990,
@@ -784,6 +1528,54 @@
   "rounds": 568,
   "decks": [
    52,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|3|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 627,
+  "decks": [
+   16,
+   0,
+   0,
+   0,
+   6,
+   0
+  ]
+ },
+ "6|3|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 181,
+  "decks": [
+   7,
+   0,
+   0,
+   0,
+   0,
+   17
+  ]
+ },
+ "6|3|battleFirst+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 82,
+  "decks": [
+   6,
+   0,
+   4,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|3|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 27,
+  "decks": [
+   9,
    0,
    0,
    0,
@@ -839,6 +1631,54 @@
    0
   ]
  },
+ "6|4|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 78,
+  "decks": [
+   7,
+   11,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|4|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 78,
+  "decks": [
+   7,
+   11,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|4|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 25,
+  "decks": [
+   16,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|4|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 25,
+  "decks": [
+   16,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
  "6|5|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -884,6 +1724,54 @@
    0,
    46,
    6,
+   0
+  ]
+ },
+ "6|5|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 158,
+  "decks": [
+   0,
+   0,
+   6,
+   4,
+   0,
+   0
+  ]
+ },
+ "6|5|twoBeatsAce+battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 158,
+  "decks": [
+   0,
+   0,
+   6,
+   4,
+   0,
+   0
+  ]
+ },
+ "6|5|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 10,
+  "decks": [
+   5,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|5|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 10,
+  "decks": [
+   5,
+   0,
+   0,
+   0,
+   0,
    0
   ]
  },
@@ -933,6 +1821,54 @@
    0,
    13,
    0
+  ]
+ },
+ "6|6|battleDiscard": {
+  "outcome": "win",
+  "rounds": 73,
+  "decks": [
+   23,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|6|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 70,
+  "decks": [
+   0,
+   0,
+   0,
+   7,
+   0,
+   0
+  ]
+ },
+ "6|6|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 31,
+  "decks": [
+   5,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "6|6|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 28,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   6
   ]
  },
  "8|1|standard": {
@@ -987,6 +1923,62 @@
    0,
    0,
    9,
+   0,
+   0
+  ]
+ },
+ "8|1|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 250,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   5,
+   9,
+   0,
+   0
+  ]
+ },
+ "8|1|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 39,
+  "decks": [
+   0,
+   0,
+   14,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|1|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 7,
+  "decks": [
+   0,
+   0,
+   5,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|1|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 7,
+  "decks": [
+   0,
+   0,
+   5,
+   0,
+   0,
+   0,
    0,
    0
   ]
@@ -1047,6 +2039,62 @@
    0
   ]
  },
+ "8|2|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 1007,
+  "decks": [
+   0,
+   0,
+   0,
+   19,
+   0,
+   0,
+   0,
+   7
+  ]
+ },
+ "8|2|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 66,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   31
+  ]
+ },
+ "8|2|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 15,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   5,
+   0,
+   0
+  ]
+ },
+ "8|2|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 15,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   5,
+   0,
+   0
+  ]
+ },
  "8|3|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -1100,6 +2148,62 @@
    0,
    0,
    26,
+   0
+  ]
+ },
+ "8|3|battleDiscard": {
+  "outcome": "win",
+  "rounds": 46,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   5,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|3|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 93,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   10,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|3|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 6,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|3|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 6,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
    0
   ]
  },
@@ -1159,6 +2263,62 @@
    25
   ]
  },
+ "8|4|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 130,
+  "decks": [
+   5,
+   0,
+   0,
+   5,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|4|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 95,
+  "decks": [
+   0,
+   0,
+   0,
+   10,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|4|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 12,
+  "decks": [
+   11,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|4|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 12,
+  "decks": [
+   11,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
  "8|5|standard": {
   "outcome": "unknown",
   "rounds": 3000,
@@ -1212,6 +2372,62 @@
    46,
    0,
    6,
+   0
+  ]
+ },
+ "8|5|battleDiscard": {
+  "outcome": "win",
+  "rounds": 46,
+  "decks": [
+   0,
+   0,
+   0,
+   11,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|5|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 73,
+  "decks": [
+   0,
+   0,
+   0,
+   13,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|5|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 7,
+  "decks": [
+   5,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|5|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 7,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   5,
+   0,
+   0,
    0
   ]
  },
@@ -1269,6 +2485,62 @@
    0,
    0,
    26
+  ]
+ },
+ "8|6|battleDiscard": {
+  "outcome": "cycle",
+  "rounds": 91,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   20,
+   0,
+   10,
+   0
+  ]
+ },
+ "8|6|twoBeatsAce+battleDiscard": {
+  "outcome": "win",
+  "rounds": 152,
+  "decks": [
+   14,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|6|battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 6,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
+ "8|6|twoBeatsAce+battleFirst+battleDiscard": {
+  "outcome": "win",
+  "rounds": 6,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
   ]
  }
 }

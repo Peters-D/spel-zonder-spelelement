@@ -9,7 +9,7 @@ Een kaartspel in de stijl van "oorlogje" voor 2 tot 8 spelers, in de browser. Sp
 
 ### Basisregels
 
-Bij een voorbeeld staan de open kaarten in de volgorde van de spelers (speler 1, speler 2, enzovoort).
+Bij een voorbeeld staan de open kaarten in de volgorde van de spelers (speler 1, speler 2, enzovoort). Bij een voorbeeld met stapels staat van elke speler de bovenste kaart voorop.
 
 - **Delen.** Een gewoon kaartspel van 52 kaarten wordt geschud en zo gelijk mogelijk verdeeld over de spelers. Iedere speler krijgt een gesloten stapel. Spelers maken geen keuzes: zodra de kaarten zijn gedeeld, ligt de uitkomst vast. Met dezelfde seed wordt altijd hetzelfde spel gedeeld.
 - **Een ronde.** Elke speler die nog kaarten heeft, legt de bovenste kaart van de eigen stapel open op tafel. Alle open kaarten vormen samen de pot. De winnaar van de ronde krijgt de hele pot; die gaat onderop de eigen stapel, in de volgorde waarin de kaarten zijn gelegd. De pot wordt niet geschud.
@@ -37,6 +37,10 @@ Extra regels zijn optioneel en aan te vinken bij het starten van een spel.
   - Voorbeeld: `3 · 3 · 3 · A` – Drie gelijke kaarten battlen allemaal.
   - Voorbeeld: `A · K · Q` – Zonder paar wint gewoon de hoogste kaart.
   - Voorbeeld: `2 · A · A` (met "2 verslaat Aas" aan) – Het paar gaat voor: de Azen battlen, de 2 doet niet mee.
+- **Battle ruimt de pot op** (standaard uit). Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. Zonder battle verandert er niets. Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; hebben alle spelers geen kaarten meer, dan is het gelijkspel.
+  - Voorbeeld: stapels `K 4 2 · K 9 3 · 5 7 6` worden na één ronde `2 · 3 · 7 6`, met 5 kaarten op de aflegstapel – Speler 1 en 2 leggen allebei een K: battle. Speler 2 wint de battle met de 9, maar alle 5 kaarten op tafel gaan naar de aflegstapel. Speler 3 doet niet mee aan de battle en verliest de 5 ook.
+  - Voorbeeld: stapels `A 4 · K 9` worden na één ronde `4 A K · 9`, met 0 kaarten op de aflegstapel – Zonder battle wint speler 1 de pot gewoon.
+  - Voorbeeld: stapels `K · K 3` worden na één ronde `uit · uit`, met 3 kaarten op de aflegstapel – Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.
 
 ### Volgorde bij botsingen
 
@@ -68,7 +72,7 @@ git clone https://github.com/Peters-D/spel-zonder-spelelement.git
 
 De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het starten, het regelboek in het spel en het regel-gedeelte van deze README volgen daaruit vanzelf.
 
-1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd` en de handelingen voor de aflegstapel en voor kaarten tussen spelers uit `js/engine.js`, en zet `usesDiscard: true`.
+1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd` en de handelingen voor de aflegstapel en voor kaarten tussen spelers uit `js/engine.js`, en zet `usesDiscard: true`. Een regel met alleen haken heeft geen `decide`; laat dan in `examples` een scenario met stapels zien (`decks`, `after`, `discarded`, `text`), zie de uitleg bovenaan `js/rules.js`.
 2. Draai `node tools/build-readme.js`. Dat werkt het regel-gedeelte van deze README bij. Pas dat gedeelte niet met de hand aan.
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.

@@ -16,6 +16,10 @@ function rbBuildExample(ex, allRules){
     const titles = ex.with.map(id => (allRules.find(r => r.id === id) || { title: id }).title);
     box.appendChild(rbEl('div', 'rb-with', 'Met erbij: ' + titles.join(', ')));
   }
+  if (isScenarioExample(ex)){
+    rbBuildScenario(ex, box);
+    return box;
+  }
   const row = rbEl('div', 'rb-cards');
   ex.cards.forEach((text, i) => {
     const card = parseExampleCard(text);
@@ -28,6 +32,32 @@ function rbBuildExample(ex, allRules){
   box.appendChild(row);
   box.appendChild(rbEl('p', 'rb-example-text', ex.text));
   return box;
+}
+
+// Een scenario: per speler de stapel vóór en na een ronde (bovenste kaart links), en hoeveel kaarten er zijn afgelegd.
+function rbBuildScenario(ex, box){
+  box.appendChild(rbEl('div', 'rb-with', 'Stapels vóór en na één ronde (bovenste kaart links)'));
+  const chips = (parent, cards) => {
+    if (cards.length === 0) parent.appendChild(rbEl('span', 'rb-none', 'uit'));
+    for (const text of cards){
+      const card = parseExampleCard(text);
+      parent.appendChild(rbEl('div', 'rb-card rb-mini' + (card.suit && isRed(card) ? ' red-suit' : ''), card.rank + (card.suit || '')));
+    }
+  };
+  ex.decks.forEach((deck, i) => {
+    const row = rbEl('div', 'rb-scenario-row');
+    row.appendChild(rbEl('div', 'rb-caption rb-scenario-name', 'Speler ' + (i + 1)));
+    const before = rbEl('div', 'rb-scenario-deck');
+    chips(before, deck);
+    row.appendChild(before);
+    row.appendChild(rbEl('span', 'rb-arrow', '→'));
+    const after = rbEl('div', 'rb-scenario-deck');
+    chips(after, ex.after[i]);
+    row.appendChild(after);
+    box.appendChild(row);
+  });
+  box.appendChild(rbEl('div', 'rb-scenario-discard', 'Aflegstapel: ' + ex.discarded + (ex.discarded === 1 ? ' kaart' : ' kaarten')));
+  box.appendChild(rbEl('p', 'rb-example-text', ex.text));
 }
 
 // Bouwt de inhoud van het regelboek.
@@ -60,7 +90,8 @@ function buildRulebook(rules, base, active){
   }
 
   // De volgorde waarin de extra regels worden toegepast (uit de prioriteit in de catalogus).
-  const ordered = rules.slice().sort((a, b) => a.priority - b.priority);
+  // Alleen regels die kunnen beslissen wie een ronde wint doen mee aan de botsingen.
+  const ordered = rules.filter(r => typeof r.decide === 'function').sort((a, b) => a.priority - b.priority);
   const order = rbEl('section', 'rb-section rb-order');
   order.appendChild(rbEl('h3', 'rb-heading', 'Volgorde bij botsingen'));
   order.appendChild(rbEl('p', 'rb-text',
