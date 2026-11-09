@@ -57,7 +57,7 @@ function fastForward(){
     if (entry.type === 'battle'){
       if (typeof statsRecordBattle === 'function') statsRecordBattle(entry.depth); // STATS HOOK
     } else if (entry.type === 'win'){
-      if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(entry.winnerId, entry.counts); // STATS HOOK
+      if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(entry.winnerIds || entry.winnerId, entry.counts); // STATS HOOK
     }
   });
 
