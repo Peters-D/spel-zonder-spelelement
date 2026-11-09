@@ -248,8 +248,8 @@ if (JSON.stringify(names('__s.players[1].deck')) !== JSON.stringify(['2♥', '3�
   failures.push('aflegstapel: terughalen onderaan een stapel klopt niet: ' + JSON.stringify(names('__s.players[1].deck')));
 run(`engineReturnFromDiscard(__s, 2, { player: 2, position: 'top' });`); // 9♠, 8♠ terug, bovenop (9♠ bovenaan)
 if (JSON.stringify(names('__s.players[2].deck')) !== JSON.stringify(['9♠', '8♠', '9♦'])) failures.push('aflegstapel: terughalen bovenop een stapel klopt niet: ' + JSON.stringify(names('__s.players[2].deck')));
-run(`engineReturnFromDiscard(__s, 5, 'pot');`); // vraagt meer dan er ligt: alleen 7♠
-if (JSON.stringify(names('__s.pot')) !== JSON.stringify(['7♠']) || run('__s.discard.length') !== 0) failures.push('aflegstapel: terughalen naar de pot of meer vragen dan er ligt klopt niet');
+run(`engineReturnFromDiscard(__s, 5, { player: 0 });`); // vraagt meer dan er ligt: alleen 7♠
+if (JSON.stringify(names('__s.players[0].deck')) !== JSON.stringify(['Q♠', '7♠']) || run('__s.discard.length') !== 0) failures.push('aflegstapel: meer terugvragen dan er ligt klopt niet');
 run(`engineDiscardCards(__s, [__card('4', '♦')]); __s.players[3].out = true;`);
 if (run(`engineReturnFromDiscard(__s, 1, { player: 3 })`) !== 1 || run('__s.discard.length') !== 0 || run('__s.players[3].out') !== false)
   failures.push('aflegstapel: een uitgeschakelde speler die kaarten terugkrijgt hoort weer mee te doen');
@@ -264,9 +264,6 @@ if (JSON.stringify(run('__r.moved.revived')) !== '[]') failures.push('aflegstape
 run(`engineReturnFromDiscard(__r, 1, { player: 1 });`);
 if (run('__r.players[1].out') !== false || JSON.stringify(names('__r.players[1].deck')) !== JSON.stringify(['4♦']) || JSON.stringify(run('__r.moved.revived')) !== '[1]')
   failures.push('aflegstapel: terugkomen vanaf de aflegstapel klopt niet: ' + JSON.stringify(names('__r.players[1].deck')));
-// Kaarten naar de pot laten een uitgeschakelde speler uit.
-run(`__r.players[1].out = true; __r.players[1].deck = []; engineDiscardCards(__r, [__card('9', '♣')]); engineReturnFromDiscard(__r, 1, 'pot');`);
-if (run('__r.players[1].out') !== true) failures.push('aflegstapel: kaarten naar de pot laten niemand terugkomen');
 // Een nieuwe spelstand begint met een lege aflegstapel.
 if (run('createGameState([{ id: 0, name: "a", deck: [] }], {}).discard.length') !== 0) failures.push('aflegstapel: begint niet leeg');
 
