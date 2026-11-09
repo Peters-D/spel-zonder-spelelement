@@ -24,12 +24,10 @@
 //   engineDiscardPot(state)                       legt de hele pot af
 //   engineDiscardFromDeck(state, spelerId, n)     legt de bovenste n kaarten van een stapel af
 //   engineReturnFromDiscard(state, n, naar)       haalt de bovenste n kaarten van de aflegstapel terug, op volgorde,
-//                                                 naar 'pot' of naar { player: id, position: 'top' | 'bottom' }
+//                                                 naar { player: id, position: 'top' | 'bottom' } (nooit naar de pot)
 // Wie kaarten terugkrijgt doet weer mee: een uitgeschakelde speler is dan niet meer uitgeschakeld en speelt vanaf de
 // volgende ronde mee. Is er niets om terug te krijgen, dan blijft hij uitgeschakeld.
-// Let op: de bestemming 'pot' heeft alleen betekenis binnen onAward, omdat de pot daarna aan de winnaar wordt gegeven.
-// De pot wordt niet bewaard van de ene ronde naar de volgende (engineStartRound maakt hem leeg): kaarten die in onRoundEnd
-// naar de pot gaan, zouden verloren gaan. Gebruik daar een stapel van een speler of laat ze op de aflegstapel liggen.
+// Kaarten van de aflegstapel gaan alleen naar een speler, nooit naar de pot (die wordt elke ronde geleegd).
 //
 // Kaarten van de ene speler naar de andere (ook dan doet een uitgeschakelde ontvanger weer mee):
 //   engineTransferCards(state, vanId, naarId, n, positie)   de bovenste n kaarten van een speler gaan naar een andere,
@@ -254,15 +252,14 @@ function engineDiscardFromDeck(state, playerId, count){
 }
 
 // Haalt de bovenste kaarten van de aflegstapel terug, in de volgorde waarin ze lagen (niet geschud).
-//   naar: 'pot' of { player: id, position: 'top' | 'bottom' } (standaard onderaan de stapel)
+//   naar: { player: id, position: 'top' | 'bottom' } (standaard onderaan de stapel)
 // Een uitgeschakelde speler die kaarten terugkrijgt doet weer mee (zie engineRevive).
 function engineReturnFromDiscard(state, count, to){
-  const target = to === 'pot' ? null : enginePlayerById(state, to.player);
+  const target = enginePlayerById(state, to.player);
   const cards = state.discard.splice(0, Math.max(0, count | 0));
-  if (!target) state.pot.push(...cards);
-  else if (to.position === 'top') target.deck.unshift(...cards);
+  if (to.position === 'top') target.deck.unshift(...cards);
   else target.deck.push(...cards);
-  if (target && cards.length > 0) engineRevive(state, target);
+  if (cards.length > 0) engineRevive(state, target);
   state.moved.returned += cards.length;
   return cards.length;
 }
