@@ -26,7 +26,8 @@ function loadCatalogue(){
     vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: f });
   }
   // Functies (decide, overruledMessage) vallen bij JSON weg; alleen de gegevens zijn nodig.
-  return JSON.parse(vm.runInContext('JSON.stringify({ rules: RULES, base: BASE_RULES })', ctx));
+  return JSON.parse(vm.runInContext(
+    "JSON.stringify({ rules: RULES.map(r => Object.assign({ hasDecide: typeof r.decide === 'function' }, r)), base: BASE_RULES })", ctx));
 }
 
 // ---- markdown ----
@@ -36,6 +37,13 @@ const md = text => text.replace(/[\\`*_<]/g, c => '\\' + c);
 const titleDot = title => md(title) + (/[.!?:]$/.test(title) ? '' : '.');
 
 function exampleLine(ex, rules){
+  if (Array.isArray(ex.decks)){ // scenario: stapels vóór en na een ronde
+    const decks = list => list.map(d => d.length ? d.join(' ') : 'uit').join(' · ');
+    const withText = (ex.with || []).map(id => '"' + md((rules.find(r => r.id === id) || { title: id }).title) + '"');
+    return '  - Voorbeeld: stapels `' + decks(ex.decks) + '`' + (withText.length ? ' (met ' + withText.join(' en ') + ' aan)' : '') +
+      ' worden na één ronde `' + decks(ex.after) + '`, met ' + ex.discarded + (ex.discarded === 1 ? ' kaart' : ' kaarten') +
+      ' op de aflegstapel – ' + md(ex.text);
+  }
   const cards = '`' + ex.cards.join(' · ') + '`';
   const extra = (ex.with || []).map(id => '"' + md((rules.find(r => r.id === id) || { title: id }).title) + '"');
   return '  - Voorbeeld: ' + cards + (extra.length ? ' (met ' + extra.join(' en ') + ' aan)' : '') + ' – ' + md(ex.text);
@@ -50,7 +58,8 @@ function buildBlock({ rules, base }){
   out.push('');
   out.push('### Basisregels');
   out.push('');
-  out.push('Bij een voorbeeld staan de open kaarten in de volgorde van de spelers (speler 1, speler 2, enzovoort).');
+  out.push('Bij een voorbeeld staan de open kaarten in de volgorde van de spelers (speler 1, speler 2, enzovoort). ' +
+    'Bij een voorbeeld met stapels staat van elke speler de bovenste kaart voorop.');
   out.push('');
   for (const section of base){
     out.push('- **' + titleDot(section.title) + '** ' + md(section.description));
@@ -71,7 +80,7 @@ function buildBlock({ rules, base }){
   out.push('Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. ' +
     'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart.');
   out.push('');
-  rules.slice().sort((a, b) => a.priority - b.priority).forEach((r, i) => out.push((i + 1) + '. ' + md(r.title)));
+  rules.filter(r => r.hasDecide).sort((a, b) => a.priority - b.priority).forEach((r, i) => out.push((i + 1) + '. ' + md(r.title)));
   out.push('');
   out.push('Dezelfde uitleg staat in het spel zelf, onder de knop **📖 Spelregels**.');
   out.push(EINDE);

@@ -139,6 +139,8 @@ function endGame(winner){
   const banner = document.getElementById('endBanner');
   if (winner){
     banner.innerHTML = '<div class="end-banner">★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★<br><span style="font-family:Inter;font-size:13px;">Alle andere spelers hebben geen kaarten meer.</span></div>';
+  } else {
+    banner.innerHTML = '<div class="end-banner">★ GELIJKSPEL ★<br><span style="font-family:Inter;font-size:13px;">Niemand heeft nog kaarten.</span></div>';
   }
 }
 

@@ -11,6 +11,9 @@
 //               spelers die (voorlopig) winnen of gaan battlen], text: uitleg, with: [andere regels
 //               die in dit voorbeeld ook aan staan] }. Ze worden getoond in het regelboek EN door de
 //               test uitgevoerd tegen decide(): een voorbeeld dat het spel anders speelt, laat de test falen.
+//               Een regel zonder decide (alleen haken) laat een scenario zien: { decks: [de stapels vóór de ronde, per speler, bovenste
+//               kaart eerst], after: [de stapels na de ronde], discarded: aantal kaarten op de aflegstapel na de ronde, text,
+//               with }. Het scenario wordt een ronde lang gespeeld door de spelkern (de test controleert het).
 //   decide      (optioneel) decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
 //   usesDiscard (optioneel) true als de regel kaarten aflegt of terughaalt: dan staat de aflegstapel op het scherm
@@ -76,8 +79,36 @@ const RULES = [
       return best ? best[1] : null;
     },
     overruledMessage: names => names + ' had de winnende kaart, maar gelijke kaarten gaan voor.'
+  },
+  {
+    id: 'battleDiscard',
+    priority: 30,
+    title: 'Battle ruimt de pot op',
+    short: 'Na een battle gaat de hele pot naar de aflegstapel (niemand wint kaarten)',
+    description: 'Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ' +
+      'ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. ' +
+      'Zonder battle verandert er niets. Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; ' +
+      'hebben alle spelers geen kaarten meer, dan is het gelijkspel.',
+    default: false,
+    usesDiscard: true,
+    examples: [
+      { decks: [['K', '4', '2'], ['K', '9', '3'], ['5', '7', '6']], after: [['2'], ['3'], ['7', '6']], discarded: 5,
+        text: 'Speler 1 en 2 leggen allebei een K: battle. Speler 2 wint de battle met de 9, maar alle 5 kaarten op tafel gaan naar de aflegstapel. Speler 3 doet niet mee aan de battle en verliest de 5 ook.' },
+      { decks: [['A', '4'], ['K', '9']], after: [['4', 'A', 'K'], ['9']], discarded: 0,
+        text: 'Zonder battle wint speler 1 de pot gewoon.' },
+      { decks: [['K'], ['K', '3']], after: [[], []], discarded: 3,
+        text: 'Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.' }
+    ],
+    onAward(ctx){
+      if (ctx.state.battleLevel > 0) engineDiscardPot(ctx.state);
+    }
   }
 ];
+
+// Een voorbeeld met stapels (decks) in plaats van open kaarten: zie de uitleg bovenaan.
+function isScenarioExample(ex){
+  return Array.isArray(ex.decks);
+}
 
 // Basisregels: de regels die altijd gelden. Ze staan hier als tekst voor het regelboek.
 // Alleen de voorbeelden (examples, zelfde formaat als bij RULES, met alle extra regels uit) worden door de

@@ -130,6 +130,15 @@ if (JSON.stringify(parsed) !== JSON.stringify([{ rank: 'A', suit: null, value: 1
 for (const section of [...CATALOG.map(r => ({ name: r.title, ...r })), ...BASE.map(b => ({ name: b.title, ...b }))]){
   for (const f of ['title', 'description']) if (!isText(section[f])) failures.push('regelboek ' + section.name + ': ' + f + ' ontbreekt');
   for (const ex of section.examples || []){
+    if (Array.isArray(ex.decks)){ // scenario: stapels vóór en na een ronde
+      const ranks = list => list.flat().every(c => validCard(c));
+      if (!isText(ex.text)) failures.push('voorbeeld bij "' + section.name + '": tekst ontbreekt');
+      if (!ex.decks.every(Array.isArray) || !Array.isArray(ex.after) || ex.after.length !== ex.decks.length || !ex.after.every(Array.isArray)) { failures.push('voorbeeld bij "' + section.name + '": decks en after horen even lang te zijn'); continue; }
+      if (!ranks(ex.decks) || !ranks(ex.after)) failures.push('voorbeeld bij "' + section.name + '": onbekende kaart in een stapel');
+      if (!Number.isInteger(ex.discarded) || ex.discarded < 0) failures.push('voorbeeld bij "' + section.name + '": discarded moet een aantal zijn');
+      if (ex.decks.flat().length !== ex.after.flat().length + ex.discarded) failures.push('voorbeeld bij "' + section.name + '": het aantal kaarten voor en na (plus afgelegd) klopt niet');
+      continue;
+    }
     if (!ex.cards.every(validCard)) failures.push('voorbeeld bij "' + section.name + '": onbekende kaart in ' + JSON.stringify(ex.cards));
     if (!isText(ex.text) || !Array.isArray(ex.winners)) failures.push('voorbeeld bij "' + section.name + '": tekst of winnaars ontbreekt');
     if (ex.winners.some(i => i < 0 || i >= ex.cards.length)) failures.push('voorbeeld bij "' + section.name + '": winnaar buiten de kaarten');
@@ -168,6 +177,14 @@ CATALOG.forEach((r, i) => {
   if (examples.length !== r.examples.length) failures.push('regelboek: ' + examples.length + ' voorbeelden bij "' + r.title + '", de catalogus heeft er ' + r.examples.length);
   r.examples.forEach((ex, k) => {
     const exBox = examples[k]; if (!exBox) return;
+    if (Array.isArray(ex.decks)){
+      const shown = byClass(exBox, 'rb-card').map(n => n.textContent);
+      const wanted = ex.decks.flatMap((d, i) => [...d, ...ex.after[i]]);
+      if (JSON.stringify(shown) !== JSON.stringify(wanted)) failures.push('regelboek: stapels van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" kloppen niet met de catalogus');
+      if (!textOf(exBox).includes('Aflegstapel: ' + ex.discarded + (ex.discarded === 1 ? ' kaart' : ' kaarten'))) failures.push('regelboek: aflegstapel van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" ontbreekt');
+      if (!textOf(exBox).includes(ex.text)) failures.push('regelboek: uitleg van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" ontbreekt');
+      return;
+    }
     const cards = byClass(exBox, 'rb-card').map(n => n.textContent);
     if (JSON.stringify(cards) !== JSON.stringify(ex.cards)) failures.push('regelboek: kaarten van voorbeeld ' + (k + 1) + ' bij "' + r.title + '" kloppen niet met de catalogus');
     const winners = byClass(exBox, 'rb-player').map((n, idx) => (n.className.split(' ').includes('rb-winner') ? idx : -1)).filter(idx => idx >= 0);
@@ -178,7 +195,7 @@ CATALOG.forEach((r, i) => {
 });
 // Volgorde bij botsingen: zoals de prioriteit in de catalogus.
 const orderItems = byClass(book, 'rb-order-item').map(n => n.textContent.replace(/ \((aan|uit)\)$/, ''));
-const expectedOrder = CATALOG.slice().sort((a, b) => a.priority - b.priority).map(r => r.title);
+const expectedOrder = CATALOG.filter(r => r.hasDecide).sort((a, b) => a.priority - b.priority).map(r => r.title);
 if (JSON.stringify(orderItems) !== JSON.stringify(expectedOrder)) failures.push('regelboek: volgorde bij botsingen ' + JSON.stringify(orderItems) + ' komt niet overeen met de prioriteit ' + JSON.stringify(expectedOrder));
 // Kaartjes met kleur: een nagemaakte regel met voorbeeld in kleur (er is nog geen echte kleurregel).
 const fake = [{ id: 'fake', priority: 1, title: 'Nagemaakt', short: 'x', description: 'y', default: false,
@@ -359,6 +376,25 @@ const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
 })()`));
 run(`globalThis.shuffleWith = seed => { rng = mulberry32(hashSeed(seed)); return shuffle(buildDeck()); };`);
 const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testBattleDiscard+testRoundDiscard': 0, 'testBattleDiscard+testRevive': 0 }, compared: 0, revives: 0, reviveGames: 0, transferGames: { testRescueLeft: 0, testRescueRight: 0, testRescueRich: 0 } };
+// De echte regel "Battle ruimt de pot op": altijd 52 unieke kaarten, en er wordt echt afgelegd.
+{
+  let used = 0;
+  for (const n of [2, 3, 4, 8]) for (const seed of ['d1', 'd2', 'd3', 'd4', 'd5']){
+    const r = conserveCheck(['battleDiscard'], n, seed, 400);
+    if (!r.ok) failures.push('battleDiscard (' + n + ' spelers, seed ' + seed + '): na ronde ' + r.round + ' zijn er ' + r.total + ' kaarten (' + r.uniek + ' verschillende) in plaats van 52');
+    else if (r.maxDiscard > 0) used++;
+  }
+  if (used < 15) failures.push('battleDiscard: in te weinig spellen is er afgelegd (' + used + ' van 20)');
+  // Gelijkspel: als in een battle alle kaarten opgaan, is het spel voorbij zonder winnaar.
+  const draw = JSON.parse(run(`(() => { const st = __state([['K♠'], ['K♥', '3♥']]); st.rules = Object.assign({}, st.rules, { battleDiscard: true });
+    engineStartRound(st); let ev = engineResolve(st); ev = engineLayBattleCards(st); const end = engineEndRound(st);
+    return JSON.stringify({ type: ev.type, how: ev.how, discarded: ev.discarded, gameOver: end.gameOver, winner: end.winner }); })()`));
+  if (draw.type !== 'win' || draw.discarded !== 3 || draw.gameOver !== true || draw.winner !== null) failures.push('battleDiscard: gelijkspel klopt niet: ' + JSON.stringify(draw));
+  run('endGame(null);');
+  if (!/GELIJKSPEL/.test(document.getElementById('endBanner').innerHTML)) failures.push('einde van het spel zonder winnaar toont geen gelijkspel');
+  run('endGame({ name: "Anna" });');
+  if (!/ANNA WINT/.test(document.getElementById('endBanner').innerHTML)) failures.push('einde van het spel met winnaar toont de winnaar niet');
+}
 withFake(() => {
   let used = 0;
   for (const ids of [['testBattleDiscard'], ['testRoundDiscard'], ['testBattleDiscard', 'testRoundDiscard'], ['testBattleDiscard', 'testRevive'], ['testRescueLeft'], ['testRescueRight'], ['testRescueRich'], ['testBattleDiscard', 'testRescueRich']]){
@@ -533,11 +569,22 @@ CATALOG.forEach((r, i) => {
 });
 
 // De voorbeelden uit de catalogus (die ook in het regelboek komen) tegen de echte regelcode.
+run(`globalThis.__scn = (decks, rules) => {
+  const st = createGameState(decks.map((d, i) => ({ id: i, name: 'S' + i, deck: d.map(r => ({ rank: r, suit: '♠', value: RANKS.indexOf(r) + 2 })) })), rules);
+  enginePlayRound(st);
+  return { after: st.players.map(p => p.deck.map(c => c.rank)), discarded: st.discard.length };
+}`);
 for (const r of CATALOG){
   for (const ex of r.examples || []){
     exampleCount++;
     const rules = {};
     for (const id of RULE_IDS) rules[id] = id === r.id || (ex.with || []).includes(id);
+    if (Array.isArray(ex.decks)){
+      const got = JSON.parse(run('JSON.stringify(__scn(' + JSON.stringify(ex.decks) + ', ' + JSON.stringify(rules) + '))'));
+      if (JSON.stringify(got.after) !== JSON.stringify(ex.after) || got.discarded !== ex.discarded)
+        failures.push('voorbeeld bij "' + r.title + '" (stapels ' + JSON.stringify(ex.decks) + '): het regelboek zegt ' + JSON.stringify({ after: ex.after, discarded: ex.discarded }) + ', het spel doet ' + JSON.stringify(got));
+      continue;
+    }
     const got = run('__fw(' + JSON.stringify(ex.cards) + ', ' + JSON.stringify(rules) + ')');
     if (JSON.stringify(got) !== JSON.stringify(ex.winners)){
       failures.push('voorbeeld bij "' + r.title + '" (' + ex.cards.join(',') + (ex.with ? ' met ' + ex.with.join('+') : '') +
@@ -575,8 +622,7 @@ let liveChecked = 0;
 
 for (const c of cases){
   document.getElementById("seedInput").value = c.seed;
-  document.getElementById("twoBeatsAceInput").checked = RULE_SETS[c.rules].twoBeatsAce;
-  document.getElementById("battleFirstInput").checked = RULE_SETS[c.rules].battleFirst;
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS[c.rules][id];
   document.getElementById("namesList").children = Array.from({ length: c.n }, () => ({ value: '' }));
   run('numPlayers = ' + c.n + '; dealNewGame();');
   if (run('game.seed') !== c.seed) failures.push(key(c) + ': game.seed is ' + run('game.seed') + ', verwacht ' + c.seed);
@@ -605,6 +651,12 @@ for (const c of cases){
       failures.push(key(c) + ': zichtbaar spel wijkt af van simulatie\n    simulatie ' + JSON.stringify(sim.decks) + '\n    live      ' + live.phase + ' ' + JSON.stringify(live.decks));
     }
   }
+}
+
+// Elke regel moet in de vaste spellen echt iets veranderen; anders worden de vinkjes niet doorgegeven of doet de regel niets.
+for (const id of RULE_IDS){
+  const changed = cases.filter(c => RULE_SETS[c.rules][id] && actual[key(c)] && JSON.stringify(actual[key(c)]) !== JSON.stringify(actual[key({ ...c, rules: Object.keys(RULE_SETS).find(k => JSON.stringify(RULE_SETS[k]) === JSON.stringify({ ...RULE_SETS[c.rules], [id]: false })) })])).length;
+  if (changed === 0) failures.push('regel "' + id + '" verandert in geen enkel vast spel iets');
 }
 
 if (update){
