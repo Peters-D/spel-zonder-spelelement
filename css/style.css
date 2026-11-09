@@ -139,8 +139,8 @@ h1{
   position:absolute;
   width:26px; height:36px;
   border-radius:4px;
-  background: repeating-linear-gradient(45deg, var(--red), var(--red) 3px, var(--red-deep) 3px, var(--red-deep) 6px);
-  border:1px solid rgba(0,0,0,0.3);
+  background: var(--stack-mark) no-repeat center/100% 100%, repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 3px, var(--back-b) 3px, var(--back-b) 6px);
+  border: var(--stack-border);
   box-shadow: 0 2px 0 rgba(0,0,0,0.2);
 }
 .pot-stack div:nth-child(1){ top:4px; left:4px; transform: rotate(-6deg); }
@@ -209,7 +209,7 @@ h1{
   box-shadow: 0 2px 0 rgba(0,0,0,0.25);
   transition: transform 0.25s ease;
 }
-.card.back{ background: var(--star) no-repeat center/22px 22px, repeating-linear-gradient(45deg, var(--red), var(--red) 4px, var(--red-deep) 4px, var(--red-deep) 8px); }
+.card.back{ background: var(--back-mark) no-repeat center/var(--back-mark-size), repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 4px, var(--back-b) 4px, var(--back-b) 8px); border: var(--back-border); }
 .card.red-suit{ color: var(--red); }
 .card.flip{ animation: flipin 0.35s ease; }
 @keyframes flipin{ 0%{ transform: rotateY(90deg);} 100%{ transform: rotateY(0deg);} }
@@ -249,16 +249,16 @@ h1{
 /* Versiering uit het thema (zie css/themes.css). Met --deco: none bestaan deze elementen niet, dus verandert er niets. */
 body::before{
   content: var(--deco); position:fixed; top:-40px; right:-50px; width:260px; height:260px; z-index:-1;
-  background: var(--star-gold) no-repeat center/contain; opacity:0.07; pointer-events:none;
+  background: var(--mark-flat) no-repeat center/contain; opacity:0.07; pointer-events:none;
 }
 header{ position:relative; padding-left: var(--header-indent); }
 header::before{
   content: var(--deco); position:absolute; left:0; top:4px; width:48px; height:48px;
-  background: var(--star) no-repeat center/contain;
+  background: var(--mark) no-repeat center/contain;
 }
 .stamp::before{
-  content: var(--deco); display:inline-block; width: var(--stamp-star); height: var(--stamp-star); margin-right: calc(var(--stamp-star) / 2);
-  vertical-align:-2px; background: var(--star-gold) no-repeat center/contain;
+  content: var(--deco); display:inline-block; width: var(--stamp-mark); height: var(--stamp-mark); margin-right: calc(var(--stamp-mark) / 2);
+  vertical-align:-2px; background: var(--mark-flat) no-repeat center/contain;
 }
 
 .deck-viewer{

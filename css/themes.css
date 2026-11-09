@@ -25,14 +25,18 @@
  *   --chart-grid     lijnen in de grafiek
  *   --chart-1 … --chart-8   kleuren van de spelers in de grafiek en de samenvatting
  *   --deco           none of "": met "" bestaan de versieringen hieronder, met none bestaat er niets (dan verandert er niets aan de pagina)
- *   --star           rode ster met gouden rand (url(...) of none): bij de titel en op de kaartrug
- *   --star-gold      gouden ster (url(...) of none): achtergrond en in het stempel
- *   --header-indent  ruimte links van de titel voor de ster (0px zonder ster)
+ *   --mark           het embleem van het thema (url(...) of none): bij de titel
+ *   --mark-flat      dat embleem in één kleur (url(...) of none): vage achtergrond en in het stempel
+ *   --header-indent  ruimte links van de titel voor het embleem (0px zonder embleem)
  *   --stamp-bg       achtergrond van het stempel bij een gewonnen ronde
  *   --stamp-text     tekstkleur van dat stempel
- *   --stamp-star     grootte van de ster in het stempel (0px zonder ster)
+ *   --stamp-mark     grootte van het embleem in het stempel (0px zonder embleem)
+ *   --back-a, --back-b   de twee strepen van de kaartrug en de stapel op tafel
+ *   --back-mark      afbeelding op de kaartrug (url(...) of none), met --back-mark-size als maat
+ *   --back-border    rand van de kaartrug (0 none als er geen is)
+ *   --stack-mark     afbeelding op de stapel op tafel (url(...) of none), --stack-border is de rand
  *
- * Een nieuw thema voeg je ook toe aan THEMES in js/theme.js, anders komt er geen knop voor op het startscherm.
+ * Een nieuw thema voeg je ook toe aan THEMES in js/theme.js, anders komt het niet in het themamenu.
  */
 :root, [data-theme="oorlog"]{
   --olive: #2b3428;
@@ -60,12 +64,19 @@
   --chart-7: #c9895a;
   --chart-8: #9a9a9a;
   --deco: none;
-  --star: none;
-  --star-gold: none;
+  --mark: none;
+  --mark-flat: none;
   --header-indent: 0px;
   --stamp-bg: transparent;
   --stamp-text: var(--brass);
-  --stamp-star: 0px;
+  --stamp-mark: 0px;
+  --back-a: var(--red);
+  --back-b: var(--red-deep);
+  --back-mark: none;
+  --back-mark-size: 22px 22px;
+  --back-border: 0 none;
+  --stack-mark: none;
+  --stack-border: 1px solid rgba(0,0,0,0.3);
 }
 
 /* Sovjet: diep rood met goud en crème, en de rode ster. */
@@ -95,10 +106,59 @@
   --chart-7: #e0a56a;
   --chart-8: #b9b9b9;
   --deco: "";
-  --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23e02a20' stroke='%23f6c630' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E");
-  --star-gold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23f6c630'/%3E%3C/svg%3E");
+  --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23e02a20' stroke='%23f6c630' stroke-width='5' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpolygon points='50,6 61.5,38.5 96,38.5 68,59 78.5,92 50,72 21.5,92 32,59 4,38.5 38.5,38.5' fill='%23f6c630'/%3E%3C/svg%3E");
   --header-indent: 62px;
   --stamp-bg: var(--red);
   --stamp-text: var(--paper);
-  --stamp-star: 14px;
+  --stamp-mark: 14px;
+  --back-a: var(--red);
+  --back-b: var(--red-deep);
+  --back-mark: var(--mark);
+  --back-mark-size: 22px 22px;
+  --back-border: 0 none;
+  --stack-mark: none;
+  --stack-border: 1px solid rgba(0,0,0,0.3);
+}
+
+/* Sport: zwart en wit met drie schuine strepen. */
+[data-theme="sport"]{
+  --olive: #1b1b1b;
+  --olive-dark: #0b0b0b;
+  --paper: #f5f5f5;
+  --paper-dim: #b9b9b9;
+  --ink: #0b0b0b;
+  --red: #e1251b;
+  --red-deep: #a81a12;
+  --brass: #ffffff;
+  --brass-hover: #d9d9d9;
+  --line: rgba(245,245,245,0.22);
+  --glow: rgba(255,255,255,0.07);
+  --pile: #6b6b6b;
+  --pile-deep: #4a4a4a;
+  --red-suit: #ff6a5e;
+  --chart-text: rgba(245,245,245,0.45);
+  --chart-grid: rgba(245,245,245,0.18);
+  --chart-1: #ffffff;
+  --chart-2: #e1251b;
+  --chart-3: #9a9a9a;
+  --chart-4: #6aa7ff;
+  --chart-5: #ffd23f;
+  --chart-6: #7be0a1;
+  --chart-7: #ff9f5a;
+  --chart-8: #d0d0d0;
+  --deco: "";
+  --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23ffffff'%3E%3Cpolygon points='2,100 18,100 42,0 26,0'/%3E%3Cpolygon points='30,100 46,100 70,0 54,0'/%3E%3Cpolygon points='58,100 74,100 98,0 82,0'/%3E%3C/svg%3E");
+  --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%23ffffff'%3E%3Cpolygon points='2,100 18,100 42,0 26,0'/%3E%3Cpolygon points='30,100 46,100 70,0 54,0'/%3E%3Cpolygon points='58,100 74,100 98,0 82,0'/%3E%3C/svg%3E");
+  --header-indent: 62px;
+  --stamp-bg: #0b0b0b;
+  --stamp-text: #ffffff;
+  --stamp-mark: 14px;
+  --back-a: #0f0f0f;
+  --back-b: #0f0f0f;
+  --back-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='1.5,60 6.5,60 18.5,0 13.5,0'/%3E%3Cpolygon points='13.5,60 18.5,60 30.5,0 25.5,0'/%3E%3Cpolygon points='25.5,60 30.5,60 42.5,0 37.5,0'/%3E%3C/svg%3E");
+  --back-mark-size: 100% 100%;
+  --back-border: 1px solid #ffffff;
+  --stack-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 60' preserveAspectRatio='none' fill='%23ffffff'%3E%3Cpolygon points='1.5,60 6.5,60 18.5,0 13.5,0'/%3E%3Cpolygon points='13.5,60 18.5,60 30.5,0 25.5,0'/%3E%3Cpolygon points='25.5,60 30.5,60 42.5,0 37.5,0'/%3E%3C/svg%3E");
+  --stack-border: 1px solid #ffffff;
 }
