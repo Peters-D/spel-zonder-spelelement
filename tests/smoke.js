@@ -149,6 +149,7 @@ for (const r of CATALOG){
   if (JSON.stringify([...themeIds].sort()) !== JSON.stringify([...cssIds].sort())) failures.push('thema\'s: THEMES in js/theme.js ' + JSON.stringify(themeIds) + ' komt niet overeen met css/themes.css ' + JSON.stringify(cssIds));
   if (!themeIds.includes(run('DEFAULT_THEME'))) failures.push('thema: het standaardthema staat niet in THEMES');
   if (new Set(themeIds).size !== themeIds.length || !themeIds.every(id => /^[a-z]+$/.test(id))) failures.push('thema: ids in THEMES moeten uniek zijn en uit kleine letters bestaan (het scriptje in de <head> controleert dat)');
+  if (run("themeButtons.some(b => b.className.split(' ').includes('count-btn'))")) failures.push('thema: een themaknop mag niet de klasse count-btn hebben (setup.js haalt daar de markering van weg)');
   if (run('themeButtons.length') !== themeIds.length) failures.push('thema: er hoort een knop per thema te zijn');
   const theme = () => run('document.documentElement.dataset.theme');
   const activeButtons = () => JSON.parse(run('JSON.stringify(themeButtons.filter(b => b.classList.contains("active")).map(b => b.dataset.theme))'));

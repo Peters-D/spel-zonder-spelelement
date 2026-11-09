@@ -48,8 +48,6 @@ h1{
   cursor:pointer;
   transition: all 0.15s ease;
 }
-.theme-grid{ grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
-.theme-btn{ font-size:14px; padding:12px 0; }
 .count-btn.active{ background: var(--brass); color: var(--ink); border-color: var(--brass); font-weight:700; }
 .names-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
 .names-list input{
@@ -223,6 +221,16 @@ h1{
   padding:4px 10px; border-radius:4px; transform: rotate(-8deg) scale(0); opacity:0;
   text-transform:uppercase; pointer-events:none; top:6px; left:50%; margin-left:-70px;
 }
+
+.theme-switch{ display:flex; justify-content:flex-end; gap:6px; margin-bottom:12px; }
+.theme-btn{
+  background: transparent; border:1px solid var(--line); color: var(--paper-dim);
+  border-radius:999px; padding:5px 13px;
+  font-family:'Inter', sans-serif; font-size:12px; cursor:pointer;
+  transition: all 0.15s ease;
+}
+.theme-btn:hover{ color: var(--paper); border-color: var(--paper-dim); }
+.theme-btn.active{ background: var(--brass); color: var(--ink); border-color: var(--brass); font-weight:600; }
 
 /* Versiering uit het thema (zie css/themes.css). Met --deco: none bestaan deze elementen niet, dus verandert er niets. */
 body::before{

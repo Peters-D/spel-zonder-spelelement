@@ -1,4 +1,4 @@
-// Thema's: de lijst, de keuze op het startscherm en het onthouden van die keuze.
+// Thema's: de lijst, de keuze (knoppen rechtsboven, altijd zichtbaar) en het onthouden van die keuze.
 // Een thema verandert alleen het uiterlijk: de spelkern (engine, regels, simulatie) kent geen thema's.
 // De kleuren en versieringen per thema staan in css/themes.css; hier staan alleen de namen.
 const THEMES = [
@@ -37,10 +37,13 @@ function applyTheme(id){
 const themeGrid = document.getElementById('themeGrid');
 for (const t of THEMES){
   const b = document.createElement('button');
-  b.className = 'count-btn theme-btn';
+  b.className = 'theme-btn'; // niet 'count-btn': setup.js haalt bij een nieuw aantal spelers de markering van alle count-btn's weg
   b.textContent = t.name;
   b.dataset.theme = t.id;
-  b.addEventListener('click', () => { themeSave(applyTheme(t.id)); });
+  b.addEventListener('click', () => {
+    themeSave(applyTheme(t.id));
+    if (typeof renderStatsPanel === 'function') renderStatsPanel(); // de grafiek haalt zijn kleuren uit het thema
+  });
   themeButtons.push(b);
   themeGrid.appendChild(b);
 }
