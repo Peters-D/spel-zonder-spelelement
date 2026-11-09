@@ -49,6 +49,7 @@ const fastForwardBtn = document.getElementById('fastForwardBtn');
 function fastForward(){
   if (!(phase === 'idle' || phase === 'round-over' || phase === 'cleared')) return;
   stopAutoPlay();
+  if (typeof undoPush === 'function') undoPush(); // het doorspoelen telt als één stap terug
 
   const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
 

@@ -15,6 +15,7 @@ function updateButtonLabel(){
   else if (phase === 'cleared') playBtn.textContent = 'Speel ronde';
   playBtn.disabled = (phase === 'game-over' || phase === 'cycle-over');
   fastForwardBtn.disabled = !(phase === 'idle' || phase === 'round-over' || phase === 'cleared');
+  if (typeof updateUndoButton === 'function') updateUndoButton();
 }
 
 function clearBoard(){
@@ -28,6 +29,7 @@ function clearBoard(){
 }
 
 function startRound(){
+  if (typeof undoPush === 'function') undoPush(); // de stand aan het begin van de ronde, voor "stap terug"
   engineStartRound(game);
   displayPot = game.pot.length;
   renderGrid(false);

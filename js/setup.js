@@ -83,6 +83,8 @@ function launchGame(){
   document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
   visitedStates = new Set();
   visitedStates.add(stateSignature(players, game.discard));
+  visitedLog = [stateSignature(players, game.discard)];
+  if (typeof undoReset === 'function') undoReset(); // een nieuw spel begint zonder geschiedenis
   phase = 'idle';
   displayPot = 0; // pot-teller van een vorig spel niet meenemen
   updateButtonLabel();
