@@ -69,10 +69,28 @@ function compareAndResolve(){
 }
 
 // De ronde is beslist: toon de winnaar (of, zeldzaam, dat niemand de pot kon winnen).
+// "Speler 2 geeft 1 kaart aan Speler 3." (leeg als er niets is overgedragen).
+function transferNote(list){
+  if (!list || list.length === 0) return '';
+  return list.map(t => t.from.name + ' geeft ' + t.count + (t.count === 1 ? ' kaart' : ' kaarten') + ' aan ' + t.to.name + '.').join(' ');
+}
+
+// Wat regels met kaarten tussen spelers deden (overdrachten en spelers die weer meedoen), voor de tekst van het spel.
+function playerNotes(ev){
+  return [transferNote(ev.transfers), revivedNote(ev.revived)].filter(Boolean).join(' ');
+}
+
+// "Speler 3 doet weer mee." (leeg als er niemand terug is).
+function revivedNote(list){
+  if (!list || list.length === 0) return '';
+  return formatNamesNL(list.map(p => p.name)) + (list.length > 1 ? ' doen' : ' doet') + ' weer mee.';
+}
+
 function showRoundResult(ev){
   displayPot = ev.potSize;
   if (ev.type !== 'win'){
-    if (ev.discarded > 0) setDispatch(ev.discarded + ' kaarten gaan naar de aflegstapel.');
+    const text = [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(ev)].filter(Boolean).join(' ');
+    if (text) setDispatch(text);
     finalizeRoundOver();
     renderGrid(false);
     return;
@@ -89,6 +107,8 @@ function showRoundResult(ev){
     showStamp(ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING', '#c9a227');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
+  const more = playerNotes(ev);
+  if (more) document.getElementById('dispatch').textContent += ' ' + more;
   finalizeRoundOver();
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(w.id); // STATS HOOK
   renderGrid(false, players.map(p => p === w));
@@ -96,6 +116,9 @@ function showRoundResult(ev){
 
 function finalizeRoundOver(){
   const end = engineEndRound(game);
+  // Berichten over wat regels aan het einde van de ronde deden (zonder zulke regels verandert er niets).
+  const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(end)].filter(Boolean);
+  if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
     endGame(end.winner);
     phase = 'game-over';

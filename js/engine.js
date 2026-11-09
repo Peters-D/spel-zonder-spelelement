@@ -8,7 +8,8 @@
 //     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     discard:     de aflegstapel: kaarten die zijn afgelegd, bovenste kaart eerst (index 0)
-//     moved:       tellers { discarded, returned } van alle kaarten die zijn afgelegd/teruggehaald
+//     moved:       { discarded, returned, revived, transferred, transfers }: tellers van afgelegde, teruggehaalde en
+//                  tussen spelers verplaatste kaarten, de ids van spelers die weer meedoen en de overdrachten
 //     contenders:  ids van de spelers die nog meedingen naar de pot
 //     battleLevel: hoeveel battles er deze ronde al zijn geweest
 //   }
@@ -24,6 +25,19 @@
 //   engineDiscardFromDeck(state, spelerId, n)     legt de bovenste n kaarten van een stapel af
 //   engineReturnFromDiscard(state, n, naar)       haalt de bovenste n kaarten van de aflegstapel terug, op volgorde,
 //                                                 naar 'pot' of naar { player: id, position: 'top' | 'bottom' }
+// Wie kaarten terugkrijgt doet weer mee: een uitgeschakelde speler is dan niet meer uitgeschakeld en speelt vanaf de
+// volgende ronde mee. Is er niets om terug te krijgen, dan blijft hij uitgeschakeld.
+// Let op: de bestemming 'pot' heeft alleen betekenis binnen onAward, omdat de pot daarna aan de winnaar wordt gegeven.
+// De pot wordt niet bewaard van de ene ronde naar de volgende (engineStartRound maakt hem leeg): kaarten die in onRoundEnd
+// naar de pot gaan, zouden verloren gaan. Gebruik daar een stapel van een speler of laat ze op de aflegstapel liggen.
+//
+// Kaarten van de ene speler naar de andere (ook dan doet een uitgeschakelde ontvanger weer mee):
+//   engineTransferCards(state, vanId, naarId, n, positie)   de bovenste n kaarten van een speler gaan naar een andere,
+//                                                           standaard onderaan zijn stapel ('top' = bovenop)
+//   engineNeighbor(state, spelerId, 'left' | 'right')       de eerstvolgende speler met kaarten links of rechts
+//   engineRichestPlayer(state, spelerId)                    de speler met de meeste kaarten (niet de speler zelf)
+// De spelers zitten in een kring in de volgorde van state.players. Met de klok mee tellen zit het volgende nummer
+// links: speler 2 zit links van speler 1, en de laatste speler zit rechts van speler 1.
 // en via twee haken die een regel kan hebben (alleen aangeroepen voor regels die aan staan):
 //   onAward(ctx)     bij het toekennen van de pot; ctx = { state, winner, how, potSize }. Kaarten die de haak uit de pot
 //                    haalt (bijv. afleggen) gaan niet naar de winnaar; wat er in de pot blijft, krijgt de winnaar.
@@ -40,7 +54,7 @@ function createGameState(players, rules){
     rules: Object.assign({}, DEFAULT_RULES, rules),
     pot: [],
     discard: [],
-    moved: { discarded: 0, returned: 0 },
+    moved: { discarded: 0, returned: 0, revived: [], transferred: 0, transfers: [] },
     contenders: [],
     battleLevel: 0
   };
@@ -119,7 +133,7 @@ function engineEndRound(state){
   const moved = engineRunHooks(state, 'onRoundEnd', {});
   state.players.forEach(p => { if (p.deck.length === 0) p.out = true; });
   const alive = engineActivePlayers(state);
-  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned };
+  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned, revived: moved.revived, transfers: moved.transfers };
 }
 
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
@@ -130,7 +144,7 @@ function engineAwardPot(state, winner, how){
   const toWinner = state.pot.length;
   winner.deck.push(...state.pot);
   state.pot = [];
-  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner };
+  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers };
 }
 
 function engineAwardToFirstActive(state){
@@ -140,7 +154,7 @@ function engineAwardToFirstActive(state){
   const toWinner = state.pot.length;
   if (alive.length) alive[0].deck.push(...state.pot);
   state.pot = [];
-  return { type: 'void', potSize, discarded: moved.discarded, toWinner };
+  return { type: 'void', potSize, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers };
 }
 
 // ---- aflegstapel en haken ----
@@ -153,11 +167,73 @@ function engineActiveRules(state){
 // Roept een haak ('onAward', 'onRoundEnd') aan bij elke actieve regel die hem heeft.
 // Geeft terug hoeveel kaarten de haken hebben afgelegd en teruggehaald.
 function engineRunHooks(state, hook, info){
-  const before = { discarded: state.moved.discarded, returned: state.moved.returned };
+  const before = { discarded: state.moved.discarded, returned: state.moved.returned, revived: state.moved.revived.length,
+    transfers: state.moved.transfers.length };
   for (const rule of engineActiveRules(state)){
     if (typeof rule[hook] === 'function') rule[hook](Object.assign({ state }, info));
   }
-  return { discarded: state.moved.discarded - before.discarded, returned: state.moved.returned - before.returned };
+  return {
+    discarded: state.moved.discarded - before.discarded,
+    returned: state.moved.returned - before.returned,
+    revived: state.moved.revived.slice(before.revived).map(id => enginePlayerById(state, id)),
+    transfers: state.moved.transfers.slice(before.transfers).map(t => ({ from: enginePlayerById(state, t.from), to: enginePlayerById(state, t.to), count: t.count }))
+  };
+}
+
+// Een uitgeschakelde speler die kaarten krijgt doet weer mee.
+function engineRevive(state, player){
+  if (!player.out) return;
+  player.out = false;
+  state.moved.revived.push(player.id);
+}
+
+// ---- kaarten tussen spelers ----
+
+function enginePosition(state, playerId){
+  return state.players.findIndex(p => p.id === playerId);
+}
+
+// De eerstvolgende speler met kaarten links ('left') of rechts ('right') van een speler. Spelers zonder kaarten
+// (ook uitgeschakelde) worden overgeslagen. Geeft null als niemand anders kaarten heeft.
+function engineNeighbor(state, playerId, direction){
+  const n = state.players.length;
+  const step = direction === 'left' ? 1 : -1;
+  const start = enginePosition(state, playerId);
+  for (let k = 1; k < n; k++){
+    const p = state.players[(((start + step * k) % n) + n) % n];
+    if (p.deck.length > 0) return p;
+  }
+  return null;
+}
+
+// De speler met de meeste kaarten, behalve de speler zelf. Zijn er meer met evenveel kaarten, dan geldt degene die het
+// eerst links van de speler zit. Geeft null als niemand anders kaarten heeft.
+function engineRichestPlayer(state, playerId){
+  const n = state.players.length;
+  const start = enginePosition(state, playerId);
+  let best = null;
+  for (let k = 1; k < n; k++){
+    const p = state.players[(start + k) % n];
+    if (p.deck.length > 0 && (best === null || p.deck.length > best.deck.length)) best = p;
+  }
+  return best;
+}
+
+// De bovenste n kaarten van een speler gaan naar een andere speler, onderaan zijn stapel (position 'top': bovenop),
+// in de volgorde waarin ze lagen. Een uitgeschakelde ontvanger doet weer mee. Geeft het aantal verplaatste kaarten.
+function engineTransferCards(state, fromId, toId, count, position){
+  if (fromId === toId) return 0;
+  const from = enginePlayerById(state, fromId);
+  const to = enginePlayerById(state, toId);
+  const cards = from.deck.splice(0, Math.max(0, count | 0));
+  if (position === 'top') to.deck.unshift(...cards);
+  else to.deck.push(...cards);
+  if (cards.length > 0){
+    state.moved.transferred += cards.length;
+    state.moved.transfers.push({ from: fromId, to: toId, count: cards.length });
+    engineRevive(state, to);
+  }
+  return cards.length;
 }
 
 // Legt kaarten af die de aanroeper al uit hun plek heeft gehaald. De kaarten worden een voor een op de
@@ -179,14 +255,14 @@ function engineDiscardFromDeck(state, playerId, count){
 
 // Haalt de bovenste kaarten van de aflegstapel terug, in de volgorde waarin ze lagen (niet geschud).
 //   naar: 'pot' of { player: id, position: 'top' | 'bottom' } (standaard onderaan de stapel)
-// Een uitgeschakelde speler krijgt niets terug (geeft 0): een regel die dat wil, moet hem eerst weer meedoen.
+// Een uitgeschakelde speler die kaarten terugkrijgt doet weer mee (zie engineRevive).
 function engineReturnFromDiscard(state, count, to){
   const target = to === 'pot' ? null : enginePlayerById(state, to.player);
-  if (target && target.out) return 0;
   const cards = state.discard.splice(0, Math.max(0, count | 0));
   if (!target) state.pot.push(...cards);
   else if (to.position === 'top') target.deck.unshift(...cards);
   else target.deck.push(...cards);
+  if (target && cards.length > 0) engineRevive(state, target);
   state.moved.returned += cards.length;
   return cards.length;
 }
