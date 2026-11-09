@@ -109,7 +109,8 @@ const RULES = [
     title: 'Tweede kans',
     short: 'Wie zonder kaarten valt, krijgt de bovenste kaart van de linkerbuur (zolang minstens 3 spelers kaarten hebben)',
     description: 'Heeft een speler aan het einde van een ronde geen kaarten meer, dan krijgt die speler de bovenste kaart van de speler links van hem ' +
-      '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dit gebeurt alleen zolang er op dat moment nog minstens 3 spelers kaarten hebben; ' +
+      '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dat geldt voor iedere speler zonder kaarten, dus ook voor een speler die al eerder was uitgeschakeld. ' +
+      'Dit gebeurt alleen zolang er op dat moment nog minstens 3 spelers kaarten hebben; ' +
       'zijn het er minder, dan komt niemand terug en eindigt het spel gewoon. Met 2 of 3 spelers doet de regel dus niets. ' +
       'Vallen er meer spelers tegelijk af, dan gaat dat in de volgorde van de tafel; heeft de buur geen kaart meer te geven, dan krijgt die speler niets. ' +
       'Raakt een buur zijn laatste kaart kwijt, dan valt die zelf af en komt aan het einde van een volgende ronde in aanmerking voor een kaart.',
