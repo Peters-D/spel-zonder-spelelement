@@ -143,23 +143,31 @@ document.getElementById('startBtn').addEventListener('click', () => {
 
 // Het volgende spel met dezelfde spelers en regels, op een andere deling (met dezelfde deling zou een regel die de winnaar
 // omzette kunnen leiden tot een spel dat nooit eindigt). Staat er een seed ingevuld, dan is het de volgende seed (zie nextSeed);
-// anders wordt er willekeurig gedeeld. Eindigt de deling niet, dan probeert het spel er nog een paar (ten hoogste NEXT_GAME_TRIES);
-// lukt dat niet, dan staat het startscherm er weer met de melding.
-const NEXT_GAME_TRIES = 20;
+// anders wordt er willekeurig gedeeld. Eindigt de deling niet, dan probeert het spel er nog een paar (ten hoogste NEXT_GAME_TRIES;
+// met de gewone regels eindigt maar ongeveer 1 op de 10 delingen, en met 2 spelers geen enkele). Lukt dat niet, dan staat het
+// startscherm er weer met de melding, bij de eerste seed die is geprobeerd (de seed springt dus niet tientallen plaatsen op);
+// "Toch doorspelen" speelt die deling.
+const NEXT_GAME_TRIES = 60;
 function startNextGame(){
   if (typeof stopAutoPlay === 'function') stopAutoPlay();
   const seedInput = document.getElementById('seedInput');
   const fixedSeed = seedInput.value.trim() !== '';
-  let result = null;
+  let first = null, result = null;
   for (let i = 0; i < NEXT_GAME_TRIES; i++){
     if (fixedSeed) seedInput.value = nextSeed(seedInput.value);
     dealNewGame();
     result = simulateOutcome(players, game.rules);
+    if (!first) first = { seed: seedInput.value, result };
     if (result.outcome === 'win'){
       launchGame();
       if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') window.scrollTo(0, 0);
       return;
     }
+  }
+  if (fixedSeed){ // terug naar de eerste deling, zodat de seed en het spel bij de melding horen
+    seedInput.value = first.seed;
+    dealNewGame();
+    result = first.result;
   }
   document.getElementById('game').classList.add('hidden');
   document.getElementById('setup').classList.remove('hidden');

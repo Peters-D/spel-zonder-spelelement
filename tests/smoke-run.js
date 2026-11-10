@@ -1156,6 +1156,7 @@ let liveChecked = 0;
     run('startNextGame()');
     if (run('__calls') !== run('NEXT_GAME_TRIES')) fail('er horen ten hoogste NEXT_GAME_TRIES pogingen gedaan te worden, het waren er ' + run('__calls'));
     if (hidden('setup') || !hidden('game') || hidden('cycleWarning')) fail('als geen deling eindigt hoort het startscherm met de melding terug te komen');
+    if (document.getElementById('seedInput').value !== '2' || seedNow() !== '2') fail('als geen deling eindigt hoort de seed bij de eerste geprobeerde deling te blijven (2), niet tientallen plaatsen op te springen: ' + document.getElementById('seedInput').value + ' / ' + seedNow());
     if (!document.getElementById('cycleWarningText').textContent.includes('cyclus')) fail('de melding noemt de cyclus niet');
     if (scrolled !== 1) fail('de melding hoort in beeld te scrollen');
     // Hetzelfde bij "Begin het spel": de melding scrolt in beeld.
@@ -1168,6 +1169,11 @@ let liveChecked = 0;
     delete document.getElementById('cycleWarning').scrollIntoView;
     document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
   }
+  // Met 2 spelers en de gewone regels eindigt geen enkele deling: dan terug naar het startscherm met de melding, bij seed 2.
+  start('1', 2);
+  run('startNextGame()');
+  if (hidden('setup') || !hidden('game') || hidden('cycleWarning') || seedNow() !== '2' || document.getElementById('seedInput').value !== '2') fail('met 2 spelers hoort het startscherm met de melding terug te komen, bij seed 2 (kreeg seed ' + seedNow() + ')');
+  document.getElementById('cycleWarning').classList.add('hidden'); document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
   run('delete globalThis.localStorage; game = null; players = [];');
   banner.innerHTML = '';
 }
