@@ -46,6 +46,7 @@ function renderRuleOptions(){
     input.type = 'checkbox';
     input.id = rule.id + 'Input';
     input.checked = chosen[rule.id] ? chosen[rule.id].on : rule.default;
+    input.setAttribute('autocomplete', 'off'); // de browser zet vinkjes niet zelf terug bij verversen: alleen de bewaarde winnaarskeuzes tellen
     const text = document.createElement('span');
     text.textContent = rule.short;
     label.appendChild(input);
