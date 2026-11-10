@@ -221,7 +221,8 @@ const BASE_RULES = [
     title: 'De winnaar kiest een regel',
     description: 'Wie een spel wint, mag één van de extra regels omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond ' +
       'gaat uit. Die keuze blijft bewaard in de browser en staat op het startscherm als vinkje met de naam van de winnaar erbij. ' +
-      'Dat vinkje kun je voor een spel nog zelf omzetten. Bij gelijkspel of een spel zonder einde kiest niemand.'
+      'Dat vinkje kun je voor een spel nog zelf omzetten. Met de knop "Volgend spel" ga je meteen verder met dezelfde spelers en regels, op een andere deling (met een ingevulde seed wordt dat de volgende seed). ' +
+      'Bij gelijkspel of een spel zonder einde kiest niemand.'
   },
   {
     id: 'eindeloos',

@@ -57,6 +57,12 @@ function showWinnerRuleChoice(winner){
   const buttons = document.createElement('div');
   buttons.className = 'winner-choice-buttons';
   let done = false;
+  // Doorgaan naar het volgende spel kan altijd, met of zonder een regel om te zetten (zie startNextGame in setup.js).
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'winner-next';
+  nextBtn.textContent = 'Volgend spel ▶';
+  nextBtn.addEventListener('click', () => startNextGame());
   for (const rule of RULES){
     const wasOn = !!(game && game.rules && game.rules[rule.id]);
     const btn = document.createElement('button');
@@ -70,9 +76,11 @@ function showWinnerRuleChoice(winner){
       const result = document.createElement('p');
       result.textContent = rule.title + ' staat in het volgende spel ' + (wasOn ? 'uit' : 'aan') + ', gekozen door ' + winner.name + '.';
       box.appendChild(result);
+      box.appendChild(nextBtn);
     });
     buttons.appendChild(btn);
   }
   box.appendChild(buttons);
+  box.appendChild(nextBtn);
   banner.appendChild(box);
 }
