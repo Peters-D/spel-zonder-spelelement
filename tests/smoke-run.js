@@ -1064,7 +1064,7 @@ let liveChecked = 0;
     const saved = JSON.parse(run('localStorage.data[WINNER_RULES_KEY]'));
     if (JSON.stringify(Object.keys(saved)) !== '["secondChance"]' || saved.secondChance.on !== true || saved.secondChance.by !== evilName.slice(0, 30)) failures.push('winnaarsregel: de keuze is verkeerd bewaard: ' + JSON.stringify(saved));
     if (!ruleChoiceCheckedIs('secondChance', true)) failures.push('winnaarsregel: het vinkje op het startscherm volgt de keuze niet');
-    if (box.children.length !== 1 || box.children[0].textContent !== titleOf('secondChance') + ' staat in het volgende spel aan, gekozen door ' + evilName + '.') failures.push('winnaarsregel: na de keuze hoort de tekst met de uitkomst te staan: ' + JSON.stringify(box.children.map(c => c.textContent)));
+    if (box.children.length !== 2 || box.children[0].textContent !== titleOf('secondChance') + ' staat in het volgende spel aan, gekozen door ' + evilName + '.' || box.children[1].className !== 'winner-next') failures.push('winnaarsregel: na de keuze hoort de tekst met de uitkomst en de knop "Volgend spel" te staan: ' + JSON.stringify(box.children.map(c => c.textContent)));
     btns[RULE_IDS.indexOf('battleFirst')].handlers.click(); // nog eens kiezen mag niet
     if (JSON.stringify(Object.keys(JSON.parse(run('localStorage.data[WINNER_RULES_KEY]')))) !== '["secondChance"]') failures.push('winnaarsregel: er mag per spel maar één regel omgezet worden');
   }
@@ -1083,6 +1083,99 @@ let liveChecked = 0;
   run('delete globalThis.localStorage; renderRuleOptions(); game = null; players = [];');
   if (noteOf('battleFirst') !== null) failures.push('startscherm: zonder bewaarde keuzes hoort er geen "gekozen door" te staan');
   banner().innerHTML = '';
+}
+
+// ---- het volgende spel en de cyclusmelding (setup.js) ----
+{
+  const start = (seed, n) => {
+    document.getElementById('seedInput').value = seed;
+    for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+    document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
+    run('numPlayers = ' + n + '; dealNewGame(); launchGame();');
+  };
+  const fail = t => failures.push('volgend spel: ' + t);
+  const banner = document.getElementById('endBanner');
+  const hidden = id => document.getElementById(id).classList.contains('hidden');
+  const winnerBox = () => banner.children.find(c => c.className === 'winner-choice');
+  const nextBtn = () => winnerBox() && winnerBox().children.find(c => c.className === 'winner-next');
+  const simOutcome = () => run('simulateOutcome(players, game.rules).outcome');
+  const seedNow = () => run('game.seed');
+  const rulesNow = () => run('JSON.stringify(game.rules)');
+  run('globalThis.localStorage = { data: {}, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.data[k] = v; } };');
+
+  // Na een spel met een winnaar staat de knop er, ook zonder dat er een regel is omgezet; hij start een ander spel met dezelfde spelers en regels.
+  start('1', 3);
+  run('fastForward()');
+  if (run('phase') !== 'game-over' || !winnerBox()) fail('het testspel (3 spelers, seed 1) hoort met een winnaar te eindigen');
+  const rulesBefore = rulesNow();
+  if (!nextBtn() || nextBtn().textContent !== 'Volgend spel ▶') fail('de knop "Volgend spel" ontbreekt na een spel met een winnaar');
+  else {
+    nextBtn().handlers.click();
+    if (run('phase') !== 'idle' || run('players.length') !== 3 || banner.children.length !== 0) fail('het volgende spel hoort te starten met dezelfde spelers en een lege eindbanner');
+    if (seedNow() !== '2') fail('het volgende spel hoort de volgende seed te krijgen, kreeg ' + seedNow());
+    if (rulesNow() !== rulesBefore) fail('het volgende spel hoort dezelfde regels te hebben');
+    if (simOutcome() !== 'win') fail('het volgende spel hoort een spel te zijn dat eindigt');
+    if (run('undoStack.length') !== 0 || run('statsRoundCount') !== 0) fail('een nieuw spel begint zonder geschiedenis en statistieken');
+  }
+
+  // Na het omzetten van een regel blijft de knop er (en staat de uitkomst erbij).
+  start('1', 3);
+  run('fastForward()');
+  const box = winnerBox();
+  if (box) {
+    box.children[1].children[0].handlers.click();
+    if (!nextBtn()) fail('na het omzetten van een regel hoort de knop "Volgend spel" er nog te staan');
+  }
+
+  // Een deling die niet eindigt wordt overgeslagen: het wordt de eerste seed erna waarmee het spel wel eindigt.
+  // Daarvoor zoeken we met 3 spelers een seed w waarmee het spel eindigt terwijl seed w-1 dat niet doet, en beginnen we twee seeds eerder.
+  const outcomes = JSON.parse(run(`(() => { const out = {}; for (let s = 1; s <= 80; s++){ document.getElementById('seedInput').value = String(s); dealNewGame(); out[s] = simulateOutcome(players, game.rules).outcome; } return JSON.stringify(out); })()`));
+  const w = Object.keys(outcomes).map(Number).find(k => k >= 5 && outcomes[k] === 'win' && outcomes[k - 1] !== 'win');
+  if (!w) fail('geen testseed gevonden waarmee een eerdere seed wordt overgeslagen');
+  else {
+    start(String(w - 2), 3);
+    run('startNextGame()');
+    if (seedNow() !== String(w) || simOutcome() !== 'win' || run('phase') !== 'idle') fail('een deling die niet eindigt hoort overgeslagen te worden: verwacht seed ' + w + ', kreeg ' + seedNow());
+  }
+
+  // Zonder seed wordt er willekeurig gedeeld en blijft het veld leeg.
+  const realRandom = Math.random; let lcg = 12345;
+  Math.random = () => (lcg = (lcg * 1664525 + 1013904223) % 4294967296) / 4294967296;
+  try {
+    start('', 3);
+    run('startNextGame()');
+    if (seedNow() !== null || document.getElementById('seedInput').value !== '' || run('phase') !== 'idle' || simOutcome() !== 'win') fail('zonder seed hoort er willekeurig gedeeld te worden, met een lege seed en een spel dat eindigt');
+  } finally { Math.random = realRandom; }
+
+  // Lukt het niet, dan terug naar het startscherm met de melding (en de melding scrolt in beeld).
+  run('globalThis.__sim = simulateOutcome; globalThis.__calls = 0; simulateOutcome = () => { __calls++; return { outcome: "cycle", rounds: 5 }; };');
+  try {
+    start('1', 3);
+    run('__calls = 0;');
+    let scrolled = 0; document.getElementById('cycleWarning').scrollIntoView = () => { scrolled++; };
+    run('startNextGame()');
+    if (run('__calls') !== run('NEXT_GAME_TRIES')) fail('er horen ten hoogste NEXT_GAME_TRIES pogingen gedaan te worden, het waren er ' + run('__calls'));
+    if (hidden('setup') || !hidden('game') || hidden('cycleWarning')) fail('als geen deling eindigt hoort het startscherm met de melding terug te komen');
+    if (document.getElementById('seedInput').value !== '2' || seedNow() !== '2') fail('als geen deling eindigt hoort de seed bij de eerste geprobeerde deling te blijven (2), niet tientallen plaatsen op te springen: ' + document.getElementById('seedInput').value + ' / ' + seedNow());
+    if (!document.getElementById('cycleWarningText').textContent.includes('cyclus')) fail('de melding noemt de cyclus niet');
+    if (scrolled !== 1) fail('de melding hoort in beeld te scrollen');
+    // Hetzelfde bij "Begin het spel": de melding scrolt in beeld.
+    document.getElementById('cycleWarning').classList.add('hidden');
+    document.getElementById('startBtn').handlers.click();
+    if (hidden('cycleWarning') || scrolled !== 2) fail('"Begin het spel" op een deling die niet eindigt hoort de melding in beeld te brengen');
+  } finally {
+    run('simulateOutcome = __sim; delete globalThis.__sim; delete globalThis.__calls;');
+    document.getElementById('cycleWarning').classList.add('hidden');
+    delete document.getElementById('cycleWarning').scrollIntoView;
+    document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
+  }
+  // Met 2 spelers en de gewone regels eindigt geen enkele deling: dan terug naar het startscherm met de melding, bij seed 2.
+  start('1', 2);
+  run('startNextGame()');
+  if (hidden('setup') || !hidden('game') || hidden('cycleWarning') || seedNow() !== '2' || document.getElementById('seedInput').value !== '2') fail('met 2 spelers hoort het startscherm met de melding terug te komen, bij seed 2 (kreeg seed ' + seedNow() + ')');
+  document.getElementById('cycleWarning').classList.add('hidden'); document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
+  run('delete globalThis.localStorage; game = null; players = [];');
+  banner.innerHTML = '';
 }
 
 own('fixed', () => {
