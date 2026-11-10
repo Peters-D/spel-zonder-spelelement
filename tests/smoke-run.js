@@ -1174,6 +1174,42 @@ let liveChecked = 0;
   run('startNextGame()');
   if (hidden('setup') || !hidden('game') || hidden('cycleWarning') || seedNow() !== '2' || document.getElementById('seedInput').value !== '2') fail('met 2 spelers hoort het startscherm met de melding terug te komen, bij seed 2 (kreeg seed ' + seedNow() + ')');
   document.getElementById('cycleWarning').classList.add('hidden'); document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
+  // Een regel die de winnaar omzet staat ook echt aan (of uit) in het spel dat met "Volgend spel" begint. In de echte pagina is het
+  // vinkje op het startscherm één element; de nagebootste pagina maakt er twee, dus hier koppelen we ze aan elkaar.
+  const bindInputs = ruleSet => {
+    const saved = {};
+    for (const id of RULE_IDS){
+      saved[id] = els[id + 'Input'];
+      const el = run('ruleChoiceInputs[' + JSON.stringify(id) + ']');
+      el.checked = RULE_SETS[ruleSet][id];
+      els[id + 'Input'] = el;
+    }
+    return () => { for (const id of RULE_IDS){ if (saved[id]) els[id + 'Input'] = saved[id]; else delete els[id + 'Input']; } };
+  };
+  const flipAndContinue = (ruleSet, flipId) => {
+    run('renderRuleOptions()');
+    const unbind = bindInputs(ruleSet);
+    try {
+      document.getElementById('seedInput').value = '1';
+      document.getElementById('namesList').children = Array.from({ length: 3 }, () => ({ value: '' }));
+      run('numPlayers = 3; dealNewGame(); launchGame(); showWinnerRuleChoice(game.players[0]);');
+      const before = JSON.parse(rulesNow());
+      const choice = banner.children.find(c => c.className === 'winner-choice');
+      choice.children[1].children[RULE_IDS.indexOf(flipId)].handlers.click(); // de knop van deze regel
+      choice.children.find(c => c.className === 'winner-next').handlers.click();
+      return { before, after: JSON.parse(rulesNow()) };
+    } finally { unbind(); }
+  };
+  const on = flipAndContinue('standard', 'secondChance');
+  if (on.before.secondChance !== false || on.after.secondChance !== true) fail('een regel die de winnaar aanzet hoort aan te staan in het volgende spel: ' + on.before.secondChance + ' → ' + on.after.secondChance);
+  const off = flipAndContinue('twoBeatsAce', 'twoBeatsAce');
+  if (off.before.twoBeatsAce !== true || off.after.twoBeatsAce !== false) fail('een regel die de winnaar uitzet hoort uit te staan in het volgende spel: ' + off.before.twoBeatsAce + ' → ' + off.after.twoBeatsAce);
+  for (const [name, r] of [['aan', on], ['uit', off]]){
+    const flipped = name === 'aan' ? 'secondChance' : 'twoBeatsAce';
+    for (const id of RULE_IDS) if (id !== flipped && r.before[id] !== r.after[id]) fail('de andere regels horen gelijk te blijven bij het omzetten van een regel (' + name + '): ' + id);
+  }
+  run('renderRuleOptions()');
+
   run('delete globalThis.localStorage; game = null; players = [];');
   banner.innerHTML = '';
 }
