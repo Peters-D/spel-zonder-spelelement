@@ -868,7 +868,10 @@ CATALOG.forEach((r, i) => {
   const input = label && label.children[0], text = label && label.children[1];
   if (!input || input.id !== r.id + 'Input' || input.type !== 'checkbox') failures.push('startscherm: vinkje voor ' + r.id + ' ontbreekt of heeft een verkeerd id');
   if (!text || text.textContent !== r.short) failures.push('startscherm: tekst bij het vinkje van ' + r.id + ' komt niet uit de catalogus');
+  // De browser mag vinkjes niet zelf terugzetten bij verversen (dan staan er regels aan waar geen winnaar voor gekozen heeft).
+  if (!input || input.getAttribute('autocomplete') !== 'off') failures.push('startscherm: het vinkje van ' + r.id + ' hoort autocomplete="off" te hebben, anders zet de browser het bij verversen zelf terug');
 });
+if (!/<input[^>]*id="seedInput"[^>]*autocomplete="off"/.test(fs.readFileSync(path.join(root, 'index.html'), 'utf8'))) failures.push('startscherm: het seed-veld hoort autocomplete="off" te hebben, anders zet de browser een oude seed terug bij verversen');
 
 // De voorbeelden uit de catalogus (die ook in het regelboek komen) tegen de echte regelcode.
 run(`globalThis.__scn = (decks, rules) => {
