@@ -1,37 +1,24 @@
 // De winnaar kiest een regel: na een spel met een winnaar mag die winnaar één regel uit de catalogus (RULES in rules.js)
-// omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond gaat uit. De keuze blijft bewaard in de
-// browser en is daarna de standaard bij het startscherm (met "gekozen door ..." erbij). Er komen geen nieuwe regels bij: de
-// winnaar kiest alleen uit de bestaande.
+// omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond gaat uit. De keuze geldt voor de spellen
+// daarna zolang de pagina openstaat en staat op het startscherm als vinkje, met "gekozen door ..." erbij. Er komen geen nieuwe
+// regels bij: de winnaar kiest alleen uit de bestaande.
 //
-// Bewaard wordt: { <regel-id>: { on: true/false, by: 'naam van de winnaar' } }, alleen voor regels waar een winnaar iets aan veranderd
-// heeft. Wat uit de opslag komt wordt altijd gecontroleerd (alleen bekende regels, alleen echte waarden).
+// De keuze wordt nergens bewaard: na verversen (F5) is alles weer standaard. Eerdere versies bewaarden haar in de browser; wat daar
+// nog staat wordt bij het laden gewist (forgetOldWinnerRules).
 
-const WINNER_RULES_KEY = 'spelzonderspelelement.winnaarsregels';
 const WINNER_BY_MAX = 30;
+const WINNER_OLD_STORAGE_KEY = 'spelzonderspelelement.winnaarsregels';
+// { <regel-id>: { on: true/false, by: 'naam van de winnaar' } }, alleen voor regels waar een winnaar iets aan veranderd heeft
+let winnerRules = {};
 
-function normalizeWinnerRules(data){
-  const out = {};
-  if (!data || typeof data !== 'object' || Array.isArray(data)) return out;
-  for (const rule of RULES){
-    if (!Object.prototype.hasOwnProperty.call(data, rule.id)) continue;
-    const v = data[rule.id];
-    if (!v || typeof v !== 'object' || typeof v.on !== 'boolean') continue;
-    out[rule.id] = { on: v.on, by: typeof v.by === 'string' ? v.by.trim().slice(0, WINNER_BY_MAX) : '' };
-  }
-  return out;
+function currentWinnerRules(){
+  return Object.assign({}, winnerRules);
 }
 
-function loadWinnerRules(){
-  try {
-    const text = localStorage.getItem(WINNER_RULES_KEY);
-    return text ? normalizeWinnerRules(JSON.parse(text)) : {};
-  } catch (e){ return {}; }
+function forgetOldWinnerRules(){
+  try { localStorage.removeItem(WINNER_OLD_STORAGE_KEY); } catch (e){ /* geen opslag: er is niets te wissen */ }
 }
-
-// Geeft false als bewaren niet lukt (bijvoorbeeld geblokkeerde opslag); het spel werkt dan gewoon door.
-function saveWinnerRules(map){
-  try { localStorage.setItem(WINNER_RULES_KEY, JSON.stringify(map)); return true; } catch (e){ return false; }
-}
+forgetOldWinnerRules();
 
 // Een nieuwe lijst waarin de regel de gekozen stand heeft (de oude lijst blijft ongewijzigd), of null als de keuze niet klopt.
 function chooseWinnerRule(map, ruleId, on, by){
@@ -40,8 +27,8 @@ function chooseWinnerRule(map, ruleId, on, by){
 }
 
 function applyWinnerRuleChoice(rule, on, byName){
-  const next = chooseWinnerRule(loadWinnerRules(), rule.id, on, byName);
-  if (next) saveWinnerRules(next);
+  const next = chooseWinnerRule(winnerRules, rule.id, on, byName);
+  if (next) winnerRules = next;
   if (typeof markRuleChoice === 'function') markRuleChoice(rule.id, on, byName); // het vinkje op het startscherm
 }
 

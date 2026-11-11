@@ -37,7 +37,7 @@ const ruleChoiceInputs = {}, ruleChoiceLabels = {}, ruleChoiceNotes = {};
 function renderRuleOptions(){
   const list = document.getElementById('rulesList');
   list.innerHTML = '';
-  const chosen = loadWinnerRules();
+  const chosen = currentWinnerRules();
   for (const k of Object.keys(ruleChoiceNotes)) delete ruleChoiceNotes[k];
   for (const rule of RULES){
     const label = document.createElement('label');

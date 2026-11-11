@@ -1017,41 +1017,36 @@ let liveChecked = 0;
 
 // ---- de winnaar kiest een regel (winner-rule.js) ----
 {
-  const norm = data => JSON.parse(run('JSON.stringify(normalizeWinnerRules(' + JSON.stringify(data) + '))'));
-  const good = { twoBeatsAce: { on: false, by: 'Anna' }, secondChance: { on: true, by: 'Bo' } };
-  if (JSON.stringify(norm(good)) !== JSON.stringify(good)) failures.push('winnaarsregel: geldige opslag blijft niet zoals hij was: ' + JSON.stringify(norm(good)));
-  const junk = [null, 5, 'tekst', [], {}, { nietBestaand: { on: true, by: 'x' } }, { twoBeatsAce: { on: 'ja' } }, { twoBeatsAce: null }, { twoBeatsAce: 'aan' }, JSON.parse('{"__proto__": {"on": true}}'), { constructor: { on: true } }];
-  for (const j of junk) if (Object.keys(norm(j)).length !== 0) failures.push('winnaarsregel: onzin in de opslag hoort weggegooid te worden: ' + JSON.stringify(j) + ' → ' + JSON.stringify(norm(j)));
-  const odd = norm({ twoBeatsAce: { on: true, by: 42 }, battleFirst: { on: false, by: '  ' + 'x'.repeat(100) + '  ', extra: 1 } });
-  if (odd.twoBeatsAce.by !== '' || odd.battleFirst.by.length !== 30 || Object.keys(odd.battleFirst).sort().join() !== 'by,on') failures.push('winnaarsregel: naam hoort een korte gewone tekst te zijn en onbekende velden vallen weg: ' + JSON.stringify(odd));
   // Een keuze verandert een kopie, nooit de oude lijst; een onbekende regel of onzin geeft null.
   const old = { battleFirst: { on: true, by: 'Cas' } };
   const chosen = JSON.parse(run('JSON.stringify(chooseWinnerRule(' + JSON.stringify(old) + ', "twoBeatsAce", true, "Dirk"))'));
   if (JSON.stringify(chosen) !== JSON.stringify({ battleFirst: { on: true, by: 'Cas' }, twoBeatsAce: { on: true, by: 'Dirk' } })) failures.push('winnaarsregel: keuze toevoegen: ' + JSON.stringify(chosen));
   if (run('(() => { const o = {}; chooseWinnerRule(o, "twoBeatsAce", true, "x"); return Object.keys(o).length; })()') !== 0) failures.push('winnaarsregel: chooseWinnerRule mag de oude lijst niet veranderen');
   for (const bad of ['"nietBestaand", true, "x"', '"__proto__", true, "x"', '"twoBeatsAce", "ja", "x"']) if (run('chooseWinnerRule({}, ' + bad + ')') !== null) failures.push('winnaarsregel: onzinnige keuze (' + bad + ') hoort null te geven');
+  const long = JSON.parse(run('JSON.stringify(chooseWinnerRule({}, "twoBeatsAce", true, "  ' + 'x'.repeat(100) + '  "))'));
+  if (long.twoBeatsAce.by.length !== 30 || Object.keys(long.twoBeatsAce).sort().join() !== 'by,on') failures.push('winnaarsregel: de naam hoort een korte gewone tekst te zijn');
+  if (run('chooseWinnerRule({}, "twoBeatsAce", true, 42).twoBeatsAce.by') !== '') failures.push('winnaarsregel: een naam die geen tekst is hoort leeg te worden');
 
-  // Bewaren in de browser.
-  const store = (extra = '') => run(`globalThis.localStorage = { data: {}, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.data[k] = v; } };` + extra);
-  store();
-  if (run('JSON.stringify(loadWinnerRules())') !== '{}') failures.push('winnaarsregel: zonder opslag hoort de lijst leeg te zijn');
-  if (run('saveWinnerRules(' + JSON.stringify(good) + ')') !== true || JSON.stringify(JSON.parse(run('JSON.stringify(loadWinnerRules())'))) !== JSON.stringify(good)) failures.push('winnaarsregel: bewaren en terugzetten werkt niet');
-  for (const rubbish of ['{kapot', 'null', '"tekst"', '[1,2]', '{"twoBeatsAce":{"on":"ja"}}']){
-    run(`localStorage.data[WINNER_RULES_KEY] = ${JSON.stringify(rubbish)};`);
-    if (run('JSON.stringify(loadWinnerRules())') !== '{}') failures.push('winnaarsregel: onzin in de opslag (' + rubbish + ') hoort een lege lijst te geven');
-  }
-  run(`globalThis.localStorage = { getItem(){ throw new Error('geblokkeerd'); }, setItem(){ throw new Error('geblokkeerd'); } };`);
-  try {
-    if (run('JSON.stringify(loadWinnerRules())') !== '{}' || run('saveWinnerRules({})') !== false) failures.push('winnaarsregel: geblokkeerde opslag hoort leeg/false te geven');
-    run('applyWinnerRuleChoice(RULES[0], true, "x")');
-  } catch (e){ failures.push('winnaarsregel: geblokkeerde opslag mag geen fout geven: ' + e.message); }
+  // De keuze staat alleen in het geheugen van de pagina: er wordt niets bewaard, en wat een eerdere versie bewaarde wordt gewist.
+  run('winnerRules = {};');
+  if (run('JSON.stringify(currentWinnerRules())') !== '{}') failures.push('winnaarsregel: een nieuwe pagina begint zonder keuzes');
+  run(`globalThis.localStorage = { data: { [WINNER_OLD_STORAGE_KEY]: '{"battleFirst":{"on":true,"by":"Oud"}}', other: 'blijft' }, calls: [],
+    getItem(k){ this.calls.push('get'); return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.calls.push('set'); this.data[k] = v; }, removeItem(k){ delete this.data[k]; } };`);
+  run('forgetOldWinnerRules()');
+  if (run('WINNER_OLD_STORAGE_KEY in localStorage.data') || run('localStorage.data.other') !== 'blijft') failures.push('winnaarsregel: de keuzes die een eerdere versie bewaarde horen gewist te worden, en niets anders');
+  run('applyWinnerRuleChoice(RULES[0], true, "Eva")');
+  if (JSON.stringify(JSON.parse(run('JSON.stringify(currentWinnerRules())'))) !== JSON.stringify({ [RULE_IDS[0]]: { on: true, by: 'Eva' } })) failures.push('winnaarsregel: de keuze hoort in het geheugen te staan');
+  if (run('localStorage.calls.length') !== 0) failures.push('winnaarsregel: er mag niets in de opslag van de browser gelezen of geschreven worden (alleen het oude item wissen)');
+  run(`globalThis.localStorage = { getItem(){ throw new Error('geblokkeerd'); }, setItem(){ throw new Error('geblokkeerd'); }, removeItem(){ throw new Error('geblokkeerd'); } };`);
+  try { run('forgetOldWinnerRules(); applyWinnerRuleChoice(RULES[1], true, "x")'); } catch (e){ failures.push('winnaarsregel: geblokkeerde opslag mag geen fout geven: ' + e.message); }
+  run('delete globalThis.localStorage; winnerRules = {};');
 
   // Het scherm na een spel: knoppen alleen bij een winnaar, één keuze, namen als gewone tekst.
   const evilName = '<img src=x onerror=alert(1)>' + 'x'.repeat(40);
-  store();
   run(`game = createGameState([{ id: 0, name: ${JSON.stringify(evilName)}, deck: [] }, { id: 1, name: 'B', deck: [] }], { twoBeatsAce: true }); players = game.players;`);
   const banner = () => document.getElementById('endBanner');
   const choiceBox = () => banner().children.find(c => c.className === 'winner-choice');
+  const savedNow = () => JSON.parse(run('JSON.stringify(currentWinnerRules())'));
   run('endGame(game.players[0])');
   const box = choiceBox();
   if (!box) failures.push('winnaarsregel: na een spel met een winnaar horen de keuzeknoppen er te zijn');
@@ -1064,27 +1059,30 @@ let liveChecked = 0;
     if (btns[RULE_IDS.indexOf('secondChance')].textContent !== 'Zet aan: ' + titleOf('secondChance')) failures.push('winnaarsregel: een regel die uit staat krijgt "Zet aan"');
     const i = RULE_IDS.indexOf('secondChance');
     btns[i].handlers.click();
-    const saved = JSON.parse(run('localStorage.data[WINNER_RULES_KEY]'));
-    if (JSON.stringify(Object.keys(saved)) !== '["secondChance"]' || saved.secondChance.on !== true || saved.secondChance.by !== evilName.slice(0, 30)) failures.push('winnaarsregel: de keuze is verkeerd bewaard: ' + JSON.stringify(saved));
+    const saved = savedNow();
+    if (JSON.stringify(Object.keys(saved)) !== '["secondChance"]' || saved.secondChance.on !== true || saved.secondChance.by !== evilName.slice(0, 30)) failures.push('winnaarsregel: de keuze is verkeerd onthouden: ' + JSON.stringify(saved));
     if (!ruleChoiceCheckedIs('secondChance', true)) failures.push('winnaarsregel: het vinkje op het startscherm volgt de keuze niet');
     if (box.children.length !== 2 || box.children[0].textContent !== titleOf('secondChance') + ' staat in het volgende spel aan, gekozen door ' + evilName + '.' || box.children[1].className !== 'winner-next') failures.push('winnaarsregel: na de keuze hoort de tekst met de uitkomst en de knop "Volgend spel" te staan: ' + JSON.stringify(box.children.map(c => c.textContent)));
     btns[RULE_IDS.indexOf('battleFirst')].handlers.click(); // nog eens kiezen mag niet
-    if (JSON.stringify(Object.keys(JSON.parse(run('localStorage.data[WINNER_RULES_KEY]')))) !== '["secondChance"]') failures.push('winnaarsregel: er mag per spel maar één regel omgezet worden');
+    if (JSON.stringify(Object.keys(savedNow())) !== '["secondChance"]') failures.push('winnaarsregel: er mag per spel maar één regel omgezet worden');
   }
   function ruleChoiceCheckedIs(id, v){ return run(`ruleChoiceInputs[${JSON.stringify(id)}].checked`) === v; }
   // Zonder winnaar (gelijkspel) geen keuze.
   run('endGame(null)');
   if (choiceBox()) failures.push('winnaarsregel: bij gelijkspel kiest niemand een regel');
 
-  // Het startscherm volgt de bewaarde keuzes; zonder bewaarde keuze blijft de standaard.
-  store(`localStorage.data[WINNER_RULES_KEY] = JSON.stringify({ battleFirst: { on: true, by: 'Anna' }, twoBeatsAce: { on: false, by: 'Bo' } }); renderRuleOptions();`);
+  // Het startscherm volgt de keuzes van de winnaars zolang de pagina openstaat; een nieuwe pagina (F5) begint op de standaard,
+  // ook als een eerdere versie iets in de browser bewaarde.
+  run(`winnerRules = { battleFirst: { on: true, by: 'Anna' }, twoBeatsAce: { on: false, by: 'Bo' } }; renderRuleOptions();`);
   const wasDefault = id => CATALOG.find(r => r.id === id).default;
-  if (!ruleChoiceCheckedIs('battleFirst', true) || !ruleChoiceCheckedIs('twoBeatsAce', false)) failures.push('startscherm: bewaarde keuzes van winnaars zijn niet het begin van de vinkjes');
+  if (!ruleChoiceCheckedIs('battleFirst', true) || !ruleChoiceCheckedIs('twoBeatsAce', false)) failures.push('startscherm: de keuzes van winnaars zijn niet het begin van de vinkjes');
   if (ruleChoiceCheckedIs('royalFamily', true) !== wasDefault('royalFamily')) failures.push('startscherm: regels zonder keuze horen op hun standaard te staan');
   const noteOf = id => run(`ruleChoiceNotes[${JSON.stringify(id)}] ? ruleChoiceNotes[${JSON.stringify(id)}].textContent : null`);
   if (noteOf('battleFirst') !== '(gekozen door Anna)' || noteOf('twoBeatsAce') !== '(gekozen door Bo)' || noteOf('royalFamily') !== null) failures.push('startscherm: "gekozen door" staat niet bij de juiste regels');
-  run('delete globalThis.localStorage; renderRuleOptions(); game = null; players = [];');
-  if (noteOf('battleFirst') !== null) failures.push('startscherm: zonder bewaarde keuzes hoort er geen "gekozen door" te staan');
+  run(`globalThis.localStorage = { data: { [WINNER_OLD_STORAGE_KEY]: '{"battleFirst":{"on":true,"by":"Oud"},"royalFamily":{"on":true,"by":"Oud"}}' }, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(){}, removeItem(k){ delete this.data[k]; } };`);
+  run('winnerRules = {}; forgetOldWinnerRules(); renderRuleOptions();'); // een nieuwe pagina
+  if (ruleChoiceCheckedIs('battleFirst', true) !== wasDefault('battleFirst') || ruleChoiceCheckedIs('royalFamily', true) !== wasDefault('royalFamily') || noteOf('battleFirst') !== null || noteOf('royalFamily') !== null) failures.push('startscherm: na verversen hoort alles weer standaard te zijn, ook als een eerdere versie keuzes bewaarde');
+  run('delete globalThis.localStorage; game = null; players = [];');
   banner().innerHTML = '';
 }
 
@@ -1211,9 +1209,9 @@ let liveChecked = 0;
     const flipped = name === 'aan' ? 'secondChance' : 'twoBeatsAce';
     for (const id of RULE_IDS) if (id !== flipped && r.before[id] !== r.after[id]) fail('de andere regels horen gelijk te blijven bij het omzetten van een regel (' + name + '): ' + id);
   }
-  run('renderRuleOptions()');
+  run('winnerRules = {}; renderRuleOptions()');
 
-  run('delete globalThis.localStorage; game = null; players = [];');
+  run('delete globalThis.localStorage; winnerRules = {}; renderRuleOptions(); game = null; players = [];');
   banner.innerHTML = '';
 }
 
