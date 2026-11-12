@@ -9,6 +9,31 @@ const THEMES = [
   { id: 'bobr', name: 'Bóbr', icon: '\u{1F9AB}' }             // 🦫 (met eigen kaarten, zie css/cards-bobr.css)
 ];
 const DEFAULT_THEME = 'oorlog';
+
+// Een thema met eigen kaartafbeeldingen (zie css/cards-bobr.css): in welke map ze staan en hoe het bestand van een kaart heet
+// (voorvoegsel per kleur, dan "-" en de waarde 2 t/m 14). Zodra zo'n thema gekozen is, worden alle 52 afbeeldingen alvast opgehaald,
+// zodat een kaart de eerste keer niet even leeg is. Dit moet kloppen met de regels in het css-bestand (de test controleert dat).
+const THEME_CARD_FILES = {
+  bobr: { dir: 'img/bobr/', prefix: { h: 'hs', d: 'ster', s: 'pak', c: 'sem' } }
+};
+const themeCardsLoaded = new Set();
+
+// De adressen van de kaartafbeeldingen van een thema (leeg voor een thema zonder eigen kaarten).
+function themeCardUrls(id){
+  const t = THEME_CARD_FILES[id];
+  if (!t) return [];
+  return buildDeck().map(c => t.dir + t.prefix[SUIT_KEY[c.suit]] + '-' + c.value + '.svg');
+}
+
+// Haalt de kaartafbeeldingen van een thema één keer per pagina alvast op. De browser bewaart ze, dus bij de eerste kaart op tafel zijn
+// ze er al. Zonder Image (de test) of zonder eigen kaarten gebeurt er niets.
+function themePreloadCards(id){
+  if (themeCardsLoaded.has(id) || typeof Image !== 'function') return;
+  const urls = themeCardUrls(id);
+  if (urls.length === 0) return;
+  themeCardsLoaded.add(id);
+  for (const url of urls){ const img = new Image(); img.src = url; }
+}
 const THEME_STORAGE_KEY = 'spelzonderspelelement.thema'; // dezelfde sleutel staat in het scriptje in de <head> van index.html
 
 function isKnownTheme(id){
@@ -36,6 +61,7 @@ function applyTheme(id){
   if (!isKnownTheme(id)) id = DEFAULT_THEME;
   const theme = THEMES.find(t => t.id === id);
   document.documentElement.dataset.theme = id;
+  themePreloadCards(id);
   themeToggleIcon.textContent = theme.icon;
   themeToggle.setAttribute('aria-label', 'Thema: ' + theme.name + '. Kies een thema');
   themeItems.forEach(item => {
