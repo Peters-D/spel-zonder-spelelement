@@ -1,0 +1,73 @@
+/* Kaarten met illustraties voor het thema Bóbr.
+ *
+ * Elke open kaart krijgt in js/render.js het attribuut data-card (zie cardKey in js/cards.js): de kleur als letter
+ * (h = harten, d = ruiten, s = schoppen, c = klaveren) en de waarde (2 t/m 14, Aas = 14).
+ * In het thema Bóbr hoort bij elke kleur een eigen symbool:
+ *   harten = Hamer & Sikkel, ruiten = Sovjetster, schoppen = Trainingspak, klaveren = Semitsjki.
+ * De tekst van de kaart (bijv. "A♥") blijft in de pagina staan voor schermlezers, maar is onzichtbaar.
+ * Andere thema's merken hier niets van: alle regels gelden alleen binnen [data-theme="bobr"].
+ */
+[data-theme="bobr"] .card[data-card],
+[data-theme="bobr"] .deck-viewer-card[data-card]{
+  background-color: transparent;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  color: transparent;
+  font-size: 0;
+  box-shadow: none;
+}
+[data-theme="bobr"] .card[data-card]{ width:72px; height:104px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
+[data-theme="bobr"] .deck-viewer-card[data-card]{ width:48px; height:70px; }
+[data-theme="bobr"] [data-card="h2"]{ background-image: url("../img/bobr/hs-2.svg"); }
+[data-theme="bobr"] [data-card="h3"]{ background-image: url("../img/bobr/hs-3.svg"); }
+[data-theme="bobr"] [data-card="h4"]{ background-image: url("../img/bobr/hs-4.svg"); }
+[data-theme="bobr"] [data-card="h5"]{ background-image: url("../img/bobr/hs-5.svg"); }
+[data-theme="bobr"] [data-card="h6"]{ background-image: url("../img/bobr/hs-6.svg"); }
+[data-theme="bobr"] [data-card="h7"]{ background-image: url("../img/bobr/hs-7.svg"); }
+[data-theme="bobr"] [data-card="h8"]{ background-image: url("../img/bobr/hs-8.svg"); }
+[data-theme="bobr"] [data-card="h9"]{ background-image: url("../img/bobr/hs-9.svg"); }
+[data-theme="bobr"] [data-card="h10"]{ background-image: url("../img/bobr/hs-10.svg"); }
+[data-theme="bobr"] [data-card="h11"]{ background-image: url("../img/bobr/hs-11.svg"); }
+[data-theme="bobr"] [data-card="h12"]{ background-image: url("../img/bobr/hs-12.svg"); }
+[data-theme="bobr"] [data-card="h13"]{ background-image: url("../img/bobr/hs-13.svg"); }
+[data-theme="bobr"] [data-card="h14"]{ background-image: url("../img/bobr/hs-14.svg"); }
+[data-theme="bobr"] [data-card="d2"]{ background-image: url("../img/bobr/ster-2.svg"); }
+[data-theme="bobr"] [data-card="d3"]{ background-image: url("../img/bobr/ster-3.svg"); }
+[data-theme="bobr"] [data-card="d4"]{ background-image: url("../img/bobr/ster-4.svg"); }
+[data-theme="bobr"] [data-card="d5"]{ background-image: url("../img/bobr/ster-5.svg"); }
+[data-theme="bobr"] [data-card="d6"]{ background-image: url("../img/bobr/ster-6.svg"); }
+[data-theme="bobr"] [data-card="d7"]{ background-image: url("../img/bobr/ster-7.svg"); }
+[data-theme="bobr"] [data-card="d8"]{ background-image: url("../img/bobr/ster-8.svg"); }
+[data-theme="bobr"] [data-card="d9"]{ background-image: url("../img/bobr/ster-9.svg"); }
+[data-theme="bobr"] [data-card="d10"]{ background-image: url("../img/bobr/ster-10.svg"); }
+[data-theme="bobr"] [data-card="d11"]{ background-image: url("../img/bobr/ster-11.svg"); }
+[data-theme="bobr"] [data-card="d12"]{ background-image: url("../img/bobr/ster-12.svg"); }
+[data-theme="bobr"] [data-card="d13"]{ background-image: url("../img/bobr/ster-13.svg"); }
+[data-theme="bobr"] [data-card="d14"]{ background-image: url("../img/bobr/ster-14.svg"); }
+[data-theme="bobr"] [data-card="s2"]{ background-image: url("../img/bobr/pak-2.svg"); }
+[data-theme="bobr"] [data-card="s3"]{ background-image: url("../img/bobr/pak-3.svg"); }
+[data-theme="bobr"] [data-card="s4"]{ background-image: url("../img/bobr/pak-4.svg"); }
+[data-theme="bobr"] [data-card="s5"]{ background-image: url("../img/bobr/pak-5.svg"); }
+[data-theme="bobr"] [data-card="s6"]{ background-image: url("../img/bobr/pak-6.svg"); }
+[data-theme="bobr"] [data-card="s7"]{ background-image: url("../img/bobr/pak-7.svg"); }
+[data-theme="bobr"] [data-card="s8"]{ background-image: url("../img/bobr/pak-8.svg"); }
+[data-theme="bobr"] [data-card="s9"]{ background-image: url("../img/bobr/pak-9.svg"); }
+[data-theme="bobr"] [data-card="s10"]{ background-image: url("../img/bobr/pak-10.svg"); }
+[data-theme="bobr"] [data-card="s11"]{ background-image: url("../img/bobr/pak-11.svg"); }
+[data-theme="bobr"] [data-card="s12"]{ background-image: url("../img/bobr/pak-12.svg"); }
+[data-theme="bobr"] [data-card="s13"]{ background-image: url("../img/bobr/pak-13.svg"); }
+[data-theme="bobr"] [data-card="s14"]{ background-image: url("../img/bobr/pak-14.svg"); }
+[data-theme="bobr"] [data-card="c2"]{ background-image: url("../img/bobr/sem-2.svg"); }
+[data-theme="bobr"] [data-card="c3"]{ background-image: url("../img/bobr/sem-3.svg"); }
+[data-theme="bobr"] [data-card="c4"]{ background-image: url("../img/bobr/sem-4.svg"); }
+[data-theme="bobr"] [data-card="c5"]{ background-image: url("../img/bobr/sem-5.svg"); }
+[data-theme="bobr"] [data-card="c6"]{ background-image: url("../img/bobr/sem-6.svg"); }
+[data-theme="bobr"] [data-card="c7"]{ background-image: url("../img/bobr/sem-7.svg"); }
+[data-theme="bobr"] [data-card="c8"]{ background-image: url("../img/bobr/sem-8.svg"); }
+[data-theme="bobr"] [data-card="c9"]{ background-image: url("../img/bobr/sem-9.svg"); }
+[data-theme="bobr"] [data-card="c10"]{ background-image: url("../img/bobr/sem-10.svg"); }
+[data-theme="bobr"] [data-card="c11"]{ background-image: url("../img/bobr/sem-11.svg"); }
+[data-theme="bobr"] [data-card="c12"]{ background-image: url("../img/bobr/sem-12.svg"); }
+[data-theme="bobr"] [data-card="c13"]{ background-image: url("../img/bobr/sem-13.svg"); }
+[data-theme="bobr"] [data-card="c14"]{ background-image: url("../img/bobr/sem-14.svg"); }

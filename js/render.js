@@ -29,6 +29,7 @@ function renderGrid(faceDown, warFlags){
     } else {
       cardEl.className = 'card flip' + (isRed(p.faceCard) ? ' red-suit' : '');
       cardEl.textContent = p.faceCard.rank + p.faceCard.suit;
+      cardEl.dataset.card = cardKey(p.faceCard);
     }
     const pcount = document.createElement('div');
     pcount.className = 'pcount';
@@ -64,6 +65,7 @@ function showCardList(title, subtitle, cards, emptyText){
       const cd = document.createElement('div');
       cd.className = 'deck-viewer-card' + (isRed(c) ? ' red-suit' : '');
       cd.textContent = c.rank + c.suit;
+      cd.dataset.card = cardKey(c);
       listEl.appendChild(cd);
     });
   }

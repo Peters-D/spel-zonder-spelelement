@@ -93,9 +93,9 @@ De test verdeelt zichzelf over de processorkernen (ten hoogste 4) en duurt dan o
 
 ## Thema's
 
-Het spel heeft drie thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster) en **Semechki** (zwart en wit, met een zonnebloempit met drie strepen als embleem). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
+Het spel heeft vier thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster), **Semechki** (zwart en wit, met een zonnebloempit met drie strepen als embleem) en **Bóbr** (bruin en crème, met eigen kaarten met illustraties: de vier kleuren zijn Hamer & Sikkel, Sovjetster, Trainingspak en Semitsjki). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
 
-Alle kleuren en versieringen staan in `css/themes.css`, als variabelen per thema (uitleg bovenaan dat bestand). De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element.
+Alle kleuren en versieringen staan in `css/themes.css`, als variabelen per thema (uitleg bovenaan dat bestand). De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element. De kaarten van Bóbr staan als SVG in `img/bobr` en worden in `css/cards-bobr.css` aan de kaarten gekoppeld (via het attribuut `data-card`, bijv. `h14` voor A♥).
 
 Een nieuw thema toevoegen:
 1. Voeg in `css/themes.css` een blok `[data-theme="naam"]` toe met dezelfde variabelen als de andere thema's.
