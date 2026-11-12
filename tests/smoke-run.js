@@ -217,6 +217,32 @@ for (const r of CATALOG){
   for (const f of files) if (fs.existsSync(path.join(root, f)) && /<text\b/.test(fs.readFileSync(path.join(root, f), 'utf8'))) failures.push(f + ' bevat <text>: zet de tekst om naar paden');
 }
 
+// ---- kaartafbeeldingen alvast ophalen (js/theme.js) ----
+{
+  const fail = t => failures.push('voorladen: ' + t);
+  const css = fs.readFileSync(path.join(root, 'css/cards-bobr.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const cssFiles = [...css.matchAll(/url\("\.\.\/([^"]+)"\)/g)].map(m => m[1]);
+  const urls = JSON.parse(run('JSON.stringify(themeCardUrls("bobr"))'));
+  if (urls.length !== 52 || new Set(urls).size !== 52) fail('Bóbr hoort 52 verschillende afbeeldingen voor te laden, kreeg ' + urls.length);
+  // De lijst in theme.js moet precies de bestanden zijn die css/cards-bobr.css gebruikt, anders blijft een kaart leeg of wordt er te veel geladen.
+  const missing = cssFiles.filter(f => !urls.includes(f)), extra = urls.filter(f => !cssFiles.includes(f));
+  if (missing.length || extra.length) fail('THEME_CARD_FILES komt niet overeen met css/cards-bobr.css: mist ' + JSON.stringify(missing) + ', te veel ' + JSON.stringify(extra));
+  for (const t of ['oorlog', 'sovjet', 'semechki']) if (run('themeCardUrls(' + JSON.stringify(t) + ').length') !== 0) fail('het thema ' + t + ' heeft geen eigen kaarten en hoort niets voor te laden');
+  // Kiezen van Bóbr haalt de afbeeldingen één keer alvast op; andere thema's niets.
+  run('globalThis.__loaded = []; globalThis.Image = function(){ const img = this; Object.defineProperty(img, "src", { set(v){ __loaded.push(v); } }); };');
+  try {
+    run('applyTheme("sovjet")');
+    if (run('__loaded.length') !== 0) fail('een thema zonder eigen kaarten hoort niets op te halen');
+    run('applyTheme("bobr")');
+    const got = JSON.parse(run('JSON.stringify(__loaded)'));
+    if (got.length !== 52 || JSON.stringify(got.slice().sort()) !== JSON.stringify(urls.slice().sort())) fail('het kiezen van Bóbr hoort alle 52 afbeeldingen op te halen, kreeg ' + got.length);
+    run('applyTheme("oorlog"); applyTheme("bobr");');
+    if (run('__loaded.length') !== 52) fail('de afbeeldingen horen maar één keer per pagina opgehaald te worden (' + run('__loaded.length') + ')');
+  } finally {
+    run('delete globalThis.Image; delete globalThis.__loaded; themeCardsLoaded.clear(); applyTheme("oorlog");');
+  }
+}
+
 // ---- themakeuze (js/theme.js) ----
 {
   const themeIds = JSON.parse(run('JSON.stringify(THEMES.map(t => t.id))'));
