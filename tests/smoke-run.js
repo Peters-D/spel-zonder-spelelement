@@ -217,6 +217,32 @@ for (const r of CATALOG){
   for (const f of files) if (fs.existsSync(path.join(root, f)) && /<text\b/.test(fs.readFileSync(path.join(root, f), 'utf8'))) failures.push(f + ' bevat <text>: zet de tekst om naar paden');
 }
 
+// ---- kaartafbeeldingen alvast ophalen (js/theme.js) ----
+{
+  const fail = t => failures.push('voorladen: ' + t);
+  const css = fs.readFileSync(path.join(root, 'css/cards-bobr.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const cssFiles = [...css.matchAll(/url\("\.\.\/([^"]+)"\)/g)].map(m => m[1]);
+  const urls = JSON.parse(run('JSON.stringify(themeCardUrls("bobr"))'));
+  if (urls.length !== 52 || new Set(urls).size !== 52) fail('Bóbr hoort 52 verschillende afbeeldingen voor te laden, kreeg ' + urls.length);
+  // De lijst in theme.js moet precies de bestanden zijn die css/cards-bobr.css gebruikt, anders blijft een kaart leeg of wordt er te veel geladen.
+  const missing = cssFiles.filter(f => !urls.includes(f)), extra = urls.filter(f => !cssFiles.includes(f));
+  if (missing.length || extra.length) fail('THEME_CARD_FILES komt niet overeen met css/cards-bobr.css: mist ' + JSON.stringify(missing) + ', te veel ' + JSON.stringify(extra));
+  for (const t of ['oorlog', 'sovjet', 'semechki']) if (run('themeCardUrls(' + JSON.stringify(t) + ').length') !== 0) fail('het thema ' + t + ' heeft geen eigen kaarten en hoort niets voor te laden');
+  // Kiezen van Bóbr haalt de afbeeldingen één keer alvast op; andere thema's niets.
+  run('globalThis.__loaded = []; globalThis.Image = function(){ const img = this; Object.defineProperty(img, "src", { set(v){ __loaded.push(v); } }); };');
+  try {
+    run('applyTheme("sovjet")');
+    if (run('__loaded.length') !== 0) fail('een thema zonder eigen kaarten hoort niets op te halen');
+    run('applyTheme("bobr")');
+    const got = JSON.parse(run('JSON.stringify(__loaded)'));
+    if (got.length !== 52 || JSON.stringify(got.slice().sort()) !== JSON.stringify(urls.slice().sort())) fail('het kiezen van Bóbr hoort alle 52 afbeeldingen op te halen, kreeg ' + got.length);
+    run('applyTheme("oorlog"); applyTheme("bobr");');
+    if (run('__loaded.length') !== 52) fail('de afbeeldingen horen maar één keer per pagina opgehaald te worden (' + run('__loaded.length') + ')');
+  } finally {
+    run('delete globalThis.Image; delete globalThis.__loaded; themeCardsLoaded.clear(); applyTheme("oorlog");');
+  }
+}
+
 // ---- themakeuze (js/theme.js) ----
 {
   const themeIds = JSON.parse(run('JSON.stringify(THEMES.map(t => t.id))'));
@@ -1230,6 +1256,41 @@ let liveChecked = 0;
 
   run('delete globalThis.localStorage; winnerRules = {}; renderRuleOptions(); game = null; players = [];');
   banner.innerHTML = '';
+}
+
+// ---- doorspoelen en de statistieken (controls.js, stats.js) ----
+{
+  const fail = t => failures.push('doorspoelen: ' + t);
+  document.getElementById('seedInput').value = '1000';
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+  document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
+  run('numPlayers = 4; dealNewGame(); launchGame();');
+  const state = () => run('JSON.stringify({ h: statsHistory, w: statsWins, b: statsTotalBattles, l: statsLongestTie, r: statsRoundCount })');
+  // Hoe vaak het paneel getekend wordt tellen we met een stand-in; de grafiek tekent de hele geschiedenis, dus elke tekenbeurt kost tijd.
+  run('globalThis.__draws = 0; globalThis.__origDraw = renderStatsPanel; renderStatsPanel = () => { __draws++; };');
+  try {
+    const snap0 = run('JSON.stringify(statsSnapshot())');
+    run('fastForward()');
+    if (run('phase') !== 'round-over') fail('het testspel (4 spelers, seed 1000) hoort niet binnen 3000 rondes te eindigen, fase: ' + run('phase'));
+    if (run('__draws') !== 1) fail('doorspoelen hoort het statistiekenpaneel één keer te tekenen, niet na elke ronde (' + run('__draws') + ' keer)');
+    const fresh = state();
+    // Dezelfde cijfers als wanneer elke ronde apart wordt geteld (zoals het spel zelf doet): terug naar de stand van vóór het doorspoelen en dan de oude manier.
+    run('undoStep()');
+    run('statsRestore(' + snap0 + ');');
+    run(`(() => { const r = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
+      r.trace.forEach(e => { if (e.type === 'battle') statsRecordBattle(e.depth); else if (e.type === 'win') statsRecordRoundWin(e.winnerIds || e.winnerId, e.counts); }); })()`);
+    if (state() !== fresh) fail('de statistieken na doorspoelen horen gelijk te zijn aan wanneer elke ronde apart wordt geteld');
+    run('statsRestore(' + snap0 + ');');
+    // Opnieuw en nog eens doorspoelen (bij een spel dat niet eindigt kan dat): elke klik tekent het paneel één keer.
+    for (let k = 1; k <= 3; k++){
+      run('__draws = 0; fastForward();');
+      if (run('__draws') !== 1) fail('klik ' + k + ' op doorspoelen hoort het paneel één keer te tekenen (' + run('__draws') + ' keer)');
+    }
+    if (run('statsHistory.length') < 3 * 2000) fail('na drie keer doorspoelen horen de rondes in de statistieken te staan (' + run('statsHistory.length') + ')');
+  } finally {
+    run('renderStatsPanel = __origDraw; delete globalThis.__draws; delete globalThis.__origDraw; game = null; players = [];');
+    document.getElementById('endBanner').innerHTML = '';
+  }
 }
 
 own('fixed', () => {

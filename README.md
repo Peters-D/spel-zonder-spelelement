@@ -97,6 +97,8 @@ Het spel heeft vier thema's: **Oorlog** (groen met goud en rangstrepen, standaar
 
 Alle kleuren en versieringen staan in `css/themes.css`, als variabelen per thema (uitleg bovenaan dat bestand). De rest van de opmaak en het spel zelf gebruiken alleen die variabelen. Het thema staat in het attribuut `data-theme` van het `<html>`-element. De kaarten van Bóbr staan als SVG in `img/bobr` en worden in `css/cards-bobr.css` aan de kaarten gekoppeld (via het attribuut `data-card`, bijv. `h14` voor A♥).
 
+Een thema met eigen kaartafbeeldingen (zoals Bóbr) zet in `THEME_CARD_FILES` in `js/theme.js` waar ze staan; ze worden dan alvast opgehaald zodra het thema gekozen is.
+
 Een nieuw thema toevoegen:
 1. Voeg in `css/themes.css` een blok `[data-theme="naam"]` toe met dezelfde variabelen als de andere thema's.
 2. Voeg het thema toe aan `THEMES` in `js/theme.js` (id, naam en icoon), dan komt het in het menu.
