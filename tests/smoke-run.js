@@ -200,6 +200,23 @@ for (const r of CATALOG){
   run('players = [];');
 }
 
+// ---- kaarten van het thema Bóbr (css/cards-bobr.css en img/bobr) ----
+{
+  // Elke kaart heeft een eigen sleutel, een eigen regel en een bestaand bestand; er zijn geen regels te veel.
+  const keys = JSON.parse(run('JSON.stringify(buildDeck().map(cardKey))'));
+  if (keys.length !== 52 || new Set(keys).size !== 52) failures.push('cardKey: geen 52 verschillende sleutels: ' + JSON.stringify(keys));
+  const css = fs.readFileSync(path.join(root, 'css/cards-bobr.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [...css.matchAll(/\[data-card="([^"]+)"\]\s*\{\s*background-image:\s*url\("\.\.\/([^"]+)"\)/g)].map(m => ({ key: m[1], file: m[2] }));
+  const ruleKeys = rules.map(r => r.key);
+  const missing = keys.filter(k => !ruleKeys.includes(k)), extra = ruleKeys.filter(k => !keys.includes(k));
+  if (missing.length || extra.length || new Set(ruleKeys).size !== ruleKeys.length) failures.push('css/cards-bobr.css: mist ' + JSON.stringify(missing) + ', te veel of dubbel ' + JSON.stringify(extra.concat(ruleKeys.filter((k, i) => ruleKeys.indexOf(k) !== i))));
+  const files = rules.map(r => r.file);
+  if (new Set(files).size !== files.length) failures.push('css/cards-bobr.css: twee kaarten gebruiken hetzelfde bestand');
+  for (const f of files) if (!fs.existsSync(path.join(root, f))) failures.push('css/cards-bobr.css: bestand ' + f + ' bestaat niet');
+  // Een SVG als achtergrond laadt geen lettertypes: tekst hoort als pad in het bestand te staan.
+  for (const f of files) if (fs.existsSync(path.join(root, f)) && /<text\b/.test(fs.readFileSync(path.join(root, f), 'utf8'))) failures.push(f + ' bevat <text>: zet de tekst om naar paden');
+}
+
 // ---- themakeuze (js/theme.js) ----
 {
   const themeIds = JSON.parse(run('JSON.stringify(THEMES.map(t => t.id))'));

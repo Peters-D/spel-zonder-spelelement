@@ -17,7 +17,9 @@
   font-size: 0;
   box-shadow: none;
 }
-[data-theme="bobr"] .card[data-card]{ width:72px; height:104px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
+/* Rug en open kaart even groot, anders verspringt de pagina bij het omdraaien. */
+[data-theme="bobr"] .card{ width:72px; height:104px; }
+[data-theme="bobr"] .card[data-card]{ filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
 [data-theme="bobr"] .deck-viewer-card[data-card]{ width:48px; height:70px; }
 [data-theme="bobr"] [data-card="h2"]{ background-image: url("../img/bobr/hs-2.svg"); }
 [data-theme="bobr"] [data-card="h3"]{ background-image: url("../img/bobr/hs-3.svg"); }
