@@ -169,3 +169,48 @@
   --stack-mark-size: 16px 16px;
   --stack-border: 1px solid #ffffff;
 }
+
+/* Bóbr: bruin als een bever, crème kaarten met rood, en hamer en sikkel als embleem.
+ * Dit thema heeft ook eigen kaarten met illustraties: die staan in img/bobr en worden gekoppeld in css/cards-bobr.css. */
+[data-theme="bobr"]{
+  --olive: #4a3426;
+  --olive-dark: #2e2018;
+  --paper: #f3ead7;
+  --paper-dim: #d9c9a8;
+  --ink: #1c1a19;
+  --red: #c1272d;
+  --red-deep: #9a1d22;
+  --brass: #e2b84b;
+  --brass-hover: #efc95f;
+  --line: rgba(243,234,215,0.18);
+  --glow: rgba(243,234,215,0.06);
+  --pile: #7a5a40;
+  --pile-deep: #5e4430;
+  --red-suit: #ff8a80;
+  --chart-text: rgba(243,234,215,0.45);
+  --chart-grid: rgba(243,234,215,0.18);
+  --chart-1: #e2b84b;
+  --chart-2: #e8574f;
+  --chart-3: #f3ead7;
+  --chart-4: #8fb3d9;
+  --chart-5: #d99fc4;
+  --chart-6: #8fd3c4;
+  --chart-7: #c98f5a;
+  --chart-8: #a8a8a8;
+  --deco: "";
+  --mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M7 2.5 C14.5 2 19 8.5 15.5 15 L13.6 14 C16 9 13 4.8 7 4.6 Z' fill='%23e2b84b'/%3E%3Cline x1='4.2' y1='16.6' x2='13.5' y2='6.8' stroke='%23e2b84b' stroke-width='2.4' stroke-linecap='round'/%3E%3Cg transform='translate(6.2 5.2) rotate(45)'%3E%3Crect x='-4.5' y='-2' width='9' height='4' fill='%23e2b84b'/%3E%3C/g%3E%3Cline x1='3.5' y1='17' x2='6.5' y2='14' stroke='%23e2b84b' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --mark-flat: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M7 2.5 C14.5 2 19 8.5 15.5 15 L13.6 14 C16 9 13 4.8 7 4.6 Z' fill='%23e2b84b'/%3E%3Cline x1='4.2' y1='16.6' x2='13.5' y2='6.8' stroke='%23e2b84b' stroke-width='2.4' stroke-linecap='round'/%3E%3Cg transform='translate(6.2 5.2) rotate(45)'%3E%3Crect x='-4.5' y='-2' width='9' height='4' fill='%23e2b84b'/%3E%3C/g%3E%3Cline x1='3.5' y1='17' x2='6.5' y2='14' stroke='%23e2b84b' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --mark-on-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M7 2.5 C14.5 2 19 8.5 15.5 15 L13.6 14 C16 9 13 4.8 7 4.6 Z' fill='%23c1272d'/%3E%3Cline x1='4.2' y1='16.6' x2='13.5' y2='6.8' stroke='%23c1272d' stroke-width='2.4' stroke-linecap='round'/%3E%3Cg transform='translate(6.2 5.2) rotate(45)'%3E%3Crect x='-4.5' y='-2' width='9' height='4' fill='%23c1272d'/%3E%3C/g%3E%3Cline x1='3.5' y1='17' x2='6.5' y2='14' stroke='%23c1272d' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  --header-indent: 62px;
+  --stamp-bg: var(--red);
+  --stamp-text: var(--paper);
+  --stamp-mark: 14px;
+  --back-a: var(--red);
+  --back-b: var(--red-deep);
+  --back-mark: var(--mark);
+  --back-mark-size: 22px 22px;
+  --back-border: 0 none;
+  --stack-mark: none;
+  --stack-mark-size: 100% 100%;
+  --stack-border: 1px solid rgba(0,0,0,0.3);
+}

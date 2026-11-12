@@ -5,7 +5,8 @@
 const THEMES = [
   { id: 'oorlog', name: 'Oorlog', icon: '\u{1FA96}' },        // 🪖
   { id: 'sovjet', name: 'Sovjet', icon: '\u{1F6E0}\uFE0F' },   // 🛠️
-  { id: 'semechki', name: 'Semechki', icon: '\u{1F33B}' }     // 🌻
+  { id: 'semechki', name: 'Semechki', icon: '\u{1F33B}' },    // 🌻
+  { id: 'bobr', name: 'Bóbr', icon: '\u{1F9AB}' }             // 🦫 (met eigen kaarten, zie css/cards-bobr.css)
 ];
 const DEFAULT_THEME = 'oorlog';
 const THEME_STORAGE_KEY = 'spelzonderspelelement.thema'; // dezelfde sleutel staat in het scriptje in de <head> van index.html

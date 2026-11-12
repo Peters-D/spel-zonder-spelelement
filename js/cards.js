@@ -46,5 +46,8 @@ function shuffle(arr){
   for (let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return arr;
 }
+// Korte sleutel per kaart, bijv. "h14" voor A♥: een thema met eigen kaarten koppelt daar een afbeelding aan (css/cards-bobr.css).
+const SUIT_KEY = {'♠':'s','♥':'h','♦':'d','♣':'c'};
+function cardKey(c){ return SUIT_KEY[c.suit] + c.value; }
 function isRed(c){ return c.suit==='♥'||c.suit==='♦'; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
