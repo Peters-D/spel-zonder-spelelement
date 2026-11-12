@@ -44,7 +44,9 @@ function statsRecordBattle(depth){
 }
 
 // winnerId is één speler-id, of een lijst met ids als meer spelers de ronde samen winnen (dan telt de ronde voor allemaal).
-function statsRecordRoundWin(winnerId, countsOverride){
+// statsAddRoundWin telt de ronde mee zonder het paneel te tekenen: het doorspoelen (controls.js) telt duizenden rondes mee en
+// tekent het paneel daarna één keer. Zou het na elke ronde tekenen, dan kostte elke klik seconden (de grafiek tekent de hele geschiedenis).
+function statsAddRoundWin(winnerId, countsOverride){
   for (const id of (Array.isArray(winnerId) ? winnerId : [winnerId])) statsWins[id] = (statsWins[id] || 0) + 1;
   statsRoundCount++;
   let counts = countsOverride;
@@ -53,6 +55,10 @@ function statsRecordRoundWin(winnerId, countsOverride){
     players.forEach(p => { counts[p.id] = p.deck.length; });
   }
   statsHistory.push({ round: statsRoundCount, counts });
+}
+
+function statsRecordRoundWin(winnerId, countsOverride){
+  statsAddRoundWin(winnerId, countsOverride);
   renderStatsPanel();
 }
 

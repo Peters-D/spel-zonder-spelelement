@@ -53,14 +53,16 @@ function fastForward(){
 
   const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
 
-  // Speel de volledige trace na in de statistieken, ronde voor ronde.
+  // Speel de volledige trace na in de statistieken, ronde voor ronde, en teken het paneel daarna één keer (niet na elke ronde:
+  // dat maakte elke klik op doorspoelen tot seconden traag, steeds trager naarmate de geschiedenis groeide).
   result.trace.forEach(entry => {
     if (entry.type === 'battle'){
       if (typeof statsRecordBattle === 'function') statsRecordBattle(entry.depth); // STATS HOOK
     } else if (entry.type === 'win'){
-      if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(entry.winnerIds || entry.winnerId, entry.counts); // STATS HOOK
+      if (typeof statsAddRoundWin === 'function') statsAddRoundWin(entry.winnerIds || entry.winnerId, entry.counts); // STATS HOOK
     }
   });
+  if (typeof renderStatsPanel === 'function') renderStatsPanel(); // STATS HOOK
 
   // Pas de eindstand toe op het echte spel.
   result.finalPlayers.forEach((sp, i) => {
