@@ -1215,6 +1215,41 @@ let liveChecked = 0;
   banner.innerHTML = '';
 }
 
+// ---- doorspoelen en de statistieken (controls.js, stats.js) ----
+{
+  const fail = t => failures.push('doorspoelen: ' + t);
+  document.getElementById('seedInput').value = '1000';
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+  document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
+  run('numPlayers = 4; dealNewGame(); launchGame();');
+  const state = () => run('JSON.stringify({ h: statsHistory, w: statsWins, b: statsTotalBattles, l: statsLongestTie, r: statsRoundCount })');
+  // Hoe vaak het paneel getekend wordt tellen we met een stand-in; de grafiek tekent de hele geschiedenis, dus elke tekenbeurt kost tijd.
+  run('globalThis.__draws = 0; globalThis.__origDraw = renderStatsPanel; renderStatsPanel = () => { __draws++; };');
+  try {
+    const snap0 = run('JSON.stringify(statsSnapshot())');
+    run('fastForward()');
+    if (run('phase') !== 'round-over') fail('het testspel (4 spelers, seed 1000) hoort niet binnen 3000 rondes te eindigen, fase: ' + run('phase'));
+    if (run('__draws') !== 1) fail('doorspoelen hoort het statistiekenpaneel één keer te tekenen, niet na elke ronde (' + run('__draws') + ' keer)');
+    const fresh = state();
+    // Dezelfde cijfers als wanneer elke ronde apart wordt geteld (zoals het spel zelf doet): terug naar de stand van vóór het doorspoelen en dan de oude manier.
+    run('undoStep()');
+    run('statsRestore(' + snap0 + ');');
+    run(`(() => { const r = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
+      r.trace.forEach(e => { if (e.type === 'battle') statsRecordBattle(e.depth); else if (e.type === 'win') statsRecordRoundWin(e.winnerIds || e.winnerId, e.counts); }); })()`);
+    if (state() !== fresh) fail('de statistieken na doorspoelen horen gelijk te zijn aan wanneer elke ronde apart wordt geteld');
+    run('statsRestore(' + snap0 + ');');
+    // Opnieuw en nog eens doorspoelen (bij een spel dat niet eindigt kan dat): elke klik tekent het paneel één keer.
+    for (let k = 1; k <= 3; k++){
+      run('__draws = 0; fastForward();');
+      if (run('__draws') !== 1) fail('klik ' + k + ' op doorspoelen hoort het paneel één keer te tekenen (' + run('__draws') + ' keer)');
+    }
+    if (run('statsHistory.length') < 3 * 2000) fail('na drie keer doorspoelen horen de rondes in de statistieken te staan (' + run('statsHistory.length') + ')');
+  } finally {
+    run('renderStatsPanel = __origDraw; delete globalThis.__draws; delete globalThis.__origDraw; game = null; players = [];');
+    document.getElementById('endBanner').innerHTML = '';
+  }
+}
+
 own('fixed', () => {
   for (const c of cases){
     document.getElementById("seedInput").value = c.seed;
