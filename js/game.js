@@ -112,8 +112,11 @@ function showRoundResult(ev){
     showStamp('LAATSTE OVER');
     setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
   } else {
-    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
+    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.tieBroken ? 'SYMBOOL BESLIST' : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
+  }
+  if (ev.tieBroken){ // gelijke kaarten: het symbool besliste, er is geen battle
+    document.getElementById('dispatch').textContent = w.name + ' wint op symbool (' + ev.tieBroken.suit + '). ' + document.getElementById('dispatch').textContent;
   }
   const more = playerNotes(ev);
   if (more) document.getElementById('dispatch').textContent += ' ' + more;

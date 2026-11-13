@@ -38,7 +38,7 @@ Extra regels zijn optioneel en aan te vinken bij het starten van een spel.
   - Voorbeeld: `3 · 3 · 3 · A` – Drie gelijke kaarten battlen allemaal.
   - Voorbeeld: `A · K · Q` – Zonder paar wint gewoon de hoogste kaart.
   - Voorbeeld: `2 · A · A` (met "2 verslaat Aas" aan) – Het paar gaat voor: de Azen battlen, de 2 doet niet mee.
-- **Battle ruimt de pot op** (standaard uit). Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. Zonder battle verandert er niets. Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; hebben alle spelers geen kaarten meer, dan is het gelijkspel.
+- **Battle ruimt de pot op** (standaard uit). Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. Zonder battle verandert er niets (ook als "Bij gelijkspel beslist het symbool" aan staat: dan is er nooit een battle). Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; hebben alle spelers geen kaarten meer, dan is het gelijkspel.
   - Voorbeeld: stapels `K 4 2 · K 9 3 · 5 7 6` worden na één ronde `2 · 3 · 7 6`, met 5 kaarten op de aflegstapel – Speler 1 en 2 leggen allebei een K: battle. Speler 2 wint de battle met de 9, maar alle 5 kaarten op tafel gaan naar de aflegstapel. Speler 3 doet niet mee aan de battle en verliest de 5 ook.
   - Voorbeeld: stapels `A 4 · K 9` worden na één ronde `4 A K · 9`, met 0 kaarten op de aflegstapel – Zonder battle wint speler 1 de pot gewoon.
   - Voorbeeld: stapels `K · K 3` worden na één ronde `uit · uit`, met 3 kaarten op de aflegstapel – Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.
@@ -54,13 +54,19 @@ Extra regels zijn optioneel en aan te vinken bij het starten van een spel.
   - Voorbeeld: stapels `K 4 · J 7 · 3 3` worden na één ronde `4 K J 3 · 7 · 3`, met 0 kaarten op de aflegstapel – Er ligt een Heer maar geen Vrouw: de Heer wint de hele pot, zoals altijd.
   - Voorbeeld: stapels `K 9 2 · K 5 3 · Q 6 4` worden na één ronde `2 K Q 5 · 3 · 6 4 K 9`, met 0 kaarten op de aflegstapel – Twee Heren battlen en speler 1 wint met de 9. Er ligt ook een Vrouw (speler 3), dus de pot (K, K, Q, 9, 5) wordt verdeeld: de Heer kiest K, de Vrouw de andere K, de Heer Q, de Vrouw 9, de Heer 5.
   - Voorbeeld: stapels `K 9 2 · K 5 3 · Q 6 4` (met "Battle ruimt de pot op" aan) worden na één ronde `2 · 3 · 6 4`, met 5 kaarten op de aflegstapel – Dezelfde battle, maar de hele pot gaat naar de aflegstapel: er is dan niets meer te verdelen.
+- **Bij gelijkspel beslist het symbool** (standaard uit). Voor je begint kies je een volgorde van de vier symbolen: standaard ♠, ♥, ♦, ♣ (van hoog naar laag). Eindigen twee of meer spelers gelijk, dan wint de speler met het hoogste symbool en is er geen battle. Dat geldt ook voor gelijke kaarten bij "Gelijke kaarten gaan voor" en voor meerdere 2's bij "2 verslaat Aas". Omdat er geen battle meer komt, doet "Battle ruimt de pot op" dan niets. Staat het symbool niet bekend, dan battlen de spelers zoals gewoonlijk.
+  - Voorbeeld: `K♥ · K♠ · 3` – Twee Heren: ♠ staat hoger dan ♥, dus de ♠ wint en er is geen battle.
+  - Voorbeeld: `A · K♠ · 3` – Zonder gelijkspel verandert er niets: de Aas wint.
+  - Voorbeeld: `A · K♥ · K♠` (met "Gelijke kaarten gaan voor" aan) – Met "Gelijke kaarten gaan voor" winnen de Heren, en ♠ beslist welke: speler 3 wint meteen.
+  - Voorbeeld: `2♦ · 2♣ · A` (met "2 verslaat Aas" aan) – Twee 2's winnen van de Aas; ♦ staat hoger dan ♣, dus speler 1 wint.
 
 ### Volgorde bij botsingen
 
-Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart.
+Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart. Blijft er daarna een gelijkspel over en staat "Bij gelijkspel beslist het symbool" aan, dan beslist het symbool.
 
 1. Gelijke kaarten gaan voor
 2. 2 verslaat Aas
+3. Bij gelijkspel beslist het symbool
 
 Dezelfde uitleg staat in het spel zelf, onder de knop **📖 Spelregels**.
 <!-- REGELS:EINDE -->
@@ -85,7 +91,7 @@ git clone https://github.com/Peters-D/spel-zonder-spelelement.git
 
 De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het starten, het regelboek in het spel en het regel-gedeelte van deze README volgen daaruit vanzelf.
 
-1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd` en de handelingen voor de aflegstapel en voor kaarten tussen spelers uit `js/engine.js`, en zet `usesDiscard: true`. Een regel met alleen haken heeft geen `decide`; laat dan in `examples` een scenario met stapels zien (`decks`, `after`, `discarded`, `text`), zie de uitleg bovenaan `js/rules.js`.
+1. Voeg een object toe aan `RULES` in `js/rules.js`, met `id`, `priority`, `title`, `short`, `description`, `default`, `examples` en `decide`. Zie de uitleg bovenaan dat bestand. Een regel die kaarten moet afleggen of terughalen gebruikt de haken `onAward` en `onRoundEnd`, een regel die een gelijkspel beslist de haak `breakTie`, en de handelingen voor de aflegstapel en voor kaarten tussen spelers uit `js/engine.js`, en zet `usesDiscard: true`. Een regel met alleen haken heeft geen `decide`; laat dan in `examples` een scenario met stapels zien (`decks`, `after`, `discarded`, `text`), zie de uitleg bovenaan `js/rules.js`.
 2. Draai `node tools/build-readme.js`. Dat werkt het regel-gedeelte van deze README bij. Pas dat gedeelte niet met de hand aan.
 3. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/expected.json`: dat zijn de nieuwe regelcombinaties.
 4. Draai `node tests/smoke.js`. Die moet slagen. De CI controleert dit ook, en dat de README klopt met de regels.

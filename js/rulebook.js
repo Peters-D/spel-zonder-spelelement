@@ -91,12 +91,13 @@ function buildRulebook(rules, base, active){
 
   // De volgorde waarin de extra regels worden toegepast (uit de prioriteit in de catalogus).
   // Alleen regels die kunnen beslissen wie een ronde wint doen mee aan de botsingen.
-  const ordered = rules.filter(r => typeof r.decide === 'function').sort((a, b) => a.priority - b.priority);
+  const ordered = rules.filter(r => typeof r.decide === 'function' || typeof r.breakTie === 'function').sort((a, b) => a.priority - b.priority);
   const order = rbEl('section', 'rb-section rb-order');
   order.appendChild(rbEl('h3', 'rb-heading', 'Volgorde bij botsingen'));
   order.appendChild(rbEl('p', 'rb-text',
     'Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. ' +
-    'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart.'));
+    'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart. ' +
+    'Blijft er daarna een gelijkspel over en staat "Bij gelijkspel beslist het symbool" aan, dan beslist het symbool.'));
   const list = rbEl('ol', 'rb-order-list');
   for (const rule of ordered){
     list.appendChild(rbEl('li', 'rb-order-item' + (active[rule.id] ? ' rb-on' : ''), rule.title + (active[rule.id] ? ' (aan)' : ' (uit)')));

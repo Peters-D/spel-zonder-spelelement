@@ -102,7 +102,7 @@ function playLive(){
 // de regels die aan staan, in catalogusvolgorde, gescheiden door '+'.
 const CATALOG = JSON.parse(run(`JSON.stringify(RULES.map(r => ({
   id: r.id, priority: r.priority, title: r.title, short: r.short, description: r.description,
-  default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function',
+  default: r.default, examples: r.examples, hasDecide: typeof r.decide === 'function' || typeof r.breakTie === 'function',
   hasHook: typeof r.onAward === 'function' || typeof r.onRoundEnd === 'function', usesDiscard: r.usesDiscard })))`));
 const BASE = JSON.parse(run('JSON.stringify(BASE_RULES)'));
 const RULE_IDS = CATALOG.map(r => r.id);
@@ -908,7 +908,7 @@ run(`showDeckViewer({ name: 'Anna', deck: [__card('K', '♣')] });`);
 if (document.getElementById('deckViewerTitle').textContent !== 'Anna — stapel (1)' || document.getElementById('deckViewerSub').textContent !== 'Bovenste kaart eerst') failures.push('venster van een spelersstapel is veranderd');
 
 // Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
-const optionLabels = document.getElementById('rulesList').children;
+const optionLabels = document.getElementById('rulesList').children.filter(n => (n.className || '').split(' ').includes('rule-check'));
 if (optionLabels.length !== CATALOG.length) failures.push('startscherm: ' + optionLabels.length + ' vinkjes voor ' + CATALOG.length + ' regels');
 CATALOG.forEach((r, i) => {
   const label = optionLabels[i];
@@ -962,6 +962,71 @@ const engineEvent = battleFirst => JSON.parse(run(`(() => {
 const evOn = engineEvent(true), evOff = engineEvent(false);
 if (JSON.stringify(evOn) !== JSON.stringify({ type: 'battle', contenders: [1, 2], overruled: [0] })) failures.push('spelkern met battleFirst: ' + JSON.stringify(evOn));
 if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failures.push('spelkern zonder battleFirst: ' + JSON.stringify(evOff));
+
+// ---- Bij gelijkspel beslist het symbool ----
+{
+  const SB = { suitBreak: true };
+  const fwSuit = (cards, rules) => run('__fw(' + JSON.stringify(cards) + ', ' + JSON.stringify(rules) + ')');
+  const check = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) failures.push('symbool "' + name + '": verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+  const only = o => Object.assign({}, OFF, o);
+  check('standaardvolgorde: ♠ boven ♥', fwSuit(['K♥', 'K♠', '3♦'], only(SB)), [1]);
+  check('standaardvolgorde: ♦ boven ♣', fwSuit(['K♣', 'K♦'], only(SB)), [1]);
+  check('eigen volgorde ♣ ♦ ♥ ♠', fwSuit(['K♥', 'K♠'], only({ suitBreak: true, suitOrder: ['♣', '♦', '♥', '♠'] })), [0]);
+  check('ongeldige volgorde (dubbel) valt terug op de standaard', fwSuit(['K♥', 'K♠'], only({ suitBreak: true, suitOrder: ['♣', '♣', '♥', '♠'] })), [1]);
+  check('ongeldige volgorde (geen lijst) valt terug op de standaard', fwSuit(['K♥', 'K♠'], only({ suitBreak: true, suitOrder: 'abc' })), [1]);
+  check('onbekend symbool: battle zoals gewoonlijk', fwSuit(['K', 'K♠'], only(SB)), [0, 1]);
+  check('zonder regel: gewoon battle', fwSuit(['K♥', 'K♠'], OFF), [0, 1]);
+  check('geen gelijkspel: niets verandert', fwSuit(['A♥', 'K♠'], only(SB)), [0]);
+  check('drie gelijke: hoogste symbool wint', fwSuit(['7♣', '7♥', '7♠'], only(SB)), [2]);
+  check('met gelijke kaarten gaan voor: paar beslist op symbool', fwSuit(['A♦', 'K♥', 'K♠'], only({ suitBreak: true, battleFirst: true })), [2]);
+  check('met 2 verslaat Aas: twee 2\'s beslist op symbool', fwSuit(['2♦', '2♣', 'A♠'], only({ suitBreak: true, twoBeatsAce: true })), [0]);
+  check('met alle drie: het hoogste paar (Azen) beslist op symbool', fwSuit(['2♥', '2♠', 'A♠', 'A♦'], only({ suitBreak: true, twoBeatsAce: true, battleFirst: true })), [2]);
+  // De spelkern: geen battle, de gebeurtenis meldt het symbool, en Battle ruimt de pot op doet niets.
+  const ev = JSON.parse(run(`(() => {
+    const c = (rank, suit) => ({ rank, suit, value: RANKS.indexOf(rank) + 2 });
+    const mk = rules => createGameState([
+      { id: 0, name: 'a', deck: [c('K', '♥'), c('2', '♣')] }, { id: 1, name: 'b', deck: [c('K', '♠'), c('3', '♣')] }, { id: 2, name: 'c', deck: [c('4', '♠'), c('5', '♣')] }
+    ], rules);
+    const out = {};
+    for (const [name, rules] of [['aan', { suitBreak: true }], ['met opruimen', { suitBreak: true, battleDiscard: true }], ['uit', {}]]){
+      const st = mk(rules); engineStartRound(st); const e = engineResolve(st);
+      out[name] = { type: e.type, winner: e.winner && e.winner.id, potSize: e.potSize, discarded: e.discarded, tie: e.tieBroken ? { rule: e.tieBroken.ruleId, tied: e.tieBroken.tied.map(p => p.id), suit: e.tieBroken.suit } : null, discard: st.discard.length, battles: st.battleLevel };
+    }
+    return JSON.stringify(out);
+  })()`));
+  const expTie = { type: 'win', winner: 1, potSize: 3, discarded: 0, tie: { rule: 'suitBreak', tied: [0, 1], suit: '♠' }, discard: 0, battles: 0 };
+  check('spelkern met regel aan', ev['aan'], expTie);
+  check('spelkern met opruimen erbij: niets afgelegd', ev['met opruimen'], expTie);
+  check('spelkern zonder regel: battle', ev['uit'].type, 'battle');
+  // Hele spellen: nooit een battle, altijd 52 unieke kaarten, en met opruimen erbij wordt er nooit afgelegd.
+  let games = 0, ties = 0;
+  for (const n of [2, 3, 4, 8]) for (const seed of ['s1', 's2', 's3', 's4']) for (const ids of [['suitBreak'], ['suitBreak', 'battleFirst'], ['suitBreak', 'twoBeatsAce'], ['suitBreak', 'battleDiscard'], ['suitBreak', 'royalFamily', 'secondChance']]){
+    const r = JSON.parse(run(`(() => {
+      const rules = { suitOrder: ['♥', '♣', '♠', '♦'] }; for (const id of ${JSON.stringify(ids)}) rules[id] = true;
+      const deck = shuffleWith(${JSON.stringify(seed)});
+      const dealt = []; for (let i = 0; i < ${n}; i++) dealt.push({ id: i, name: 'S' + i, deck: [] });
+      deck.forEach((c, i) => dealt[i % ${n}].deck.push(c));
+      const st = createGameState(dealt, rules); let battles = 0, ties = 0, bad = null;
+      for (let r = 0; r < 300 && !bad; r++){
+        if (engineActivePlayers(st).length <= 1) break;
+        engineStartRound(st);
+        let e = engineResolve(st);
+        while (e.type === 'battle'){ battles++; e = engineLayBattleCards(st); while (e.type === 'battle-revealed') e = engineResolve(st); }
+        if (e.tieBroken) ties++;
+        engineEndRound(st);
+        const all = [...st.players.flatMap(p => p.deck), ...st.pot, ...st.discard];
+        if (all.length !== 52 || new Set(all.map(c => c.rank + c.suit)).size !== 52) bad = 'ronde ' + r + ': ' + all.length + ' kaarten';
+      }
+      return JSON.stringify({ battles, ties, bad, discard: st.discard.length });
+    })()`));
+    games++; ties += r.ties;
+    const label = 'symbool-spel (' + n + ' spelers, seed ' + seed + ', ' + ids.join('+') + ')';
+    if (r.bad) failures.push(label + ': ' + r.bad);
+    if (r.battles !== 0) failures.push(label + ': er waren ' + r.battles + ' battles, dat hoort niet met deze regel');
+    if (ids.includes('battleDiscard') && r.discard !== 0) failures.push(label + ': er is toch afgelegd (' + r.discard + ')');
+  }
+  if (ties < 100) failures.push('symbool: in ' + games + ' spellen slechts ' + ties + ' gelijkspellen beslist op symbool');
+}
 
 // ---- testgevallen ----
 const cases = [];

@@ -5,7 +5,7 @@
 // Een spelstand ziet er zo uit:
 //   {
 //     players:     [{ id, name, deck: [kaarten, bovenste eerst], out, faceCard }],
-//     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js)
+//     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js), eventueel plus suitOrder: ['♠','♥','♦','♣'] (volgorde van de symbolen, hoog naar laag)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     discard:     de aflegstapel: kaarten die zijn afgelegd, bovenste kaart eerst (index 0)
 //     opening:     per speler-id de kaart waarmee die speler deze ronde begon (een battle overschrijft faceCard, dit blijft staan)
@@ -82,7 +82,8 @@ function engineStartRound(state){
 }
 
 // Vergelijkt de open kaarten van de spelers die nog meedingen. Geeft terug:
-//   { type: 'win',    winner, potSize, how: 'normal' | 'battle' }  één winnaar, krijgt de pot
+//   { type: 'win',    winner, potSize, how: 'normal' | 'battle', tieBroken }  één winnaar, krijgt de pot (tieBroken: { ruleId, tied, suit }
+//                                                                als een gelijkspel op symbool is beslist, anders null)
 //   { type: 'battle', level, contenders: [spelers], overruled: [spelers], ruleId }
 //                                                                gelijkspel (of een regel die een battle afdwingt), battle-kaarten nodig;
 //                                                                overruled = spelers die zonder die regel hadden gewonnen
@@ -90,9 +91,9 @@ function engineStartRound(state){
 function engineResolve(state){
   const inPlay = state.players.filter(p => !p.out && state.contenders.includes(p.id) && p.faceCard);
   if (inPlay.length === 0) return engineAwardToFirstActive(state);
-  const { winners, rule } = decideRound(inPlay, state.rules);
+  const { winners, rule, tieBreak } = decideRound(inPlay, state.rules);
   if (winners.length === 1){
-    return engineAwardPot(state, winners[0], state.battleLevel > 0 ? 'battle' : 'normal');
+    return engineAwardPot(state, winners[0], state.battleLevel > 0 ? 'battle' : 'normal', tieBreak);
   }
   state.battleLevel++;
   state.contenders = winners.map(p => p.id);
@@ -142,13 +143,14 @@ function engineEndRound(state){
 
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
 // Geeft het aantal afgelegde kaarten (discarded) en wat de winnaar kreeg (toWinner) mee in de gebeurtenis.
-function engineAwardPot(state, winner, how){
+function engineAwardPot(state, winner, how, tieBreak){
   const potSize = state.pot.length;
   const moved = engineRunHooks(state, 'onAward', { winner, how, potSize });
   const toWinner = state.pot.length;
   winner.deck.push(...state.pot);
   state.pot = [];
-  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared };
+  return { type: 'win', winner, potSize, how, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared,
+    tieBroken: tieBreak ? { ruleId: tieBreak.rule.id, tied: tieBreak.tied, suit: tieBreak.suit } : null };
 }
 
 function engineAwardToFirstActive(state){

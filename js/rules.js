@@ -16,6 +16,8 @@
 //               with }. Het scenario wordt een ronde lang gespeeld door de spelkern (de test controleert het).
 //   decide      (optioneel) decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
+//   breakTie    (optioneel) breakTie(winners, rules) krijgt de spelers die gelijk eindigden en geeft de ene speler terug die wint
+//               (als lijst met één speler), of null als de regel de gelijkspel niet kan beslissen. Wordt na decide toegepast.
 //   usesDiscard (optioneel) true als de regel kaarten aflegt of terughaalt: dan staat de aflegstapel op het scherm
 //   onAward(ctx), onRoundEnd(ctx)  (optioneel) haken voor regels die iets doen na de beslissing, bijvoorbeeld kaarten
 //               afleggen. Zie engine.js voor ctx en voor de handelingen voor de aflegstapel.
@@ -87,7 +89,7 @@ const RULES = [
     short: 'Na een battle gaat de hele pot naar de aflegstapel (niemand wint kaarten)',
     description: 'Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ' +
       'ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. ' +
-      'Zonder battle verandert er niets. Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; ' +
+      'Zonder battle verandert er niets (ook als "Bij gelijkspel beslist het symbool" aan staat: dan is er nooit een battle). Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; ' +
       'hebben alle spelers geen kaarten meer, dan is het gelijkspel.',
     default: false,
     usesDiscard: true,
@@ -168,6 +170,31 @@ const RULES = [
       if (women.length === 0) return;
       engineSharePot(state, [ctx.winner.id].concat(women.map(p => p.id)));
     }
+  },
+  {
+    id: 'suitBreak',
+    priority: 60,
+    title: 'Bij gelijkspel beslist het symbool',
+    short: 'Bij gelijke kaarten wint het hoogste symbool (je kiest de volgorde), dus nooit een battle',
+    description: 'Voor je begint kies je een volgorde van de vier symbolen: standaard ♠, ♥, ♦, ♣ (van hoog naar laag). ' +
+      'Eindigen twee of meer spelers gelijk, dan wint de speler met het hoogste symbool en is er geen battle. ' +
+      'Dat geldt ook voor gelijke kaarten bij "Gelijke kaarten gaan voor" en voor meerdere 2\'s bij "2 verslaat Aas". ' +
+      'Omdat er geen battle meer komt, doet "Battle ruimt de pot op" dan niets. Staat het symbool niet bekend, dan battlen de spelers zoals gewoonlijk.',
+    default: false,
+    examples: [
+      { cards: ['K♥', 'K♠', '3'], winners: [1], text: 'Twee Heren: ♠ staat hoger dan ♥, dus de ♠ wint en er is geen battle.' },
+      { cards: ['A', 'K♠', '3'], winners: [0], text: 'Zonder gelijkspel verandert er niets: de Aas wint.' },
+      { cards: ['A', 'K♥', 'K♠'], winners: [2], with: ['battleFirst'], text: 'Met "Gelijke kaarten gaan voor" winnen de Heren, en ♠ beslist welke: speler 3 wint meteen.' },
+      { cards: ['2♦', '2♣', 'A'], winners: [0], with: ['twoBeatsAce'], text: 'Twee 2\'s winnen van de Aas; ♦ staat hoger dan ♣, dus speler 1 wint.' }
+    ],
+    breakTie(winners, rules){
+      const order = suitOrderOf(rules);
+      const rank = p => order.indexOf(p.faceCard.suit);
+      if (winners.some(p => rank(p) < 0)) return null;
+      const best = Math.min(...winners.map(rank));
+      const top = winners.filter(p => rank(p) === best);
+      return top.length === 1 ? top : null;
+    }
   }
 ];
 
@@ -245,20 +272,46 @@ function parseExampleCard(text){
 // Alle regels staan standaard op hun default (afgeleid uit de catalogus).
 const DEFAULT_RULES = Object.fromEntries(RULES.map(r => [r.id, r.default]));
 
+// De volgorde van de symbolen voor "Bij gelijkspel beslist het symbool", van hoog naar laag. Staat er geen geldige volgorde
+// (precies de vier symbolen, elk één keer) in rules.suitOrder, dan geldt de standaard.
+const DEFAULT_SUIT_ORDER = ['♠', '♥', '♦', '♣'];
+function suitOrderOf(rules){
+  const o = rules && rules.suitOrder;
+  const ok = Array.isArray(o) && o.length === 4 && DEFAULT_SUIT_ORDER.every(s => o.includes(s));
+  return ok ? o : DEFAULT_SUIT_ORDER;
+}
+
 // Regels in de volgorde waarin ze worden toegepast.
 const RULES_BY_PRIORITY = RULES.slice().sort((a, b) => a.priority - b.priority);
 
 // Bepaalt wie van de spelers in inPlay de ronde (voorlopig) wint. Geeft { winners, rule } terug:
 // rule is de regel die besliste, of null als de hoogste kaart wint. Meer dan één winnaar
 // betekent gelijkspel → battle.
+// tieBreak is { rule, tied, suit } als een regel met breakTie (symbool) een gelijkspel heeft beslist, anders null.
 function decideRound(inPlay, rules){
+  let decided = null;
   for (const rule of RULES_BY_PRIORITY){
     if (!rules[rule.id] || typeof rule.decide !== 'function') continue;
     const winners = rule.decide(inPlay);
-    if (winners) return { winners, rule };
+    if (winners){ decided = { winners, rule }; break; }
   }
-  const maxVal = Math.max(...inPlay.map(p => p.faceCard.value));
-  return { winners: inPlay.filter(p => p.faceCard.value === maxVal), rule: null };
+  if (!decided){
+    const maxVal = Math.max(...inPlay.map(p => p.faceCard.value));
+    decided = { winners: inPlay.filter(p => p.faceCard.value === maxVal), rule: null };
+  }
+  decided.tieBreak = null;
+  if (decided.winners.length > 1){
+    for (const rule of RULES_BY_PRIORITY){
+      if (!rules[rule.id] || typeof rule.breakTie !== 'function') continue;
+      const one = rule.breakTie(decided.winners, rules);
+      if (one && one.length === 1){
+        decided.tieBreak = { rule, tied: decided.winners, suit: one[0].faceCard.suit };
+        decided.winners = one;
+        break;
+      }
+    }
+  }
+  return decided;
 }
 
 function findWinningPlayers(inPlay, rules){
