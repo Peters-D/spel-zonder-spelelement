@@ -106,7 +106,7 @@ const RULES = [
   {
     id: 'secondChance',
     priority: 40,
-    title: 'Tweede kans',
+    title: 'Revival',
     short: 'Wie zonder kaarten valt, krijgt de bovenste kaart van de linkerbuur (zolang minstens 2 spelers kaarten hebben)',
     description: 'Heeft een speler aan het einde van een ronde geen kaarten meer, dan krijgt die speler de bovenste kaart van de speler links van hem ' +
       '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dat geldt voor iedere speler zonder kaarten, dus ook voor een speler die al eerder was uitgeschakeld. ' +

@@ -597,7 +597,7 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   run('endGame({ name: "Anna" });');
   if (!/ANNA WINT/.test(textOf(document.getElementById('endBanner')))) failures.push('einde van het spel met winnaar toont de winnaar niet');
 }
-// De echte regel "Tweede kans": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 2 spelers kaarten hebben.
+// De echte regel "Revival": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 2 spelers kaarten hebben.
 {
   const end = (decks, outIdx) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, { secondChance: true });
     for (const i of ${JSON.stringify(outIdx || [])}) st.players[i].out = true;
@@ -607,49 +607,49 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   // Eén speler zonder kaarten: de bovenste kaart van de linkerbuur (speler 3, want speler 1 zit rechts van speler 2).
   let r = end([['A'], [], ['K', 'Q'], ['J']]);
-  if (!same(r.decks, [['A'], ['K'], ['Q'], ['J']]) || !same(r.transfers, [[2, 1, 1]]) || r.out.some(Boolean)) failures.push('Tweede kans: één speler zonder kaarten klopt niet: ' + JSON.stringify(r));
+  if (!same(r.decks, [['A'], ['K'], ['Q'], ['J']]) || !same(r.transfers, [[2, 1, 1]]) || r.out.some(Boolean)) failures.push('Revival: één speler zonder kaarten klopt niet: ' + JSON.stringify(r));
   // Een speler die al uit lag komt terug.
   r = end([['A'], [], ['K', 'Q'], ['J']], [1]);
-  if (r.out[1] !== false || !same(r.revived, [1])) failures.push('Tweede kans: een uitgeschakelde speler hoort terug te komen: ' + JSON.stringify(r));
+  if (r.out[1] !== false || !same(r.revived, [1])) failures.push('Revival: een uitgeschakelde speler hoort terug te komen: ' + JSON.stringify(r));
   // Precies 2 spelers met kaarten (zoals bij 3 spelers van wie er één afvalt): de regel werkt nog. De speler zonder kaarten krijgt de bovenste
   // kaart van de linkerbuur; die heeft dan geen kaart meer en valt zelf af.
   r = end([['A'], [], ['K']]);
-  if (!same(r.decks, [['A'], ['K'], []]) || !same(r.transfers, [[2, 1, 1]]) || !same(r.out, [false, false, true]) || r.gameOver) failures.push('Tweede kans: met 2 spelers met kaarten (bij 3 spelers) hoort de regel te werken: ' + JSON.stringify(r));
+  if (!same(r.decks, [['A'], ['K'], []]) || !same(r.transfers, [[2, 1, 1]]) || !same(r.out, [false, false, true]) || r.gameOver) failures.push('Revival: met 2 spelers met kaarten (bij 3 spelers) hoort de regel te werken: ' + JSON.stringify(r));
   // Vier spelers, twee zonder kaarten: beiden krijgen een kaart (de gevers worden vooraf bepaald) en het spel gaat door met twee spelers.
   r = end([['A'], [], ['K'], []]);
-  if (!same(r.transfers, [[2, 1, 1], [0, 3, 1]]) || !same(r.decks, [[], ['K'], [], ['A']]) || r.gameOver || !same(r.out, [true, false, true, false])) failures.push('Tweede kans: twee spelers zonder kaarten bij 2 spelers met kaarten klopt niet: ' + JSON.stringify(r));
+  if (!same(r.transfers, [[2, 1, 1], [0, 3, 1]]) || !same(r.decks, [[], ['K'], [], ['A']]) || r.gameOver || !same(r.out, [true, false, true, false])) failures.push('Revival: twee spelers zonder kaarten bij 2 spelers met kaarten klopt niet: ' + JSON.stringify(r));
   // Nog maar 1 speler met kaarten: niemand komt terug en het spel is voorbij.
   r = end([['A'], [], [], []]);
-  if (r.transfers.length !== 0 || !r.gameOver) failures.push('Tweede kans: met 1 speler met kaarten is het spel voorbij: ' + JSON.stringify(r));
+  if (r.transfers.length !== 0 || !r.gameOver) failures.push('Revival: met 1 speler met kaarten is het spel voorbij: ' + JSON.stringify(r));
   // Precies 3 spelers met kaarten (hier ook voor de laatste speler van de tafel, die van speler 1 krijgt: de tafel is een kring).
   r = end([['A'], [], ['K', 'Q'], ['J'], []]);
   if (!same(r.transfers, [[2, 1, 1], [0, 4, 1]]) || !same(r.decks, [[], ['K'], ['Q'], ['J'], ['A']]) || r.out[0] !== true || r.out[4] !== false)
-    failures.push('Tweede kans: bij precies 3 spelers met kaarten (en de kring rond de tafel) klopt het niet: ' + JSON.stringify(r));
+    failures.push('Revival: bij precies 3 spelers met kaarten (en de kring rond de tafel) klopt het niet: ' + JSON.stringify(r));
   // Spelers zonder kaarten worden overgeslagen bij het zoeken naar de linkerbuur, en twee spelers zonder kaarten gaan in tafelvolgorde.
   r = end([['A'], [], [], ['J', 'Q', 'K'], ['2']]);
-  if (!same(r.decks, [['A'], ['J'], ['Q'], ['K'], ['2']]) || !same(r.transfers, [[3, 1, 1], [3, 2, 1]])) failures.push('Tweede kans: twee spelers zonder kaarten tegelijk klopt niet: ' + JSON.stringify(r));
+  if (!same(r.decks, [['A'], ['J'], ['Q'], ['K'], ['2']]) || !same(r.transfers, [[3, 1, 1], [3, 2, 1]])) failures.push('Revival: twee spelers zonder kaarten tegelijk klopt niet: ' + JSON.stringify(r));
   // De buur heeft maar één kaart: de eerste krijgt die, de tweede krijgt niets en blijft uit.
   r = end([['A'], [], [], ['J'], ['2']]);
   if (!same(r.decks, [['A'], ['J'], [], [], ['2']]) || !same(r.transfers, [[3, 1, 1]]) || r.out[2] !== true || r.out[3] !== true || r.out[1] !== false)
-    failures.push('Tweede kans: een buur met één kaart klopt niet: ' + JSON.stringify(r));
+    failures.push('Revival: een buur met één kaart klopt niet: ' + JSON.stringify(r));
   // Wie net een kaart kreeg, geeft die niet meteen door: de gevers worden vooraf bepaald.
   // Speler 1 en 6 vallen af (de tafel is een kring: links van speler 6 zit speler 1). Speler 1 krijgt een kaart van speler 2. Voor speler 6 telt
   // speler 1 nog niet mee als buur, want die had bij het begin geen kaarten: ook speler 6 krijgt dus een kaart van speler 2.
   r = end([[], ['K', 'Q'], ['A'], ['J'], ['2'], []]);
-  if (!same(r.transfers, [[1, 0, 1], [1, 5, 1]]) || !same(r.decks, [['K'], [], ['A'], ['J'], ['2'], ['Q']])) failures.push('Tweede kans: spelers die net een kaart kregen geven die niet door: ' + JSON.stringify(r));
+  if (!same(r.transfers, [[1, 0, 1], [1, 5, 1]]) || !same(r.decks, [['K'], [], ['A'], ['J'], ['2'], ['Q']])) failures.push('Revival: spelers die net een kaart kregen geven die niet door: ' + JSON.stringify(r));
   // Zonder de regel aan gebeurt er niets.
   const off = JSON.parse(run(`(() => { const st = __state([['A'], [], ['K', 'Q'], ['J']]); const e = engineEndRound(st); return JSON.stringify({ t: e.transfers.length, out: st.players.map(p => p.out) }); })()`));
-  if (off.t !== 0 || off.out[1] !== true) failures.push('Tweede kans: zonder de regel hoort er niets te gebeuren: ' + JSON.stringify(off));
+  if (off.t !== 0 || off.out[1] !== true) failures.push('Revival: zonder de regel hoort er niets te gebeuren: ' + JSON.stringify(off));
   // Altijd 52 unieke kaarten, en er worden echt kaarten overgedragen (vanaf 3 spelers; met 2 spelers doet de regel niets).
   const sc = { games: 0, transfers: 0, small: 0, three: 0 };
   for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [2, 3, 4, 5, 6, 8]) for (const seed of ['t1', 't2', 't3', 't4']){
     const c = conserveCheck(ids, n, seed, 300);
-    if (!c.ok) failures.push('Tweede kans (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + c.round + ' zijn er ' + c.total + ' kaarten (' + c.uniek + ' verschillende) in plaats van 52');
+    if (!c.ok) failures.push('Revival (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + c.round + ' zijn er ' + c.total + ' kaarten (' + c.uniek + ' verschillende) in plaats van 52');
     else { sc.games++; if (c.transfers > 0) sc.transfers++; if (n < 3 && c.transfers > 0) sc.small++; if (n === 3 && c.transfers > 0) sc.three++; }
   }
-  if (sc.transfers < 10) failures.push('Tweede kans: in te weinig spellen is er een kaart overgedragen om iets te bewijzen (' + sc.transfers + ' van ' + sc.games + ')');
-  if (sc.small !== 0) failures.push('Tweede kans: met 2 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
-  if (sc.three < 3) failures.push('Tweede kans: met 3 spelers hoort de regel soms iets te doen (' + sc.three + ' van de spellen met 3 spelers had een overdracht)');
+  if (sc.transfers < 10) failures.push('Revival: in te weinig spellen is er een kaart overgedragen om iets te bewijzen (' + sc.transfers + ' van ' + sc.games + ')');
+  if (sc.small !== 0) failures.push('Revival: met 2 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
+  if (sc.three < 3) failures.push('Revival: met 3 spelers hoort de regel soms iets te doen (' + sc.three + ' van de spellen met 3 spelers had een overdracht)');
 }
 // De echte regel "Koninklijk paar": wint een Heer met een Vrouw op tafel, dan winnen ze samen en kiest de Heer eerst.
 {
@@ -819,7 +819,7 @@ withFake(() => {
     if (midGame < 6) failures.push('aflegstapel: te weinig spellen om fast-forward midden in een spel te testen (' + midGame + ')');
     discardStats.midGame = midGame;
   });
-  // Hetzelfde voor de echte regel "Tweede kans": doorspoelen vanaf het moment dat er een kaart is overgedragen.
+  // Hetzelfde voor de echte regel "Revival": doorspoelen vanaf het moment dat er een kaart is overgedragen.
   own('ff-secondChance', () => {
     let midSC = 0;
     for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [3, 4, 5]) for (const seed of ['s1', 's2', 's3', 's4']){
@@ -834,10 +834,10 @@ withFake(() => {
       const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length) }); })()'));
       midSC++;
       const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (na ' + snap.steps + ' stappen)';
-      if (ffEnd.total !== 52) failures.push('Tweede kans: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
-      if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks))) failures.push('Tweede kans: fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
+      if (ffEnd.total !== 52) failures.push('Revival: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
+      if (liveEnd && (liveEnd.phase !== 'game-over' || JSON.stringify(ffEnd.decks) !== JSON.stringify(liveEnd.decks))) failures.push('Revival: fast-forward midden in een spel wijkt af van zelf uitspelen (' + label + ')');
     }
-    if (midSC < 8) failures.push('Tweede kans: te weinig spellen om fast-forward midden in een spel te testen (' + midSC + ')');
+    if (midSC < 8) failures.push('Revival: te weinig spellen om fast-forward midden in een spel te testen (' + midSC + ')');
   });
   // Hetzelfde voor "Koninklijk paar", vanaf het moment dat er een pot is gedeeld; en de tekst van het spel meldt dat ze samen winnen.
   own('ff-royalFamily', () => {
