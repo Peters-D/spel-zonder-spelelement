@@ -1,0 +1,32 @@
+name: Browsertests
+
+# Echte browsertests (Playwright, headless Chromium) in een aparte workflow. Bewust niet-blokkerend: zolang deze check niet als
+# verplicht is ingesteld bij de branchbeveiliging van main, houdt een rode uitslag een merge niet tegen. Zie tests/browser/run.js.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: tests/browser
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: tests/browser/package-lock.json
+      - name: Syntaxcontrole
+        run: node --check run.js
+      - name: Playwright installeren
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Browsertests
+        run: node run.js

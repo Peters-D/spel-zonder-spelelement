@@ -98,6 +98,10 @@ De regels staan op één plek: de catalogus in `js/rules.js`. Het vinkje bij het
 
 De test verdeelt zichzelf over de processorkernen (ten hoogste 4) en duurt dan op een computer met 4 kernen ongeveer 25 seconden (op GitHub kan dat anders uitvallen). Met `--serial` draait hij in één proces (ongeveer een minuut), handig om te zoeken waar iets misgaat. De test zelf staat in `tests/smoke-run.js`.
 
+### Browsertests
+
+`tests/browser/` bevat tests in een echte (headless) Chromium met Playwright: klikken, toetsenbord en focus, thema's, het regelboek, de symboolkiezer en smalle schermen. Draaien: `cd tests/browser && npm ci && npx playwright install chromium && node run.js` (of `node run.js regelboek` voor alleen de tests met die tekst in de naam). In GitHub draait dit als aparte workflow *Browsertests*; die is niet verplicht, dus een rode uitslag houdt een merge niet tegen.
+
 ## Thema's
 
 Het spel heeft vier thema's: **Oorlog** (groen met goud en rangstrepen, standaard), **Sovjet** (rood met goud en de rode ster), **Semechki** (zwart en wit, met een zonnebloempit met drie strepen als embleem) en **Bóbr** (bruin en crème, met een wodkafles als embleem en eigen kaarten met illustraties: de vier kleuren zijn Hamer & Sikkel, Sovjetster, Trainingspak en Semitsjki). Rechtsboven staat een knop met het icoon van het huidige thema (altijd zichtbaar, ook tijdens het spel); een klik opent een menu om te kiezen, zoals bij een taalkeuze. De keuze wordt in de browser onthouden. Thema's veranderen alleen het uiterlijk, nooit de spelregels.
