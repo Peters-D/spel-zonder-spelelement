@@ -597,7 +597,7 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   run('endGame({ name: "Anna" });');
   if (!/ANNA WINT/.test(textOf(document.getElementById('endBanner')))) failures.push('einde van het spel met winnaar toont de winnaar niet');
 }
-// De echte regel "Tweede kans": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 3 spelers kaarten hebben.
+// De echte regel "Tweede kans": wie zonder kaarten valt krijgt de bovenste kaart van de linkerbuur, zolang minstens 2 spelers kaarten hebben.
 {
   const end = (decks, outIdx) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, { secondChance: true });
     for (const i of ${JSON.stringify(outIdx || [])}) st.players[i].out = true;
@@ -611,14 +611,17 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   // Een speler die al uit lag komt terug.
   r = end([['A'], [], ['K', 'Q'], ['J']], [1]);
   if (r.out[1] !== false || !same(r.revived, [1])) failures.push('Tweede kans: een uitgeschakelde speler hoort terug te komen: ' + JSON.stringify(r));
-  // Minder dan 3 spelers met kaarten: niemand komt terug en het spel is voorbij.
+  // Precies 2 spelers met kaarten (zoals bij 3 spelers van wie er één afvalt): de regel werkt nog. De speler zonder kaarten krijgt de bovenste
+  // kaart van de linkerbuur; die heeft dan geen kaart meer en valt zelf af.
   r = end([['A'], [], ['K']]);
-  if (!same(r.decks, [['A'], [], ['K']]) || r.transfers.length !== 0 || r.out[1] !== true) failures.push('Tweede kans: met 2 spelers met kaarten komt niemand terug: ' + JSON.stringify(r));
+  if (!same(r.decks, [['A'], ['K'], []]) || !same(r.transfers, [[2, 1, 1]]) || !same(r.out, [false, false, true]) || r.gameOver) failures.push('Tweede kans: met 2 spelers met kaarten (bij 3 spelers) hoort de regel te werken: ' + JSON.stringify(r));
+  // Vier spelers, twee zonder kaarten: beiden krijgen een kaart (de gevers worden vooraf bepaald) en het spel gaat door met twee spelers.
   r = end([['A'], [], ['K'], []]);
-  if (r.transfers.length !== 0 || r.gameOver || !same(r.out, [false, true, false, true])) failures.push('Tweede kans: met 2 spelers met kaarten gaat het spel gewoon door met die twee: ' + JSON.stringify(r));
+  if (!same(r.transfers, [[2, 1, 1], [0, 3, 1]]) || !same(r.decks, [[], ['K'], [], ['A']]) || r.gameOver || !same(r.out, [true, false, true, false])) failures.push('Tweede kans: twee spelers zonder kaarten bij 2 spelers met kaarten klopt niet: ' + JSON.stringify(r));
+  // Nog maar 1 speler met kaarten: niemand komt terug en het spel is voorbij.
   r = end([['A'], [], [], []]);
   if (r.transfers.length !== 0 || !r.gameOver) failures.push('Tweede kans: met 1 speler met kaarten is het spel voorbij: ' + JSON.stringify(r));
-  // Precies 3 spelers met kaarten: de regel werkt (hier ook voor de laatste speler van de tafel, die van speler 1 krijgt: de tafel is een kring).
+  // Precies 3 spelers met kaarten (hier ook voor de laatste speler van de tafel, die van speler 1 krijgt: de tafel is een kring).
   r = end([['A'], [], ['K', 'Q'], ['J'], []]);
   if (!same(r.transfers, [[2, 1, 1], [0, 4, 1]]) || !same(r.decks, [[], ['K'], ['Q'], ['J'], ['A']]) || r.out[0] !== true || r.out[4] !== false)
     failures.push('Tweede kans: bij precies 3 spelers met kaarten (en de kring rond de tafel) klopt het niet: ' + JSON.stringify(r));
@@ -637,15 +640,16 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   // Zonder de regel aan gebeurt er niets.
   const off = JSON.parse(run(`(() => { const st = __state([['A'], [], ['K', 'Q'], ['J']]); const e = engineEndRound(st); return JSON.stringify({ t: e.transfers.length, out: st.players.map(p => p.out) }); })()`));
   if (off.t !== 0 || off.out[1] !== true) failures.push('Tweede kans: zonder de regel hoort er niets te gebeuren: ' + JSON.stringify(off));
-  // Altijd 52 unieke kaarten, en er worden echt kaarten overgedragen (alleen vanaf 4 spelers).
-  const sc = { games: 0, transfers: 0, small: 0 };
+  // Altijd 52 unieke kaarten, en er worden echt kaarten overgedragen (vanaf 3 spelers; met 2 spelers doet de regel niets).
+  const sc = { games: 0, transfers: 0, small: 0, three: 0 };
   for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [2, 3, 4, 5, 6, 8]) for (const seed of ['t1', 't2', 't3', 't4']){
     const c = conserveCheck(ids, n, seed, 300);
     if (!c.ok) failures.push('Tweede kans (' + ids.join('+') + ', ' + n + ' spelers, seed ' + seed + '): na ronde ' + c.round + ' zijn er ' + c.total + ' kaarten (' + c.uniek + ' verschillende) in plaats van 52');
-    else { sc.games++; if (c.transfers > 0) sc.transfers++; if (n < 4 && c.transfers > 0) sc.small++; }
+    else { sc.games++; if (c.transfers > 0) sc.transfers++; if (n < 3 && c.transfers > 0) sc.small++; if (n === 3 && c.transfers > 0) sc.three++; }
   }
   if (sc.transfers < 10) failures.push('Tweede kans: in te weinig spellen is er een kaart overgedragen om iets te bewijzen (' + sc.transfers + ' van ' + sc.games + ')');
-  if (sc.small !== 0) failures.push('Tweede kans: met 2 of 3 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
+  if (sc.small !== 0) failures.push('Tweede kans: met 2 spelers hoort de regel niets te doen (' + sc.small + ' spellen met een overdracht)');
+  if (sc.three < 3) failures.push('Tweede kans: met 3 spelers hoort de regel soms iets te doen (' + sc.three + ' van de spellen met 3 spelers had een overdracht)');
 }
 // De echte regel "Koninklijk gezin": wint een Heer met een Vrouw op tafel, dan winnen ze samen en kiest de Heer eerst.
 {
@@ -818,7 +822,7 @@ withFake(() => {
   // Hetzelfde voor de echte regel "Tweede kans": doorspoelen vanaf het moment dat er een kaart is overgedragen.
   own('ff-secondChance', () => {
     let midSC = 0;
-    for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [4, 5]) for (const seed of ['s1', 's2', 's3', 's4', 's5', 's6']){
+    for (const ids of [['secondChance'], ['secondChance', 'battleDiscard'], ['secondChance', 'twoBeatsAce']]) for (const n of [3, 4, 5]) for (const seed of ['s1', 's2', 's3', 's4']){
       document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
       for (const r of CATALOG) document.getElementById(r.id + 'Input').checked = ids.includes(r.id);
       for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = false;
