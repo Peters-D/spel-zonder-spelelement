@@ -55,7 +55,62 @@ function renderRuleOptions(){
     ruleChoiceInputs[rule.id] = input;
     ruleChoiceLabels[rule.id] = label;
     if (chosen[rule.id] && chosen[rule.id].by) markRuleNote(rule.id, chosen[rule.id].by);
+    if (rule.id === 'suitBreak') list.appendChild(buildSuitPicker());
+    input.addEventListener('change', refreshSuitPicker);
   }
+  refreshSuitPicker();
+}
+
+// ===== Volgorde van de symbolen (voor "Bij gelijkspel beslist het symbool") =====
+// Vier keuzelijsten, van hoog naar laag. Er blijft altijd een volgorde van precies de vier symbolen over: kies je een symbool
+// dat al ergens staat, dan wisselen die twee van plaats. De volgorde geldt alleen voor het volgende spel dat je start.
+const suitSelects = [];
+let suitPickerBox = null, suitPickerHint = null;
+function buildSuitPicker(){
+  suitSelects.length = 0;
+  const box = document.createElement('div');
+  box.className = 'suit-picker';
+  const caption = document.createElement('span');
+  caption.textContent = 'Hoog → laag:';
+  box.appendChild(caption);
+  DEFAULT_SUIT_ORDER.forEach((suit, i) => {
+    const sel = document.createElement('select');
+    sel.setAttribute('aria-label', 'Symbool op plaats ' + (i + 1));
+    sel.setAttribute('autocomplete', 'off');
+    for (const s of DEFAULT_SUIT_ORDER){
+      const opt = document.createElement('option');
+      opt.value = s;
+      opt.textContent = s;
+      sel.appendChild(opt);
+    }
+    sel.value = suit;
+    sel.dataset.prev = suit;
+    sel.addEventListener('change', () => {
+      const other = suitSelects.find(x => x !== sel && x.value === sel.value);
+      if (other) other.value = sel.dataset.prev;
+      suitSelects.forEach(x => { x.dataset.prev = x.value; });
+    });
+    suitSelects.push(sel);
+    box.appendChild(sel);
+  });
+  suitPickerHint = document.createElement('p');
+  suitPickerHint.className = 'suit-hint';
+  suitPickerHint.textContent = '"Battle ruimt de pot op" doet niets zolang dit aan staat: er is dan nooit een battle.';
+  box.appendChild(suitPickerHint);
+  suitPickerBox = box;
+  return box;
+}
+
+function readSuitOrder(){
+  const order = suitSelects.map(s => s.value);
+  return suitOrderOf({ suitOrder: order });
+}
+
+// Het kader met de volgorde staat alleen in beeld als de regel aan staat; de waarschuwing alleen als ook "Battle ruimt de pot op" aan staat.
+function refreshSuitPicker(){
+  if (!suitPickerBox) return;
+  suitPickerBox.classList.toggle('hidden', !ruleChoiceInputs.suitBreak.checked);
+  suitPickerHint.classList.toggle('hidden', !(ruleChoiceInputs.battleDiscard && ruleChoiceInputs.battleDiscard.checked));
 }
 
 // Zet "gekozen door ..." achter het vinkje van een regel (alleen tekst).
@@ -75,6 +130,7 @@ function markRuleChoice(ruleId, on, byName){
   if (!ruleChoiceInputs[ruleId]) return;
   ruleChoiceInputs[ruleId].checked = on;
   if (byName) markRuleNote(ruleId, byName);
+  refreshSuitPicker();
 }
 renderRuleOptions();
 
@@ -85,6 +141,7 @@ function dealNewGame(){
   rng = seedValue ? mulberry32(hashSeed(seedValue)) : Math.random;
   const rules = Object.assign({}, DEFAULT_RULES);
   for (const rule of RULES) rules[rule.id] = document.getElementById(rule.id + 'Input').checked;
+  rules.suitOrder = readSuitOrder();
   const inputs = namesList.querySelectorAll('input');
   const deck = shuffle(buildDeck());
   const dealt = [];

@@ -27,7 +27,7 @@ function loadCatalogue(){
   }
   // Functies (decide, overruledMessage) vallen bij JSON weg; alleen de gegevens zijn nodig.
   return JSON.parse(vm.runInContext(
-    "JSON.stringify({ rules: RULES.map(r => Object.assign({ hasDecide: typeof r.decide === 'function' }, r)), base: BASE_RULES })", ctx));
+    "JSON.stringify({ rules: RULES.map(r => Object.assign({ hasDecide: typeof r.decide === 'function' || typeof r.breakTie === 'function' }, r)), base: BASE_RULES })", ctx));
 }
 
 // ---- markdown ----
@@ -78,7 +78,8 @@ function buildBlock({ rules, base }){
   out.push('### Volgorde bij botsingen');
   out.push('');
   out.push('Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. ' +
-    'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart.');
+    'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart. ' +
+    'Blijft er daarna een gelijkspel over en staat "Bij gelijkspel beslist het symbool" aan, dan beslist het symbool.');
   out.push('');
   rules.filter(r => r.hasDecide).sort((a, b) => a.priority - b.priority).forEach((r, i) => out.push((i + 1) + '. ' + md(r.title)));
   out.push('');
