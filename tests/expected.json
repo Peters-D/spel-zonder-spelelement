@@ -880,7 +880,7 @@
  },
  "3|1|secondChance": {
   "outcome": "win",
-  "rounds": 171,
+  "rounds": 181,
   "decks": [
    0,
    52,
@@ -889,28 +889,28 @@
  },
  "3|1|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 1713,
+  "rounds": 2560,
+  "decks": [
+   52,
+   0,
+   0
+  ]
+ },
+ "3|1|battleFirst+secondChance": {
+  "outcome": "win",
+  "rounds": 1300,
   "decks": [
    0,
    52,
    0
   ]
  },
- "3|1|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
-  "decks": [
-   35,
-   17,
-   0
-  ]
- },
  "3|1|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 84,
+  "rounds": 88,
   "decks": [
    0,
-   8,
+   4,
    0
   ]
  },
@@ -951,20 +951,20 @@
   ]
  },
  "3|1|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1497,
   "decks": [
+   52,
    0,
-   36,
-   16
+   0
   ]
  },
  "3|1|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 240,
+  "rounds": 57,
   "decks": [
    0,
-   20,
+   6,
    0
   ]
  },
@@ -1033,36 +1033,36 @@
  },
  "3|2|secondChance": {
   "outcome": "win",
-  "rounds": 124,
+  "rounds": 2161,
   "decks": [
-   52,
    0,
+   52,
    0
   ]
  },
  "3|2|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 299,
+  "outcome": "win",
+  "rounds": 237,
   "decks": [
    0,
-   25,
-   27
+   52,
+   0
   ]
  },
  "3|2|battleFirst+secondChance": {
   "outcome": "win",
-  "rounds": 92,
+  "rounds": 1418,
   "decks": [
-   52,
    0,
+   52,
    0
   ]
  },
  "3|2|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 58,
+  "rounds": 57,
   "decks": [
-   30,
+   33,
    0,
    0
   ]
@@ -1104,21 +1104,21 @@
   ]
  },
  "3|2|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2582,
   "decks": [
-   43,
-   9,
+   0,
+   52,
    0
   ]
  },
  "3|2|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "win",
-  "rounds": 83,
+  "outcome": "cycle",
+  "rounds": 70,
   "decks": [
-   17,
-   0,
-   0
+   4,
+   4,
+   4
   ]
  },
  "3|3|standard": {
@@ -1185,39 +1185,39 @@
   ]
  },
  "3|3|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 777,
   "decks": [
-   39,
    0,
-   13
+   52,
+   0
   ]
  },
  "3|3|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 1164,
+  "rounds": 412,
+  "decks": [
+   0,
+   0,
+   52
+  ]
+ },
+ "3|3|battleFirst+secondChance": {
+  "outcome": "win",
+  "rounds": 361,
   "decks": [
    52,
    0,
    0
   ]
  },
- "3|3|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
-  "decks": [
-   35,
-   0,
-   17
-  ]
- },
  "3|3|battleDiscard+secondChance": {
-  "outcome": "cycle",
-  "rounds": 69,
+  "outcome": "win",
+  "rounds": 91,
   "decks": [
-   5,
    0,
-   3
+   0,
+   7
   ]
  },
  "3|3|royalFamily": {
@@ -1257,19 +1257,19 @@
   ]
  },
  "3|3|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 632,
   "decks": [
-   39,
+   52,
    0,
-   13
+   0
   ]
  },
  "3|3|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 48,
+  "rounds": 40,
   "decks": [
-   22,
+   20,
    0,
    0
   ]
@@ -1338,30 +1338,30 @@
   ]
  },
  "3|4|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 966,
   "decks": [
+   52,
    0,
-   8,
-   44
+   0
   ]
  },
  "3|4|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 580,
+  "outcome": "win",
+  "rounds": 430,
   "decks": [
+   52,
    0,
-   26,
-   26
+   0
   ]
  },
  "3|4|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 362,
   "decks": [
-   29,
+   52,
    0,
-   23
+   0
   ]
  },
  "3|4|battleDiscard+secondChance": {
@@ -1410,21 +1410,21 @@
   ]
  },
  "3|4|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 345,
   "decks": [
-   30,
+   52,
    0,
-   22
+   0
   ]
  },
  "3|4|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 55,
+  "rounds": 51,
   "decks": [
+   1,
    0,
-   0,
-   19
+   0
   ]
  },
  "3|5|standard": {
@@ -1491,39 +1491,39 @@
   ]
  },
  "3|5|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1311,
   "decks": [
-   15,
    0,
-   37
+   52,
+   0
   ]
  },
  "3|5|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 617,
+  "rounds": 1602,
   "decks": [
    0,
-   0,
-   52
+   52,
+   0
   ]
  },
  "3|5|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 587,
   "decks": [
-   16,
    0,
-   36
+   52,
+   0
   ]
  },
  "3|5|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 156,
+  "rounds": 120,
   "decks": [
+   7,
    0,
-   0,
-   11
+   0
   ]
  },
  "3|5|royalFamily": {
@@ -1566,18 +1566,18 @@
   "outcome": "unknown",
   "rounds": 3000,
   "decks": [
-   15,
-   0,
-   37
+   5,
+   24,
+   23
   ]
  },
  "3|5|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 302,
+  "outcome": "win",
+  "rounds": 82,
   "decks": [
-   7,
+   5,
    0,
-   23
+   0
   ]
  },
  "3|6|standard": {
@@ -1644,17 +1644,17 @@
   ]
  },
  "3|6|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 985,
   "decks": [
-   23,
    0,
-   29
+   52,
+   0
   ]
  },
  "3|6|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 247,
+  "rounds": 119,
   "decks": [
    52,
    0,
@@ -1662,21 +1662,21 @@
   ]
  },
  "3|6|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 108,
   "decks": [
-   48,
-   4,
+   52,
+   0,
    0
   ]
  },
  "3|6|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 69,
+  "rounds": 126,
   "decks": [
-   34,
    0,
-   0
+   0,
+   11
   ]
  },
  "3|6|royalFamily": {
@@ -1716,21 +1716,21 @@
   ]
  },
  "3|6|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 206,
   "decks": [
-   41,
+   52,
    0,
-   11
+   0
   ]
  },
  "3|6|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "win",
-  "rounds": 37,
+  "outcome": "cycle",
+  "rounds": 105,
   "decks": [
-   7,
-   0,
-   0
+   10,
+   2,
+   3
   ]
  },
  "4|1|standard": {
@@ -1804,42 +1804,42 @@
   ]
  },
  "4|1|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 639,
   "decks": [
    0,
-   11,
-   41,
+   52,
+   0,
    0
   ]
  },
  "4|1|twoBeatsAce+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1396,
   "decks": [
-   28,
+   52,
    0,
-   24,
+   0,
    0
   ]
  },
  "4|1|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 601,
   "decks": [
    0,
+   52,
    0,
-   22,
-   30
+   0
   ]
  },
  "4|1|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 50,
+  "rounds": 47,
   "decks": [
    0,
    0,
-   26,
+   18,
    0
   ]
  },
@@ -1884,22 +1884,22 @@
   ]
  },
  "4|1|secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 692,
+  "outcome": "win",
+  "rounds": 328,
   "decks": [
    0,
-   27,
-   25,
+   0,
+   52,
    0
   ]
  },
  "4|1|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 115,
+  "outcome": "win",
+  "rounds": 36,
   "decks": [
-   5,
    0,
-   7,
+   0,
+   6,
    0
   ]
  },
@@ -1975,17 +1975,27 @@
  },
  "4|2|secondChance": {
   "outcome": "cycle",
-  "rounds": 494,
+  "rounds": 2032,
   "decks": [
-   0,
-   0,
-   27,
-   25
+   15,
+   3,
+   23,
+   11
   ]
  },
  "4|2|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 467,
+  "rounds": 2058,
+  "decks": [
+   52,
+   0,
+   0,
+   0
+  ]
+ },
+ "4|2|battleFirst+secondChance": {
+  "outcome": "win",
+  "rounds": 145,
   "decks": [
    0,
    0,
@@ -1993,24 +2003,14 @@
    52
   ]
  },
- "4|2|battleFirst+secondChance": {
-  "outcome": "cycle",
-  "rounds": 1887,
-  "decks": [
-   0,
-   0,
-   12,
-   40
-  ]
- },
  "4|2|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 61,
+  "rounds": 45,
   "decks": [
+   9,
    0,
    0,
-   0,
-   5
+   0
   ]
  },
  "4|2|royalFamily": {
@@ -2054,23 +2054,23 @@
   ]
  },
  "4|2|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1584,
   "decks": [
    0,
+   52,
    0,
-   48,
-   4
+   0
   ]
  },
  "4|2|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 41,
+  "rounds": 36,
   "decks": [
    0,
    0,
    0,
-   3
+   1
   ]
  },
  "4|3|standard": {
@@ -2144,43 +2144,43 @@
   ]
  },
  "4|3|secondChance": {
-  "outcome": "cycle",
-  "rounds": 821,
+  "outcome": "win",
+  "rounds": 879,
   "decks": [
-   27,
-   25,
+   52,
+   0,
    0,
    0
   ]
  },
  "4|3|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 1843,
+  "rounds": 2681,
   "decks": [
+   52,
    0,
    0,
-   0,
-   52
+   0
   ]
  },
  "4|3|battleFirst+secondChance": {
-  "outcome": "cycle",
-  "rounds": 2539,
+  "outcome": "win",
+  "rounds": 167,
   "decks": [
-   21,
+   52,
    0,
    0,
-   31
+   0
   ]
  },
  "4|3|battleDiscard+secondChance": {
-  "outcome": "cycle",
-  "rounds": 95,
+  "outcome": "win",
+  "rounds": 63,
   "decks": [
    0,
+   8,
    0,
-   16,
-   16
+   0
   ]
  },
  "4|3|royalFamily": {
@@ -2224,18 +2224,18 @@
   ]
  },
  "4|3|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2515,
   "decks": [
-   9,
-   43,
    0,
+   0,
+   52,
    0
   ]
  },
  "4|3|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 22,
+  "rounds": 17,
   "decks": [
    0,
    0,
@@ -2317,15 +2317,15 @@
   "outcome": "unknown",
   "rounds": 3000,
   "decks": [
-   14,
-   0,
-   0,
-   38
+   12,
+   28,
+   5,
+   7
   ]
  },
  "4|4|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 54,
+  "rounds": 1147,
   "decks": [
    0,
    0,
@@ -2334,23 +2334,23 @@
   ]
  },
  "4|4|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1409,
   "decks": [
-   13,
    0,
+   52,
    0,
-   39
+   0
   ]
  },
  "4|4|battleDiscard+secondChance": {
-  "outcome": "cycle",
-  "rounds": 248,
+  "outcome": "win",
+  "rounds": 44,
   "decks": [
    0,
    0,
-   5,
-   9
+   0,
+   8
   ]
  },
  "4|4|royalFamily": {
@@ -2394,23 +2394,23 @@
   ]
  },
  "4|4|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 854,
   "decks": [
-   30,
    0,
    0,
-   22
+   52,
+   0
   ]
  },
  "4|4|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 70,
+  "outcome": "win",
+  "rounds": 33,
   "decks": [
    0,
    0,
-   13,
-   3
+   4,
+   0
   ]
  },
  "4|5|standard": {
@@ -2494,33 +2494,33 @@
   ]
  },
  "4|5|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 1128,
+  "outcome": "win",
+  "rounds": 1858,
   "decks": [
+   52,
    0,
-   26,
-   26,
+   0,
    0
   ]
  },
  "4|5|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 472,
   "decks": [
-   24,
    0,
+   52,
    0,
-   28
+   0
   ]
  },
  "4|5|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 127,
+  "rounds": 192,
   "decks": [
    0,
    0,
-   21,
-   0
+   0,
+   7
   ]
  },
  "4|5|royalFamily": {
@@ -2564,23 +2564,23 @@
   ]
  },
  "4|5|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 472,
   "decks": [
-   14,
    0,
-   38,
+   0,
+   52,
    0
   ]
  },
  "4|5|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 98,
+  "outcome": "win",
+  "rounds": 28,
   "decks": [
    0,
    0,
-   12,
-   4
+   5,
+   0
   ]
  },
  "4|6|standard": {
@@ -2654,22 +2654,22 @@
   ]
  },
  "4|6|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1636,
   "decks": [
    0,
    0,
-   32,
-   20
+   52,
+   0
   ]
  },
  "4|6|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 526,
+  "rounds": 586,
   "decks": [
+   0,
+   0,
    52,
-   0,
-   0,
    0
   ]
  },
@@ -2685,9 +2685,9 @@
  },
  "4|6|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 102,
+  "rounds": 78,
   "decks": [
-   6,
+   10,
    0,
    0,
    0
@@ -2734,23 +2734,23 @@
   ]
  },
  "4|6|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2345,
   "decks": [
-   30,
    0,
-   22,
+   52,
+   0,
    0
   ]
  },
  "4|6|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "win",
-  "rounds": 25,
+  "outcome": "cycle",
+  "rounds": 45,
   "decks": [
-   0,
-   0,
-   0,
-   13
+   1,
+   1,
+   1,
+   1
   ]
  },
  "6|1|standard": {
@@ -2838,51 +2838,51 @@
   ]
  },
  "6|1|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 37,
   "decks": [
    0,
-   15,
-   37,
+   0,
+   52,
    0,
    0,
    0
   ]
  },
  "6|1|twoBeatsAce+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 446,
   "decks": [
    0,
-   34,
-   18,
    0,
    0,
+   0,
+   52,
    0
   ]
  },
  "6|1|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 62,
   "decks": [
    0,
-   16,
-   36,
+   0,
+   52,
    0,
    0,
    0
   ]
  },
  "6|1|battleDiscard+secondChance": {
-  "outcome": "cycle",
-  "rounds": 260,
+  "outcome": "win",
+  "rounds": 37,
   "decks": [
    0,
-   3,
-   17,
    0,
    0,
-   0
+   0,
+   0,
+   6
   ]
  },
  "6|1|royalFamily": {
@@ -2934,14 +2934,14 @@
   ]
  },
  "6|1|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2913,
   "decks": [
    0,
    0,
    0,
-   21,
-   31,
+   52,
+   0,
    0
   ]
  },
@@ -2954,7 +2954,7 @@
    0,
    0,
    0,
-   5
+   0
   ]
  },
  "6|2|standard": {
@@ -3043,7 +3043,7 @@
  },
  "6|2|secondChance": {
   "outcome": "win",
-  "rounds": 217,
+  "rounds": 238,
   "decks": [
    52,
    0,
@@ -3054,38 +3054,38 @@
   ]
  },
  "6|2|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 1092,
+  "outcome": "win",
+  "rounds": 2328,
   "decks": [
    0,
    0,
-   26,
-   26,
    0,
-   0
+   0,
+   0,
+   52
   ]
  },
  "6|2|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 310,
   "decks": [
    0,
-   42,
    0,
    0,
-   10,
+   52,
+   0,
    0
   ]
  },
  "6|2|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 18,
+  "rounds": 31,
   "decks": [
    0,
    0,
    0,
-   16,
    0,
+   8,
    0
   ]
  },
@@ -3138,27 +3138,27 @@
   ]
  },
  "6|2|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1313,
   "decks": [
    0,
    0,
    0,
-   16,
-   36,
+   0,
+   52,
    0
   ]
  },
  "6|2|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 19,
+  "rounds": 11,
   "decks": [
-   5,
    0,
    0,
    0,
    0,
-   0
+   0,
+   5
   ]
  },
  "6|3|standard": {
@@ -3246,36 +3246,36 @@
   ]
  },
  "6|3|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1343,
   "decks": [
    0,
+   52,
    0,
    0,
-   33,
-   19,
+   0,
    0
   ]
  },
  "6|3|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 1380,
+  "outcome": "win",
+  "rounds": 1967,
   "decks": [
-   27,
-   25,
    0,
    0,
+   0,
+   52,
    0,
    0
   ]
  },
  "6|3|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 48,
   "decks": [
    0,
-   7,
-   45,
+   0,
+   52,
    0,
    0,
    0
@@ -3283,13 +3283,13 @@
  },
  "6|3|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 46,
+  "rounds": 39,
   "decks": [
    0,
    0,
    0,
    0,
-   14,
+   3,
    0
   ]
  },
@@ -3342,26 +3342,26 @@
   ]
  },
  "6|3|secondChance+royalFamily": {
-  "outcome": "win",
-  "rounds": 420,
+  "outcome": "unknown",
+  "rounds": 3000,
   "decks": [
-   0,
-   0,
-   0,
-   0,
-   52,
-   0
+   7,
+   1,
+   5,
+   27,
+   11,
+   1
   ]
  },
  "6|3|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 67,
+  "outcome": "win",
+  "rounds": 9,
   "decks": [
-   8,
+   7,
    0,
    0,
    0,
-   2,
+   0,
    0
   ]
  },
@@ -3450,50 +3450,50 @@
   ]
  },
  "6|4|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 540,
   "decks": [
+   52,
    0,
-   25,
-   27,
+   0,
    0,
    0,
    0
   ]
  },
  "6|4|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 456,
+  "outcome": "win",
+  "rounds": 1749,
   "decks": [
    0,
-   27,
    0,
-   25,
+   52,
+   0,
    0,
    0
   ]
  },
  "6|4|battleFirst+secondChance": {
   "outcome": "win",
-  "rounds": 69,
+  "rounds": 235,
   "decks": [
+   52,
    0,
    0,
    0,
    0,
-   0,
-   52
+   0
   ]
  },
  "6|4|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 35,
+  "rounds": 21,
   "decks": [
    0,
    0,
-   6,
    0,
    0,
+   10,
    0
   ]
  },
@@ -3546,22 +3546,22 @@
   ]
  },
  "6|4|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1491,
   "decks": [
-   46,
-   6,
    0,
    0,
+   0,
+   52,
    0,
    0
   ]
  },
  "6|4|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 12,
+  "rounds": 8,
   "decks": [
-   6,
+   2,
    0,
    0,
    0,
@@ -3654,32 +3654,20 @@
   ]
  },
  "6|5|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2400,
   "decks": [
+   52,
    0,
-   38,
    0,
-   14,
+   0,
    0,
    0
   ]
  },
  "6|5|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 929,
-  "decks": [
-   27,
-   0,
-   0,
-   0,
-   25,
-   0
-  ]
- },
- "6|5|battleFirst+secondChance": {
   "outcome": "win",
-  "rounds": 47,
+  "rounds": 411,
   "decks": [
    0,
    0,
@@ -3689,13 +3677,25 @@
    52
   ]
  },
+ "6|5|battleFirst+secondChance": {
+  "outcome": "win",
+  "rounds": 47,
+  "decks": [
+   52,
+   0,
+   0,
+   0,
+   0,
+   0
+  ]
+ },
  "6|5|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 52,
+  "rounds": 50,
   "decks": [
    0,
-   13,
    0,
+   6,
    0,
    0,
    0
@@ -3750,26 +3750,26 @@
   ]
  },
  "6|5|secondChance+royalFamily": {
-  "outcome": "cycle",
-  "rounds": 2387,
+  "outcome": "win",
+  "rounds": 2372,
   "decks": [
+   52,
    0,
    0,
-   16,
-   36,
+   0,
    0,
    0
   ]
  },
  "6|5|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 10,
+  "rounds": 8,
   "decks": [
+   0,
+   0,
+   0,
+   0,
    5,
-   0,
-   0,
-   0,
-   0,
    0
   ]
  },
@@ -3858,36 +3858,36 @@
   ]
  },
  "6|6|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2785,
   "decks": [
-   39,
-   13,
    0,
    0,
+   0,
+   52,
    0,
    0
   ]
  },
  "6|6|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 1161,
+  "rounds": 2004,
   "decks": [
+   52,
    0,
    0,
    0,
    0,
-   0,
-   52
+   0
   ]
  },
  "6|6|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 476,
   "decks": [
+   52,
    0,
-   46,
-   6,
+   0,
    0,
    0,
    0
@@ -3895,12 +3895,12 @@
  },
  "6|6|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 62,
+  "rounds": 38,
   "decks": [
    0,
    0,
+   2,
    0,
-   7,
    0,
    0
   ]
@@ -3957,22 +3957,22 @@
   "outcome": "unknown",
   "rounds": 3000,
   "decks": [
-   0,
-   14,
-   38,
-   0,
-   0,
-   0
+   28,
+   1,
+   1,
+   1,
+   8,
+   13
   ]
  },
  "6|6|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 10,
+  "rounds": 14,
   "decks": [
+   0,
+   0,
+   0,
    7,
-   0,
-   0,
-   0,
    0,
    0
   ]
@@ -4076,12 +4076,12 @@
   ]
  },
  "8|1|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 2059,
   "decks": [
+   52,
    0,
-   21,
-   31,
+   0,
    0,
    0,
    0,
@@ -4090,12 +4090,12 @@
   ]
  },
  "8|1|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 208,
+  "outcome": "win",
+  "rounds": 2147,
   "decks": [
    0,
-   26,
-   26,
+   0,
+   52,
    0,
    0,
    0,
@@ -4104,12 +4104,12 @@
   ]
  },
  "8|1|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 201,
   "decks": [
-   10,
    0,
-   42,
+   0,
+   52,
    0,
    0,
    0,
@@ -4119,9 +4119,9 @@
  },
  "8|1|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 42,
+  "rounds": 18,
   "decks": [
-   11,
+   7,
    0,
    0,
    0,
@@ -4189,25 +4189,25 @@
  },
  "8|1|secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 148,
+  "rounds": 2143,
   "decks": [
    0,
    0,
+   0,
+   0,
+   0,
+   0,
    52,
-   0,
-   0,
-   0,
-   0,
    0
   ]
  },
  "8|1|twoBeatsAce+battleFirst+battleDiscard+secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 11,
+  "rounds": 9,
   "decks": [
-   0,
-   0,
    5,
+   0,
+   0,
    0,
    0,
    0,
@@ -4314,54 +4314,54 @@
   ]
  },
  "8|2|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1585,
   "decks": [
    0,
+   52,
    0,
    0,
    0,
    0,
    0,
-   46,
-   6
+   0
   ]
  },
  "8|2|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 390,
+  "rounds": 2202,
   "decks": [
+   52,
    0,
    0,
    0,
    0,
    0,
    0,
-   0,
-   52
+   0
   ]
  },
  "8|2|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 24,
   "decks": [
+   52,
    0,
    0,
    0,
    0,
    0,
-   34,
-   18,
+   0,
    0
   ]
  },
  "8|2|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 19,
+  "rounds": 18,
   "decks": [
    0,
    0,
-   0,
+   9,
    0,
    0,
    0,
@@ -4426,13 +4426,13 @@
   ]
  },
  "8|2|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 170,
   "decks": [
-   32,
+   52,
    0,
    0,
-   20,
+   0,
    0,
    0,
    0,
@@ -4448,7 +4448,7 @@
    0,
    0,
    0,
-   10,
+   8,
    0,
    0
   ]
@@ -4552,41 +4552,41 @@
   ]
  },
  "8|3|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
-  "decks": [
-   0,
-   0,
-   0,
-   0,
-   31,
-   0,
-   21,
-   0
-  ]
- },
- "8|3|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 1491,
+  "rounds": 2051,
   "decks": [
-   0,
    52,
    0,
    0,
    0,
    0,
    0,
+   0,
+   0
+  ]
+ },
+ "8|3|twoBeatsAce+secondChance": {
+  "outcome": "win",
+  "rounds": 2216,
+  "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   52,
+   0,
    0
   ]
  },
  "8|3|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 52,
   "decks": [
-   33,
+   52,
    0,
    0,
-   19,
+   0,
    0,
    0,
    0,
@@ -4595,15 +4595,15 @@
  },
  "8|3|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 28,
+  "rounds": 16,
   "decks": [
+   2,
    0,
    0,
    0,
    0,
    0,
    0,
-   3,
    0
   ]
  },
@@ -4665,10 +4665,10 @@
  },
  "8|3|secondChance+royalFamily": {
   "outcome": "win",
-  "rounds": 431,
+  "rounds": 1636,
   "decks": [
-   0,
    52,
+   0,
    0,
    0,
    0,
@@ -4790,27 +4790,27 @@
   ]
  },
  "8|4|secondChance": {
-  "outcome": "cycle",
-  "rounds": 623,
-  "decks": [
-   27,
-   25,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0
-  ]
- },
- "8|4|twoBeatsAce+secondChance": {
   "outcome": "unknown",
   "rounds": 3000,
   "decks": [
+   14,
+   10,
+   1,
+   1,
+   1,
+   17,
+   7,
+   1
+  ]
+ },
+ "8|4|twoBeatsAce+secondChance": {
+  "outcome": "win",
+  "rounds": 659,
+  "decks": [
+   52,
    0,
-   20,
    0,
-   32,
+   0,
    0,
    0,
    0,
@@ -4818,29 +4818,29 @@
   ]
  },
  "8|4|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 71,
   "decks": [
-   12,
+   0,
+   52,
    0,
    0,
    0,
    0,
    0,
-   0,
-   40
+   0
   ]
  },
  "8|4|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 47,
+  "rounds": 40,
   "decks": [
    0,
    0,
    0,
    0,
    0,
-   8,
+   6,
    0,
    0
   ]
@@ -4902,12 +4902,12 @@
   ]
  },
  "8|4|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 867,
   "decks": [
    0,
-   33,
-   19,
+   0,
+   52,
    0,
    0,
    0,
@@ -5028,58 +5028,58 @@
   ]
  },
  "8|5|secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 1375,
   "decks": [
    0,
    0,
+   52,
    0,
    0,
-   18,
-   34,
+   0,
    0,
    0
   ]
  },
  "8|5|twoBeatsAce+secondChance": {
-  "outcome": "cycle",
-  "rounds": 1954,
+  "outcome": "win",
+  "rounds": 1438,
   "decks": [
    0,
-   27,
+   0,
+   52,
    0,
    0,
    0,
    0,
-   0,
-   25
+   0
   ]
  },
  "8|5|battleFirst+secondChance": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 41,
   "decks": [
-   6,
+   0,
+   52,
    0,
    0,
    0,
    0,
    0,
-   46,
    0
   ]
  },
  "8|5|battleDiscard+secondChance": {
-  "outcome": "cycle",
-  "rounds": 105,
+  "outcome": "win",
+  "rounds": 50,
   "decks": [
-   3,
    0,
    0,
    0,
    0,
-   7,
    0,
+   0,
+   6,
    0
   ]
  },
@@ -5140,13 +5140,13 @@
   ]
  },
  "8|5|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 444,
   "decks": [
+   52,
    0,
    0,
-   16,
-   36,
+   0,
    0,
    0,
    0,
@@ -5157,8 +5157,8 @@
   "outcome": "win",
   "rounds": 6,
   "decks": [
-   3,
    0,
+   3,
    0,
    0,
    0,
@@ -5267,25 +5267,25 @@
  },
  "8|6|secondChance": {
   "outcome": "win",
-  "rounds": 365,
+  "rounds": 1493,
   "decks": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
    52,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
    0
   ]
  },
  "8|6|twoBeatsAce+secondChance": {
   "outcome": "win",
-  "rounds": 720,
+  "rounds": 1545,
   "decks": [
    0,
-   0,
    52,
+   0,
    0,
    0,
    0,
@@ -5294,13 +5294,13 @@
   ]
  },
  "8|6|battleFirst+secondChance": {
-  "outcome": "cycle",
-  "rounds": 592,
+  "outcome": "win",
+  "rounds": 96,
   "decks": [
    0,
+   52,
    0,
-   26,
-   26,
+   0,
    0,
    0,
    0,
@@ -5309,15 +5309,15 @@
  },
  "8|6|battleDiscard+secondChance": {
   "outcome": "win",
-  "rounds": 135,
+  "rounds": 40,
   "decks": [
+   8,
    0,
    0,
    0,
    0,
    0,
    0,
-   12,
    0
   ]
  },
@@ -5378,13 +5378,13 @@
   ]
  },
  "8|6|secondChance+royalFamily": {
-  "outcome": "unknown",
-  "rounds": 3000,
+  "outcome": "win",
+  "rounds": 252,
   "decks": [
-   39,
+   0,
+   52,
    0,
    0,
-   13,
    0,
    0,
    0,
