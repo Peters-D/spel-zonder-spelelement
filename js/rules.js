@@ -137,7 +137,7 @@ const RULES = [
   {
     id: 'royalFamily',
     priority: 50,
-    title: 'Koninklijk gezin',
+    title: 'Koninklijk paar',
     short: 'Wint een Heer terwijl er een Vrouw op tafel ligt, dan winnen ze samen (de Heer kiest eerst)',
     description: 'Begon de winnaar van de ronde met een Heer (K) en lag er die ronde ook een Vrouw (Q) van een andere speler open, dan winnen zij samen. ' +
       'De pot wordt verdeeld van hoog naar laag: de Heer kiest de hoogste kaart, de Vrouw de tweede, de Heer de derde, enzovoort. ' +
