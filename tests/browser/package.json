@@ -1,0 +1,7 @@
+{
+  "name": "spel-browsertests",
+  "private": true,
+  "description": "Browsertests (Playwright) voor het echte scherm. Los van de Node-rooktest in tests/smoke.js.",
+  "scripts": { "test": "node run.js" },
+  "devDependencies": { "playwright": "1.63.0" }
+}
