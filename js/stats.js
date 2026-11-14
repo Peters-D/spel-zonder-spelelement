@@ -148,7 +148,11 @@ function renderStatsSummary(){
   });
 }
 
+// Tekent het paneel alleen als het open staat: dicht ziet niemand het, en de grafiek tekent elke keer de hele geschiedenis.
+// Bij het openen (de knop hieronder) wordt het bijgewerkt.
 function renderStatsPanel(){
+  const panel = document.getElementById('statsPanel');
+  if (panel && panel.classList.contains('hidden')) return;
   renderStatsChart();
   renderStatsLegend();
   renderStatsSummary();
