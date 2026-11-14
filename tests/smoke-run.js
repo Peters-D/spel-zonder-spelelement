@@ -93,7 +93,7 @@ function playLive(){
     launchGame();
     let i = 0;
     while (phase !== 'game-over' && phase !== 'cycle-over' && i < 20000){ advance(); i++; }
-    return { phase, decks: players.map(p => p.deck.length) };
+    return { phase, decks: game.players.map(p => p.deck.length) };
   })()`);
 }
 
@@ -190,14 +190,14 @@ for (const r of CATALOG){
   const banner = document.getElementById('endBanner');
   run('endGame({ name: ' + JSON.stringify(evil) + ' });');
   if (banner.innerHTML !== '' || !textIn(banner).includes(evil.toUpperCase())) failures.push('een naam met HTML in de eindbanner wordt als HTML gelezen of ontbreekt: ' + JSON.stringify(banner.innerHTML) + ' / ' + JSON.stringify(textIn(banner)));
-  run('players = [{ id: 0, name: ' + JSON.stringify(evil) + ', deck: [] }, { id: 1, name: "Bram", deck: [] }]; renderStatsLegend(); renderStatsSummary();');
+  run('game = { players: [{ id: 0, name: ' + JSON.stringify(evil) + ', deck: [] }, { id: 1, name: "Bram", deck: [] }] }; renderStatsLegend(); renderStatsSummary();');
   for (const id of ['statsLegend', 'statsSummary']){
     const el = document.getElementById(id);
     if (el.innerHTML !== '' || !textIn(el).includes(evil)) failures.push('een naam met HTML in de statistieken (' + id + ') wordt als HTML gelezen of ontbreekt: ' + JSON.stringify(el.innerHTML) + ' / ' + JSON.stringify(textIn(el)));
   }
   const sumText = textIn(document.getElementById('statsSummary'));
   if (!/Totaal battles:/.test(sumText) || !/Bram: /.test(sumText)) failures.push('de samenvatting van de statistieken toont niet alle regels: ' + JSON.stringify(sumText));
-  run('players = [];');
+  run('game = null;');
 }
 
 // ---- kaarten van het thema Bóbr (css/cards-bobr.css en img/bobr) ----
@@ -427,7 +427,7 @@ const chain = JSON.parse(run(`(() => { const out = []; let s = '1000'; for (let 
 if (new Set(chain).size !== 100) failures.push('nextSeed: de volgende seeds zijn niet allemaal verschillend');
 // De seeds 1000 en 1001 geven een ander spel (andere verdeling).
 const dealFor = seed => { document.getElementById('seedInput').value = seed; document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
-  return run('numPlayers = 4; dealNewGame(); JSON.stringify(players.map(p => p.deck.map(c => c.rank + c.suit)))'); };
+  return run('numPlayers = 4; dealNewGame(); JSON.stringify(game.players.map(p => p.deck.map(c => c.rank + c.suit)))'); };
 if (dealFor('1000') === dealFor('1001')) failures.push('seed 1000 en 1001 geven dezelfde verdeling');
 if (dealFor('1000') !== dealFor('1000')) failures.push('dezelfde seed geeft niet dezelfde verdeling');
 // De knop zelf: kiest de volgende seed in het seedveld (zonder het spel te starten).
@@ -576,7 +576,7 @@ const conserveCheck = (ids, n, seed, rounds) => JSON.parse(run(`(() => {
   }
   return JSON.stringify({ ok: true, maxDiscard, revives: st.moved.revived.length, transfers: st.moved.transfers.length, shared: st.moved.shared.length });
 })()`));
-run(`globalThis.shuffleWith = seed => { rng = mulberry32(hashSeed(seed)); return shuffle(buildDeck()); };`);
+run(`globalThis.shuffleWith = seed => { return shuffle(buildDeck(), mulberry32(hashSeed(seed))); };`);
 const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testBattleDiscard+testRoundDiscard': 0, 'testBattleDiscard+testRevive': 0 }, compared: 0, revives: 0, reviveGames: 0, transferGames: { testRescueLeft: 0, testRescueRight: 0, testRescueRich: 0 } };
 // De echte regel "Battle ruimt de pot op": altijd 52 unieke kaarten, en er wordt echt afgelegd.
 {
@@ -771,20 +771,20 @@ withFake(() => {
       for (const fid of FAKE_IDS) document.getElementById(fid + 'Input').checked = ids.includes(fid);
       seedField.value = seed;
       run('numPlayers = ' + n + '; dealNewGame();');
-      const sim = JSON.parse(run(`(() => { const r = simulateFullTrace(players, 3000, game.rules);
+      const sim = JSON.parse(run(`(() => { const r = simulateFullTrace(game.players, 3000, game.rules);
         return JSON.stringify({ o: r.outcome, rounds: r.rounds, decks: r.finalPlayers.map(p => p.deck.length), discard: __names(r.finalDiscard) }); })()`));
       if (sim.o !== 'win' || sim.rounds > 400) continue;
       run('numPlayers = ' + n + '; dealNewGame();');
       const live = JSON.parse(run(`(() => { launchGame(); let i = 0, note = false, give = false; while (phase !== 'game-over' && phase !== 'cycle-over' && i < 20000){ advance(); i++;
           const t = document.getElementById('dispatch').textContent; if (/weer mee/.test(t)) note = true; if (/ geeft \\d+ kaart/.test(t)) give = true; }
-        return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard), revives: game.moved.revived.length, transfers: game.moved.transfers.length, note, give }); })()`));
+        return JSON.stringify({ phase, decks: game.players.map(p => p.deck.length), discard: __names(game.discard), revives: game.moved.revived.length, transfers: game.moved.transfers.length, note, give }); })()`));
       discardStats.liveTransfers = (discardStats.liveTransfers || 0) + (ids[0].startsWith('testRescue') ? live.transfers : 0);
       if (ids[0].startsWith('testRescue') && live.transfers > 0 && !live.give) failures.push('overdracht: er werden kaarten gegeven maar het spel meldde dat niet (' + id + ', ' + n + ' spelers, seed ' + seed + ')');
       if (ids[0].startsWith('testRescue') && live.revives > 0 && !live.note) failures.push('overdracht: een speler kwam terug maar het spel meldde dat niet (' + id + ', ' + n + ' spelers, seed ' + seed + ')');
       if (ids.includes('testRevive') && live.revives > 0 && !live.note) failures.push('aflegstapel: een speler kwam terug maar het spel meldde dat niet (' + n + ' spelers, seed ' + seed + ')');
       discardStats.liveRevives = (discardStats.liveRevives || 0) + (ids.includes('testRevive') ? live.revives : 0);
       run('numPlayers = ' + n + '; dealNewGame();');
-      const ff = JSON.parse(run(`(() => { launchGame(); fastForward(); return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
+      const ff = JSON.parse(run(`(() => { launchGame(); fastForward(); return JSON.stringify({ phase, decks: game.players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
       compared++; discardStats.compared++;
       const label = n + ' spelers, seed ' + seed + ', ' + id;
       if (live.phase !== 'game-over' || JSON.stringify(live.decks) !== JSON.stringify(sim.decks) || JSON.stringify(live.discard) !== JSON.stringify(sim.discard))
@@ -807,9 +807,9 @@ withFake(() => {
       seedField.value = seed;
       const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.discard.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, discard: game.discard.length }); })()'));
       if (snap.phase !== 'round-over') continue;
-      const ffEnd = JSON.parse(run(`(() => { const had = game.discard.length; fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
-        return JSON.stringify({ had, total, phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
-      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length), discard: __names(game.discard) }); })()'));
+      const ffEnd = JSON.parse(run(`(() => { const had = game.discard.length; fastForward(); const total = game.players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+        return JSON.stringify({ had, total, phase, decks: game.players.map(p => p.deck.length), discard: __names(game.discard) }); })()`));
+      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: game.players.map(p => p.deck.length), discard: __names(game.discard) }); })()'));
       midGame++;
       const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (fast-forward na ' + snap.steps + ' stappen, ' + ffEnd.had + ' afgelegd)';
       if (ffEnd.total !== 52) failures.push('fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total + ' in plaats van 52');
@@ -829,9 +829,9 @@ withFake(() => {
       seedField.value = seed;
       const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.moved.transfers.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, transfers: game.moved.transfers.length }); })()'));
       if (snap.phase !== 'round-over') continue;
-      const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
-        return JSON.stringify({ total, phase, decks: players.map(p => p.deck.length) }); })()`));
-      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length) }); })()'));
+      const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = game.players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+        return JSON.stringify({ total, phase, decks: game.players.map(p => p.deck.length) }); })()`));
+      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: game.players.map(p => p.deck.length) }); })()'));
       midSC++;
       const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (na ' + snap.steps + ' stappen)';
       if (ffEnd.total !== 52) failures.push('Revival: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
@@ -851,9 +851,9 @@ withFake(() => {
       const snap = JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); let i = 0; while (i < 800 && !(phase === \'round-over\' && game.moved.shared.length > 0) && phase !== \'game-over\' && phase !== \'cycle-over\'){ advance(); i++; } return JSON.stringify({ steps: i, phase, text: document.getElementById(\'dispatch\').textContent }); })()'));
       if (snap.phase !== 'round-over') continue;
       if (/winnen samen: .+ krijgt \d+ kaart(en)?/.test(snap.text)) rfText++; else failures.push('Koninklijk paar: de tekst meldt niet dat ze samen winnen: "' + snap.text + '"');
-      const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
-        return JSON.stringify({ total, phase, decks: players.map(p => p.deck.length) }); })()`));
-      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: players.map(p => p.deck.length) }); })()'));
+      const ffEnd = JSON.parse(run(`(() => { fastForward(); const total = game.players.reduce((s, p) => s + p.deck.length, 0) + game.pot.length + game.discard.length;
+        return JSON.stringify({ total, phase, decks: game.players.map(p => p.deck.length) }); })()`));
+      const liveEnd = ffEnd.phase !== 'game-over' ? null : JSON.parse(run('numPlayers = ' + n + '; dealNewGame(); (() => { launchGame(); for (let i = 0; i < ' + snap.steps + '; i++) advance(); let j = 0; while (phase !== \'game-over\' && phase !== \'cycle-over\' && j < 20000){ advance(); j++; } return JSON.stringify({ phase, decks: game.players.map(p => p.deck.length) }); })()'));
       midRF++;
       const label = ids.join('+') + ', ' + n + ' spelers, seed ' + seed + ' (na ' + snap.steps + ' stappen)';
       if (ffEnd.total !== 52) failures.push('Koninklijk paar: fast-forward midden in een spel verliest kaarten (' + label + '): ' + ffEnd.total);
@@ -872,7 +872,7 @@ withFake(() => {
 
   // 6. Het scherm: zichtbaarheid van de aflegstapel, de tekst bij de kaartentelling en het venster met de kaarten.
   const pile = document.getElementById('discardPile');
-  run(`players = __state([['A♠']]).players; game = __state([['A♠']]); game.rules = Object.assign({}, game.rules, { testBattleDiscard: true }); updateDiscardPile();`);
+  run(`game = __state([['A♠']]); game.rules = Object.assign({}, game.rules, { testBattleDiscard: true }); updateDiscardPile();`);
   if (pile.classList.contains('hidden')) failures.push('aflegstapel hoort zichtbaar te zijn als een actieve regel hem gebruikt, ook als hij nog leeg is');
   run(`game.rules.testBattleDiscard = false; updateDiscardPile();`);
   if (!pile.classList.contains('hidden')) failures.push('aflegstapel hoort verborgen te zijn als geen regel hem gebruikt en hij leeg is');
@@ -1028,6 +1028,45 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   if (ties < 100) failures.push('symbool: in ' + games + ' spellen slechts ' + ties + ' gelijkspellen beslist op symbool');
 }
 
+// ---- gedeelde spelstand: één bron per gegeven ----
+{
+  const jsFiles = fs.readdirSync(path.join(root, 'js')).filter(f => f.endsWith('.js'));
+  for (const f of jsFiles){
+    const lines = fs.readFileSync(path.join(root, 'js', f), 'utf8').split('\n');
+    lines.forEach((line, i) => {
+      const code = line.replace(/\/\/.*$/, '');
+      // De fase verandert alleen in setPhase (game.js): die werkt ook de knoppen bij.
+      if (/(^|[^\w.])phase\s*=[^=]/.test(code) && !/^let phase = 'idle';/.test(code) && !/^\s*phase = next;/.test(code))
+        failures.push('js/' + f + ':' + (i + 1) + ': de fase wordt buiten setPhase gezet (gebruik setPhase, die werkt ook de knoppen bij)');
+      if (/updateButtonLabel\(\)/.test(code) && f !== 'game.js') failures.push('js/' + f + ':' + (i + 1) + ': updateButtonLabel hoort alleen via setPhase te lopen');
+      // De spelers staan alleen in game.players; een losse kopie kan uit de pas lopen. Hetzelfde voor de bron van toeval.
+      if (/^(let|var|const)\s+(players|rng)\b/.test(code)) failures.push('js/' + f + ':' + (i + 1) + ': geen losse globale ' + code.match(/(players|rng)/)[0] + ' (de spelers staan in game.players, toeval gaat als argument naar shuffle)');
+    });
+  }
+  if (run("typeof players !== 'undefined' || typeof rng !== 'undefined'")) failures.push('er bestaat nog een globale players of rng');
+  // dealGame: zelfde seed = zelfde deling, 52 unieke kaarten, om de beurt verdeeld, seed bewaard; zonder seed willekeurig.
+  const deal = (n, seed) => JSON.parse(run(`(() => { const g = dealGame(${JSON.stringify(Array.from({ length: n }, (_, i) => 'S' + i))}, { twoBeatsAce: true }, ${JSON.stringify(seed)});
+    return JSON.stringify({ seed: g.seed, names: g.players.map(p => p.name), ids: g.players.map(p => p.id), decks: g.players.map(p => p.deck.map(c => c.rank + c.suit)), rule: g.rules.twoBeatsAce, other: g.rules.battleFirst }); })()`));
+  for (const n of [2, 3, 5, 8]){
+    const a = deal(n, 'abc'), b = deal(n, 'abc'), c = deal(n, 'abd');
+    const all = a.decks.flat();
+    if (JSON.stringify(a) !== JSON.stringify(b)) failures.push('dealGame: dezelfde seed geeft niet dezelfde deling (' + n + ' spelers)');
+    if (JSON.stringify(a.decks) === JSON.stringify(c.decks)) failures.push('dealGame: een andere seed geeft dezelfde deling (' + n + ' spelers)');
+    if (all.length !== 52 || new Set(all).size !== 52) failures.push('dealGame: geen 52 unieke kaarten (' + n + ' spelers)');
+    const sizes = a.decks.map(d => d.length);
+    if (Math.max(...sizes) - Math.min(...sizes) > 1 || sizes.some((x, i) => i > 0 && x > sizes[i - 1])) failures.push('dealGame: kaarten niet om de beurt verdeeld: ' + JSON.stringify(sizes));
+    if (a.seed !== 'abc' || JSON.stringify(a.ids) !== JSON.stringify(a.names.map((_, i) => i)) || a.names[n - 1] !== 'S' + (n - 1)) failures.push('dealGame: seed, ids of namen kloppen niet');
+    if (a.rule !== true || a.other !== false) failures.push('dealGame: de regels komen niet in de spelstand');
+  }
+  const r1 = deal(4, ''), r2 = deal(4, null);
+  if (r1.seed !== null || r2.seed !== null) failures.push('dealGame: zonder seed hoort seed null te zijn');
+  if (JSON.stringify(r1.decks) === JSON.stringify(r2.decks)) failures.push('dealGame: twee willekeurige delingen zijn gelijk');
+  // setPhase zet de fase en de knoppen in één keer.
+  const btn = JSON.parse(run(`(() => { const before = phase; setPhase('game-over'); const a = { phase, play: playBtn.disabled, ff: fastForwardBtn.disabled };
+    setPhase('idle'); const b = { phase, play: playBtn.disabled, ff: fastForwardBtn.disabled, label: playBtn.textContent }; setPhase(before); return JSON.stringify({ a, b }); })()`));
+  if (JSON.stringify(btn) !== JSON.stringify({ a: { phase: 'game-over', play: true, ff: true }, b: { phase: 'idle', play: false, ff: false, label: 'Speel ronde' } })) failures.push('setPhase: knoppen volgen de fase niet: ' + JSON.stringify(btn));
+}
+
 // ---- testgevallen ----
 const cases = [];
 for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rules of Object.keys(RULE_SETS)) cases.push({ n, seed, rules });
@@ -1045,7 +1084,7 @@ let liveChecked = 0;
     document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
     run('numPlayers = ' + n + '; dealNewGame(); launchGame();');
   };
-  const sig = () => run('stateSignature(players, game.discard)');
+  const sig = () => run('stateSignature(game.players, game.discard)');
   const phaseNow = () => run('phase');
   const finishRound = () => run(`(() => { let i = 0; do { advance(); i++; } while (!['cleared', 'game-over', 'cycle-over'].includes(phase) && i < 50); return phase; })()`);
   const stats = () => run('JSON.stringify(statsSnapshot())');
@@ -1079,7 +1118,7 @@ let liveChecked = 0;
     if (phaseNow() !== 'revealed') fail('verwacht de fase "revealed" midden in een ronde, kreeg ' + phaseNow());
     undo();
     if (sig() !== sigs[6] || phaseNow() !== 'cleared' || stats() !== sts[6]) fail('midden in een ronde terug hoort het begin van die ronde te geven (' + set + ')');
-    if (run('players.some(p => p.faceCard)')) fail('na terugzetten liggen er geen open kaarten op tafel');
+    if (run('game.players.some(p => p.faceCard)')) fail('na terugzetten liggen er geen open kaarten op tafel');
   }
 
   // Ten hoogste tien rondes terug.
@@ -1155,7 +1194,7 @@ let liveChecked = 0;
 
   // Het scherm na een spel: knoppen alleen bij een winnaar, één keuze, namen als gewone tekst.
   const evilName = '<img src=x onerror=alert(1)>' + 'x'.repeat(40);
-  run(`game = createGameState([{ id: 0, name: ${JSON.stringify(evilName)}, deck: [] }, { id: 1, name: 'B', deck: [] }], { twoBeatsAce: true }); players = game.players;`);
+  run(`game = createGameState([{ id: 0, name: ${JSON.stringify(evilName)}, deck: [] }, { id: 1, name: 'B', deck: [] }], { twoBeatsAce: true });`);
   const banner = () => document.getElementById('endBanner');
   const choiceBox = () => banner().children.find(c => c.className === 'winner-choice');
   const savedNow = () => JSON.parse(run('JSON.stringify(currentWinnerRules())'));
@@ -1194,7 +1233,7 @@ let liveChecked = 0;
   run(`globalThis.localStorage = { data: { [WINNER_OLD_STORAGE_KEY]: '{"battleFirst":{"on":true,"by":"Oud"},"royalFamily":{"on":true,"by":"Oud"}}' }, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(){}, removeItem(k){ delete this.data[k]; } };`);
   run('winnerRules = {}; forgetOldWinnerRules(); renderRuleOptions();'); // een nieuwe pagina
   if (ruleChoiceCheckedIs('battleFirst', true) !== wasDefault('battleFirst') || ruleChoiceCheckedIs('royalFamily', true) !== wasDefault('royalFamily') || noteOf('battleFirst') !== null || noteOf('royalFamily') !== null) failures.push('startscherm: na verversen hoort alles weer standaard te zijn, ook als een eerdere versie keuzes bewaarde');
-  run('delete globalThis.localStorage; game = null; players = [];');
+  run('delete globalThis.localStorage; game = null;');
   banner().innerHTML = '';
 }
 
@@ -1211,7 +1250,7 @@ let liveChecked = 0;
   const hidden = id => document.getElementById(id).classList.contains('hidden');
   const winnerBox = () => banner.children.find(c => c.className === 'winner-choice');
   const nextBtn = () => winnerBox() && winnerBox().children.find(c => c.className === 'winner-next');
-  const simOutcome = () => run('simulateOutcome(players, game.rules).outcome');
+  const simOutcome = () => run('simulateOutcome(game.players, game.rules).outcome');
   const seedNow = () => run('game.seed');
   const rulesNow = () => run('JSON.stringify(game.rules)');
   run('globalThis.localStorage = { data: {}, getItem(k){ return k in this.data ? this.data[k] : null; }, setItem(k, v){ this.data[k] = v; } };');
@@ -1224,7 +1263,7 @@ let liveChecked = 0;
   if (!nextBtn() || nextBtn().textContent !== 'Volgend spel ▶') fail('de knop "Volgend spel" ontbreekt na een spel met een winnaar');
   else {
     nextBtn().handlers.click();
-    if (run('phase') !== 'idle' || run('players.length') !== 3 || banner.children.length !== 0) fail('het volgende spel hoort te starten met dezelfde spelers en een lege eindbanner');
+    if (run('phase') !== 'idle' || run('game.players.length') !== 3 || banner.children.length !== 0) fail('het volgende spel hoort te starten met dezelfde spelers en een lege eindbanner');
     if (seedNow() !== '2') fail('het volgende spel hoort de volgende seed te krijgen, kreeg ' + seedNow());
     if (rulesNow() !== rulesBefore) fail('het volgende spel hoort dezelfde regels te hebben');
     if (simOutcome() !== 'win') fail('het volgende spel hoort een spel te zijn dat eindigt');
@@ -1242,7 +1281,7 @@ let liveChecked = 0;
 
   // Een deling die niet eindigt wordt overgeslagen: het wordt de eerste seed erna waarmee het spel wel eindigt.
   // Daarvoor zoeken we met 3 spelers een seed w waarmee het spel eindigt terwijl seed w-1 dat niet doet, en beginnen we twee seeds eerder.
-  const outcomes = JSON.parse(run(`(() => { const out = {}; for (let s = 1; s <= 80; s++){ document.getElementById('seedInput').value = String(s); dealNewGame(); out[s] = simulateOutcome(players, game.rules).outcome; } return JSON.stringify(out); })()`));
+  const outcomes = JSON.parse(run(`(() => { const out = {}; for (let s = 1; s <= 80; s++){ document.getElementById('seedInput').value = String(s); dealNewGame(); out[s] = simulateOutcome(game.players, game.rules).outcome; } return JSON.stringify(out); })()`));
   const w = Object.keys(outcomes).map(Number).find(k => k >= 5 && outcomes[k] === 'win' && outcomes[k - 1] !== 'win');
   if (!w) fail('geen testseed gevonden waarmee een eerdere seed wordt overgeslagen');
   else {
@@ -1323,7 +1362,7 @@ let liveChecked = 0;
   }
   run('winnerRules = {}; renderRuleOptions()');
 
-  run('delete globalThis.localStorage; winnerRules = {}; renderRuleOptions(); game = null; players = [];');
+  run('delete globalThis.localStorage; winnerRules = {}; renderRuleOptions(); game = null;');
   banner.innerHTML = '';
 }
 
@@ -1346,7 +1385,7 @@ let liveChecked = 0;
     // Dezelfde cijfers als wanneer elke ronde apart wordt geteld (zoals het spel zelf doet): terug naar de stand van vóór het doorspoelen en dan de oude manier.
     run('undoStep()');
     run('statsRestore(' + snap0 + ');');
-    run(`(() => { const r = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
+    run(`(() => { const r = simulateFullTrace(game.players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
       r.trace.forEach(e => { if (e.type === 'battle') statsRecordBattle(e.depth); else if (e.type === 'win') statsRecordRoundWin(e.winnerIds || e.winnerId, e.counts); }); })()`);
     if (state() !== fresh) fail('de statistieken na doorspoelen horen gelijk te zijn aan wanneer elke ronde apart wordt geteld');
     run('statsRestore(' + snap0 + ');');
@@ -1357,7 +1396,7 @@ let liveChecked = 0;
     }
     if (run('statsHistory.length') < 3 * 2000) fail('na drie keer doorspoelen horen de rondes in de statistieken te staan (' + run('statsHistory.length') + ')');
   } finally {
-    run('renderStatsPanel = __origDraw; delete globalThis.__draws; delete globalThis.__origDraw; game = null; players = [];');
+    run('renderStatsPanel = __origDraw; delete globalThis.__draws; delete globalThis.__origDraw; game = null;');
     document.getElementById('endBanner').innerHTML = '';
   }
 }
@@ -1370,7 +1409,7 @@ own('fixed', () => {
     run('numPlayers = ' + c.n + '; dealNewGame();');
     if (run('game.seed') !== c.seed) failures.push(key(c) + ': game.seed is ' + run('game.seed') + ', verwacht ' + c.seed);
     const sim = JSON.parse(run(`(() => {
-      const r = simulateFullTrace(players, SIM_ROUND_CAP, typeof game !== 'undefined' && game ? game.rules : undefined);
+      const r = simulateFullTrace(game.players, SIM_ROUND_CAP, typeof game !== 'undefined' && game ? game.rules : undefined);
       return JSON.stringify({ outcome: r.outcome, rounds: r.rounds, decks: r.finalPlayers.map(p => p.deck.length) });
     })()`));
     actual[key(c)] = sim;

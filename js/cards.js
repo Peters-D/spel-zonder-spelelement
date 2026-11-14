@@ -14,8 +14,7 @@ function buildDeck(){
   return deck;
 }
 
-// Seeded RNG support — for reproducible test games. Defaults to Math.random.
-let rng = Math.random;
+// Seeded RNG support — for reproducible test games.
 function hashSeed(str){
   let h = 0;
   for (let i=0;i<str.length;i++){ h = (Math.imul(31, h) + str.charCodeAt(i)) | 0; }
@@ -42,8 +41,10 @@ function nextSeed(seed, randomFn){
   return m[1] + (BigInt(m[2]) + 1n).toString().padStart(m[2].length, '0');
 }
 
-function shuffle(arr){
-  for (let i=arr.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+// Schudt de lijst zelf (en geeft hem terug). random is de bron van toeval: mulberry32(hashSeed(seed)) voor een vast spel,
+// Math.random voor een willekeurig spel.
+function shuffle(arr, random){
+  for (let i=arr.length-1;i>0;i--){ const j=Math.floor(random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return arr;
 }
 // Korte sleutel per kaart, bijv. "h14" voor A♥: een thema met eigen kaarten koppelt daar een afbeelding aan (css/cards-bobr.css).

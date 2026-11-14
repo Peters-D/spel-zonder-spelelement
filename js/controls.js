@@ -51,7 +51,7 @@ function fastForward(){
   stopAutoPlay();
   if (typeof undoPush === 'function') undoPush(); // het doorspoelen telt als één stap terug
 
-  const result = simulateFullTrace(players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
+  const result = simulateFullTrace(game.players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });
 
   // Speel de volledige trace na in de statistieken, ronde voor ronde, en teken het paneel daarna één keer (niet na elke ronde:
   // dat maakte elke klik op doorspoelen tot seconden traag, steeds trager naarmate de geschiedenis groeide).
@@ -66,9 +66,9 @@ function fastForward(){
 
   // Pas de eindstand toe op het echte spel.
   result.finalPlayers.forEach((sp, i) => {
-    players[i].deck = sp.deck;
-    players[i].out = sp.out;
-    players[i].faceCard = null;
+    game.players[i].deck = sp.deck;
+    game.players[i].out = sp.out;
+    game.players[i].faceCard = null;
   });
   game.pot = [];
   game.discard = result.finalDiscard;
@@ -76,17 +76,16 @@ function fastForward(){
   displayPot = 0;
 
   if (result.outcome === 'win'){
-    const winnerObj = players.find(p => p.id === result.winnerId);
+    const winnerObj = game.players.find(p => p.id === result.winnerId);
     endGame(winnerObj);
-    phase = 'game-over';
+    setPhase('game-over');
   } else if (result.outcome === 'cycle'){
     endCycleDetected();
-    phase = 'cycle-over';
+    setPhase('cycle-over');
   } else {
     setDispatch('Fast-forward gestopt na ' + result.rounds + ' rondes zonder winnaar.');
-    phase = 'round-over';
+    setPhase('round-over');
   }
-  updateButtonLabel();
   renderGrid(true);
 }
 

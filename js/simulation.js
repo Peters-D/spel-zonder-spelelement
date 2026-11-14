@@ -64,7 +64,7 @@ let visitedStates = new Set();
 let visitedLog = [];
 
 function checkLiveCycle(){
-  const sig = stateSignature(players, game.discard);
+  const sig = stateSignature(game.players, game.discard);
   if (visitedStates.has(sig)) return true;
   visitedStates.add(sig);
   visitedLog.push(sig);
