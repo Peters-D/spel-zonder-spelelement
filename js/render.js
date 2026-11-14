@@ -6,6 +6,7 @@ function setDispatch(text, isWar){
 }
 
 function renderGrid(faceDown, warFlags){
+  if (typeof animFinishAll === 'function') animFinishAll(); // een nieuwe stap: lopende kaartanimaties springen naar hun eind
   const grid = document.getElementById('playerGrid');
   grid.innerHTML = '';
   const inBattle = (phase === 'battle-pending' || phase === 'battle-revealed');

@@ -402,6 +402,19 @@ header::before{
   .speed-slider{ order:3; flex:1 1 100%; }
 }
 
+/* Schakelaar voor de kaartanimaties (js/animate.js). */
+.anim-toggle{
+  display:flex; align-items:center; gap:8px; margin:0 0 10px 4px;
+  font-family:'Inter', sans-serif; font-size:12.5px; color: var(--paper-dim); cursor:pointer;
+}
+.anim-toggle input{ width:16px; height:16px; accent-color: var(--brass); }
+/* De laag met kaarten die onderweg zijn: boven de pagina, vangt geen klikken. */
+#animLayer{ position:fixed; inset:0; pointer-events:none; z-index:40; overflow:hidden; }
+.anim-ghost{ position:fixed; margin:0; }
+/* Met animaties aan komt een nieuwe kaart een klein stukje omhoog terwijl hij omdraait. */
+.anim-on .card.flip{ animation: dealin 0.35s ease; }
+@keyframes dealin{ 0%{ transform: translateY(12px) rotateY(90deg); } 100%{ transform: translateY(0) rotateY(0deg); } }
+
 .reset-btn{
   width:100%; background:transparent; color: var(--paper-dim); border:1px solid var(--line);
   border-radius:12px; padding:12px; font-family:'Inter', sans-serif; font-size:12.5px; cursor:pointer;
