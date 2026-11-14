@@ -85,6 +85,8 @@ function buildRulebook(rules, base, active){
     head.appendChild(rbEl('span', 'rb-badge ' + (on ? 'rb-on' : 'rb-off'), on ? 'aan' : 'uit'));
     box.appendChild(head);
     box.appendChild(rbEl('p', 'rb-text rb-rule-text', rule.description));
+    const note = on && typeof rule.stateNote === 'function' ? rule.stateNote(active, true) : null;
+    if (note) box.appendChild(rbEl('p', 'rb-text rb-rule-note', note));
     for (const ex of rule.examples || []) box.appendChild(rbBuildExample(ex, rules));
     root.appendChild(box);
   }
@@ -116,6 +118,7 @@ function currentRuleState(){
   if (gameVisible && game) return Object.assign({}, game.rules);
   const state = {};
   for (const rule of RULES) state[rule.id] = document.getElementById(rule.id + 'Input').checked;
+  if (typeof readSuitOrder === 'function') state.suitOrder = readSuitOrder(); // de volgorde die nu op het startscherm staat
   return state;
 }
 

@@ -17,7 +17,11 @@ for (let n=2;n<=8;n++){
   countGrid.appendChild(b);
 }
 
+// Bouwt de naamvelden voor het gekozen aantal spelers. Namen die al waren ingevuld blijven staan (ook van spelers die
+// tijdelijk wegvielen door een kleiner aantal te kiezen).
+const typedNames = [];
 function renderNameInputs(){
+  namesList.querySelectorAll('input').forEach((inp, i) => { typedNames[i] = inp.value; });
   namesList.innerHTML = '';
   for (let i=0;i<numPlayers;i++){
     const inp = document.createElement('input');
@@ -25,6 +29,7 @@ function renderNameInputs(){
     inp.placeholder = 'Speler ' + (i+1);
     inp.maxLength = 14;
     inp.dataset.idx = i;
+    inp.value = typedNames[i] || '';
     namesList.appendChild(inp);
   }
 }
@@ -153,6 +158,12 @@ function launchGame(){
   document.getElementById('game').classList.remove('hidden');
   document.getElementById('endBanner').innerHTML = '';
   document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
+  // Wat actieve regels over dit spel te melden hebben (bijvoorbeeld de gekozen volgorde van de symbolen), zie stateNote in rules.js.
+  const notes = ruleStateNotes(game.rules);
+  const notesLine = document.getElementById('rulesLine');
+  notesLine.textContent = notes.join(' ');
+  notesLine.classList.toggle('hidden', notes.length === 0);
+  if (typeof winnerChoiceReset === 'function') winnerChoiceReset(); // in een nieuw spel mag de winnaar weer één regel omzetten
   visitedStates = new Set();
   visitedStates.add(stateSignature(game.players, game.discard));
   visitedLog = [stateSignature(game.players, game.discard)];

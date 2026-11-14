@@ -18,6 +18,8 @@
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
 //   breakTie    (optioneel) breakTie(winners, rules) krijgt de spelers die gelijk eindigden en geeft de ene speler terug die wint
 //               (als lijst met één speler), of null als de regel de gelijkspel niet kan beslissen. Wordt na decide toegepast.
+//   stateNote   (optioneel) stateNote(rules, detailed) geeft een korte tekst over hoe de regel in dit spel is ingesteld (of null).
+//               Die staat in het spel onder de seed en, met detailed (extra uitleg), in het regelboek bij de regel, als de regel aan staat.
 //   usesDiscard (optioneel) true als de regel kaarten aflegt of terughaalt: dan staat de aflegstapel op het scherm
 //   onAward(ctx), onRoundEnd(ctx)  (optioneel) haken voor regels die iets doen na de beslissing, bijvoorbeeld kaarten
 //               afleggen. Zie engine.js voor ctx en voor de handelingen voor de aflegstapel.
@@ -188,6 +190,11 @@ const RULES = [
       { cards: ['A', 'K♥', 'K♠'], winners: [2], with: ['battleFirst'], text: 'Met "Gelijke kaarten gaan voor" winnen de Heren, en ♠ beslist welke: speler 3 wint meteen.' },
       { cards: ['2♦', '2♣', 'A'], winners: [0], with: ['twoBeatsAce'], text: 'Twee 2\'s winnen van de Aas; ♦ staat hoger dan ♣, dus speler 1 wint.' }
     ],
+    stateNote(rules, detailed){
+      const order = suitOrderOf(rules);
+      const isDefault = order.join('') === DEFAULT_SUIT_ORDER.join('');
+      return 'Symbolen van hoog naar laag: ' + order.join(' ') + '.' + (isDefault || !detailed ? '' : ' De voorbeelden gebruiken de standaardvolgorde ' + DEFAULT_SUIT_ORDER.join(' ') + '.');
+    },
     breakTie(winners, rules){
       const order = suitOrderOf(rules);
       const rank = p => order.indexOf(p.faceCard.suit);
@@ -313,6 +320,11 @@ function decideRound(inPlay, rules){
     }
   }
   return decided;
+}
+
+// Wat de actieve regels over dit spel te melden hebben (zie stateNote in de catalogus), in de volgorde van de catalogus.
+function ruleStateNotes(rules){
+  return RULES.filter(r => rules[r.id] && typeof r.stateNote === 'function').map(r => r.stateNote(rules)).filter(Boolean);
 }
 
 function findWinningPlayers(inPlay, rules){

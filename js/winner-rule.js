@@ -10,6 +10,12 @@ const WINNER_BY_MAX = 30;
 const WINNER_OLD_STORAGE_KEY = 'spelzonderspelelement.winnaarsregels';
 // { <regel-id>: { on: true/false, by: 'naam van de winnaar' } }, alleen voor regels waar een winnaar iets aan veranderd heeft
 let winnerRules = {};
+// De keuze die in het lopende spel al gemaakt is (de tekst ervan), of null. Een winnaar zet per spel één regel om: wie na de keuze
+// een ronde terugstapt en het spel opnieuw uitspeelt, krijgt de knoppen niet nog een keer. Een nieuw spel begint weer met null.
+let winnerChoiceDone = null;
+function winnerChoiceReset(){
+  winnerChoiceDone = null;
+}
 
 function currentWinnerRules(){
   return Object.assign({}, winnerRules);
@@ -50,6 +56,12 @@ function showWinnerRuleChoice(winner){
   nextBtn.className = 'winner-next';
   nextBtn.textContent = 'Volgend spel ▶';
   nextBtn.addEventListener('click', () => startNextGame());
+  if (winnerChoiceDone){ // in dit spel is al gekozen (het einde is opnieuw bereikt na "stap terug")
+    intro.textContent = winnerChoiceDone;
+    box.appendChild(nextBtn);
+    banner.appendChild(box);
+    return;
+  }
   for (const rule of RULES){
     const wasOn = !!(game && game.rules && game.rules[rule.id]);
     const btn = document.createElement('button');
@@ -62,6 +74,7 @@ function showWinnerRuleChoice(winner){
       box.innerHTML = '';
       const result = document.createElement('p');
       result.textContent = rule.title + ' staat in het volgende spel ' + (wasOn ? 'uit' : 'aan') + ', gekozen door ' + winner.name + '.';
+      winnerChoiceDone = result.textContent;
       box.appendChild(result);
       box.appendChild(nextBtn);
     });

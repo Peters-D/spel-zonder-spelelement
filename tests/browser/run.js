@@ -216,6 +216,75 @@ test('symboolvolgorde: alleen zichtbaar bij de regel, wisselt en geldt in het sp
   noErrors(page);
 });
 
+// ---- Startscherm: namen ----
+test('ingevulde namen blijven staan als het aantal spelers wijzigt', async page => {
+  await page.fill('#namesList input >> nth=0', 'Anna');
+  await page.fill('#namesList input >> nth=3', 'Dirk');
+  await page.click('#countGrid button:has-text("6")');
+  eq(await page.$$eval('#namesList input', x => x.map(i => i.value)), ['Anna', '', '', 'Dirk', '', ''], 'namen na 4 → 6');
+  await page.click('#countGrid button:has-text("2")');
+  await page.click('#countGrid button:has-text("4")');
+  eq(await page.$$eval('#namesList input', x => x.map(i => i.value)), ['Anna', '', '', 'Dirk'], 'namen na 6 → 2 → 4');
+  await startGame(page, { players: 4 });
+  eq(await page.$$eval('.pname', x => x.map(e => e.textContent)), ['Anna', 'Speler 2', 'Speler 3', 'Dirk'], 'namen in het spel');
+  noErrors(page);
+});
+
+// ---- De winnaar kiest één regel per spel ----
+test('na stap terug en opnieuw uitspelen kan de winnaar niet nog een regel omzetten', async page => {
+  for (const id of ['twoBeatsAce', 'battleFirst', 'battleDiscard', 'secondChance', 'royalFamily']) await page.check('#' + id + 'Input');
+  // Zoek een seed die met een winnaar eindigt (anders komt er geen keuze).
+  let found = false;
+  for (let s = 1; s <= 40 && !found; s++){
+    await page.fill('#seedInput', String(s));
+    await page.click('#startBtn');
+    found = await page.isVisible('#game');
+  }
+  ok(found, 'geen seed gevonden die met een winnaar eindigt');
+  await page.click('#fastForwardBtn');
+  const count = await page.locator('.winner-choice-buttons button').count();
+  ok(count >= 6, 'de winnaar krijgt geen keuzeknoppen (' + count + ')');
+  await page.click('.winner-choice-buttons button >> nth=0');
+  const chosenText = await text(page, '.winner-choice p');
+  await page.click('#undoBtn');
+  await page.click('#fastForwardBtn');
+  eq(await page.locator('.winner-choice-buttons button').count(), 0, 'keuzeknoppen na stap terug en opnieuw uitspelen');
+  eq(await text(page, '.winner-choice p'), chosenText, 'de eerdere keuze staat er weer');
+  eq(await page.evaluate(() => Object.keys(winnerRules).length), 1, 'aantal omgezette regels');
+  // In het volgende spel mag de winnaar weer kiezen.
+  await page.click('.winner-next');
+  await page.waitForSelector('#game:not(.hidden), #cycleWarning:not(.hidden)');
+  if (await page.isVisible('#game')){
+    await page.click('#fastForwardBtn');
+    if (await page.locator('.winner-choice').count()) ok(await page.locator('.winner-choice-buttons button').count() >= 6, 'in het volgende spel ontbreken de keuzeknoppen');
+  }
+  noErrors(page);
+});
+
+// ---- De gekozen symboolvolgorde is te zien ----
+test('symboolvolgorde staat in het spel en in het regelboek', async page => {
+  await page.check('#suitBreakInput');
+  await page.selectOption('.suit-picker select >> nth=0', '♣');
+  await page.click('#rulebookBtnSetup');
+  ok((await text(page, '#rulebookBody')).includes('Symbolen van hoog naar laag: ♣ ♥ ♦ ♠.'), 'regelboek op het startscherm toont de gekozen volgorde niet');
+  await page.keyboard.press('Escape');
+  await startGame(page, { players: 4, seed: 'sy1' });
+  ok(await page.isVisible('#rulesLine'), 'de regel met de volgorde staat niet in het spel');
+  eq(await text(page, '#rulesLine'), 'Symbolen van hoog naar laag: ♣ ♥ ♦ ♠.', 'de volgorde in het spel');
+  await page.click('#rulebookBtnGame');
+  const rb = await text(page, '#rulebookBody');
+  ok(rb.includes('Symbolen van hoog naar laag: ♣ ♥ ♦ ♠.') && rb.includes('standaardvolgorde ♠ ♥ ♦ ♣'), 'regelboek in het spel toont de gekozen volgorde niet');
+  noErrors(page);
+});
+
+test('zonder de symboolregel staat er geen regel over de volgorde', async page => {
+  await startGame(page);
+  ok(!(await page.isVisible('#rulesLine')), 'de regel over de volgorde staat er zonder de symboolregel');
+  await page.click('#rulebookBtnGame');
+  ok(!(await text(page, '#rulebookBody')).includes('Symbolen van hoog naar laag'), 'regelboek noemt de volgorde terwijl de regel uit staat');
+  noErrors(page);
+});
+
 // ---- Smalle schermen ----
 for (const width of [320, 360, 420, 768]){
   test('geen horizontaal scrollen bij ' + width + ' px (start en spel met 8 spelers)', async () => {
