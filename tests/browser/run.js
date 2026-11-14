@@ -313,6 +313,30 @@ test('grafiek wordt niet getekend terwijl het paneel dicht is, en klopt bij het 
   noErrors(page);
 });
 
+// ---- Spelersnamen ----
+test('spelersnamen worden niet afgesneden (ook niet met accenten) en lange namen worden afgekapt', async page => {
+  await page.fill('#namesList input >> nth=0', 'ÁÉgjpqÅ');
+  await page.fill('#namesList input >> nth=1', 'WWWWWWWWWWWWWW');
+  await startGame(page, { players: 8 });
+  const m = await page.$$eval('.pname', els => els.slice(0, 3).map(e => {
+    const cs = getComputedStyle(e);
+    const c = document.createElement('canvas').getContext('2d');
+    c.font = cs.fontSize + ' ' + cs.fontFamily;
+    const t = c.measureText(e.textContent.toUpperCase());
+    const lead = (e.clientHeight - (t.fontBoundingBoxAscent + t.fontBoundingBoxDescent)) / 2;
+    return { text: e.textContent, size: parseFloat(cs.fontSize), height: e.clientHeight, top: lead + t.fontBoundingBoxAscent - t.actualBoundingBoxAscent,
+      bottom: lead + t.fontBoundingBoxDescent - t.actualBoundingBoxDescent, cut: e.scrollWidth > e.clientWidth, overflow: cs.textOverflow };
+  }));
+  for (const x of m){
+    // De regel is ruim hoger dan de letter: het lettertype van het spel steekt boven zijn eigen opgegeven hoogte uit.
+    ok(x.height >= x.size * 1.5, 'de regel van "' + x.text + '" is te laag (' + x.height + ' px bij ' + x.size + ' px letters)');
+    ok(x.top >= 0 && x.bottom >= 0, 'de letters van "' + x.text + '" steken buiten de regel: boven ' + x.top + ', onder ' + x.bottom);
+    eq(x.overflow, 'ellipsis', 'afkappen van lange namen');
+  }
+  eq(await hScroll(page), 0, 'horizontaal scrollen met een lange naam');
+  noErrors(page);
+});
+
 // ---- Smalle schermen ----
 for (const width of [320, 360, 420, 768]){
   test('geen horizontaal scrollen bij ' + width + ' px (start en spel met 8 spelers)', async () => {

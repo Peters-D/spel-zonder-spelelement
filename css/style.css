@@ -195,7 +195,10 @@ h1{
   font-family:'Special Elite', monospace;
   font-size:10.5px; letter-spacing:0.05em; text-transform:uppercase;
   color: var(--paper-dim);
-  margin-bottom:6px;
+  /* De regel is hoger dan de letters: Special Elite steekt boven zijn eigen opgegeven hoogte uit (hoofdletters 1px, accenten 3px)
+     en overflow:hidden (nodig om lange namen af te kappen) knipte dat weg. De marge eronder is navenant kleiner. */
+  line-height:1.6;
+  margin-bottom:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .card{
