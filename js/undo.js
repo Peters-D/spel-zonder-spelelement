@@ -37,15 +37,13 @@ function undoStep(){
   if (!snap) return;
   stopAutoPlay();
   game = snap.game;
-  players = game.players;
   while (visitedLog.length > snap.visited) visitedStates.delete(visitedLog.pop());
   if (snap.stats && typeof statsRestore === 'function') statsRestore(snap.stats);
   document.getElementById('endBanner').innerHTML = '';
   displayPot = 0;
-  phase = 'cleared';
+  setPhase('cleared');
   renderGrid(true);
   setDispatch('Teruggezet naar het begin van een ronde. Speel de ronde opnieuw.');
-  updateButtonLabel();
 }
 
 undoBtn.addEventListener('click', undoStep);

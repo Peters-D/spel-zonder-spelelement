@@ -6,6 +6,12 @@ let displayPot = 0; // settled pot count shown to the user — only updates once
 
 const playBtn = document.getElementById('playBtn');
 
+// De enige plek waar de fase verandert. De knoppen volgen meteen, zodat ze nooit bij een andere fase horen dan die het spel heeft.
+function setPhase(next){
+  phase = next;
+  updateButtonLabel();
+}
+
 function updateButtonLabel(){
   if (phase === 'idle') playBtn.textContent = 'Speel ronde';
   else if (phase === 'revealed') playBtn.textContent = 'Bepaal winnaar';
@@ -21,11 +27,10 @@ function updateButtonLabel(){
 function clearBoard(){
   game.pot = [];
   displayPot = 0;
-  players.forEach(p => { p.faceCard = null; });
+  game.players.forEach(p => { p.faceCard = null; });
   renderGrid(true);
   setDispatch('Tafel opgeruimd. Klaar voor de volgende ronde.');
-  phase = 'cleared';
-  updateButtonLabel();
+  setPhase('cleared');
 }
 
 function startRound(){
@@ -34,8 +39,7 @@ function startRound(){
   displayPot = game.pot.length;
   renderGrid(false);
   setDispatch('Bekijk de kaarten en bepaal de winnaar.');
-  phase = 'revealed';
-  updateButtonLabel();
+  setPhase('revealed');
 }
 
 function layBattleCards(){
@@ -43,8 +47,7 @@ function layBattleCards(){
   if (ev.type === 'battle-revealed'){
     renderGrid(false);
     setDispatch('Bekijk de battle-kaarten en bepaal de winnaar.', true);
-    phase = 'battle-revealed';
-    updateButtonLabel();
+    setPhase('battle-revealed');
     return;
   }
   showRoundResult(ev);
@@ -62,8 +65,7 @@ function compareAndResolve(){
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
-    phase = 'battle-pending';
-    updateButtonLabel();
+    setPhase('battle-pending');
     renderGrid(false);
     return;
   }
@@ -123,7 +125,7 @@ function showRoundResult(ev){
   finalizeRoundOver();
   const winnerIds = sharedWinners ? sharedWinners.map(x => x.player.id) : [w.id];
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(winnerIds.length > 1 ? winnerIds : w.id); // STATS HOOK
-  renderGrid(false, players.map(p => winnerIds.includes(p.id)));
+  renderGrid(false, game.players.map(p => winnerIds.includes(p.id)));
 }
 
 function finalizeRoundOver(){
@@ -133,18 +135,15 @@ function finalizeRoundOver(){
   if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
     endGame(end.winner);
-    phase = 'game-over';
-    updateButtonLabel();
+    setPhase('game-over');
     return;
   }
   if (checkLiveCycle()){
     endCycleDetected();
-    phase = 'cycle-over';
-    updateButtonLabel();
+    setPhase('cycle-over');
     return;
   }
-  phase = 'round-over';
-  updateButtonLabel();
+  setPhase('round-over');
 }
 
 // Zet een banner onder de titel. De tekst gaat als gewone tekst in de pagina (nooit als HTML), zodat een naam met HTML erin

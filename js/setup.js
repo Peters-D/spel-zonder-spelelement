@@ -1,7 +1,6 @@
 // Instelscherm: spelers, namen, seed, delen en starten.
 let numPlayers = 4;
-let game = null;   // spelstand van de spelkern (zie engine.js)
-let players = []; // = game.players: [{id, name, deck: [], out: false, faceCard: null}]
+let game = null;   // spelstand van de spelkern (zie engine.js); de spelers staan in game.players
 
 const countGrid = document.getElementById('countGrid');
 const namesList = document.getElementById('namesList');
@@ -136,27 +135,16 @@ renderRuleOptions();
 
 // ===== Spel starten (met cyclus-precheck) =====
 
+// Leest het startscherm (seed, regels, namen) en laat de spelkern delen (dealGame in engine.js).
 function dealNewGame(){
   const seedValue = document.getElementById('seedInput').value.trim();
-  rng = seedValue ? mulberry32(hashSeed(seedValue)) : Math.random;
   const rules = Object.assign({}, DEFAULT_RULES);
   for (const rule of RULES) rules[rule.id] = document.getElementById(rule.id + 'Input').checked;
   rules.suitOrder = readSuitOrder();
   const inputs = namesList.querySelectorAll('input');
-  const deck = shuffle(buildDeck());
-  const dealt = [];
-  for (let i=0;i<numPlayers;i++){
-    const nm = inputs[i].value.trim() || ('Speler ' + (i+1));
-    dealt.push({ id: i, name: nm, deck: [] });
-  }
-  let idx = 0;
-  while (deck.length){
-    dealt[idx % numPlayers].deck.push(deck.pop());
-    idx++;
-  }
-  game = createGameState(dealt, rules);
-  game.seed = seedValue || null; // de gebruikte seed, om te tonen (null = willekeurig spel)
-  players = game.players;
+  const names = [];
+  for (let i=0;i<numPlayers;i++) names.push(inputs[i].value.trim() || ('Speler ' + (i+1)));
+  game = dealGame(names, rules, seedValue);
 }
 
 function launchGame(){
@@ -166,12 +154,11 @@ function launchGame(){
   document.getElementById('endBanner').innerHTML = '';
   document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
   visitedStates = new Set();
-  visitedStates.add(stateSignature(players, game.discard));
-  visitedLog = [stateSignature(players, game.discard)];
+  visitedStates.add(stateSignature(game.players, game.discard));
+  visitedLog = [stateSignature(game.players, game.discard)];
   if (typeof undoReset === 'function') undoReset(); // een nieuw spel begint zonder geschiedenis
-  phase = 'idle';
   displayPot = 0; // pot-teller van een vorig spel niet meenemen
-  updateButtonLabel();
+  setPhase('idle');
   setDispatch('Klaar om te beginnen. Speel een ronde.');
   renderGrid(true);
   if (typeof statsResetAll === 'function') statsResetAll(); // STATS HOOK
@@ -191,7 +178,7 @@ function showCycleWarning(result){
 
 document.getElementById('startBtn').addEventListener('click', () => {
   dealNewGame();
-  const result = simulateOutcome(players, game.rules);
+  const result = simulateOutcome(game.players, game.rules);
   if (result.outcome === 'cycle' || result.outcome === 'unknown'){
     showCycleWarning(result);
   } else {
@@ -214,7 +201,7 @@ function startNextGame(){
   for (let i = 0; i < NEXT_GAME_TRIES; i++){
     if (fixedSeed) seedInput.value = nextSeed(seedInput.value);
     dealNewGame();
-    result = simulateOutcome(players, game.rules);
+    result = simulateOutcome(game.players, game.rules);
     if (!first) first = { seed: seedInput.value, result };
     if (result.outcome === 'win'){
       launchGame();

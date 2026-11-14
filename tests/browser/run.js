@@ -59,9 +59,9 @@ test('stap terug tijdens auto-play stopt het auto-play en klopt met de kaarten',
   await page.click('#undoBtn');
   eq(await text(page, '#autoPlayBtn'), '▶ Auto-play', 'knop na stap terug');
   await page.waitForTimeout(500); // als het auto-play doorliep, zou de stand nu veranderd zijn
-  const a = await page.evaluate(() => stateSignature(players, game.discard));
+  const a = await page.evaluate(() => stateSignature(game.players, game.discard));
   await page.waitForTimeout(500);
-  const b = await page.evaluate(() => stateSignature(players, game.discard));
+  const b = await page.evaluate(() => stateSignature(game.players, game.discard));
   eq(a, b, 'stand na stap terug blijft staan');
   ok(!(await page.isDisabled('#playBtn')), 'de knop "Speel ronde" hoort weer te werken');
   ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
@@ -117,13 +117,13 @@ test('tabvolgorde op het startscherm en Enter op de startknop', async page => {
 
 test('Enter en Spatie op de knoppen in het spel', async page => {
   await startGame(page);
-  const before = await page.evaluate(() => stateSignature(players, game.discard));
+  const before = await page.evaluate(() => stateSignature(game.players, game.discard));
   await page.focus('#playBtn');
   await page.keyboard.press('Enter');
-  const mid = await page.evaluate(() => stateSignature(players, game.discard));
+  const mid = await page.evaluate(() => stateSignature(game.players, game.discard));
   ok(mid !== before, 'Enter op "Speel ronde" deed niets');
   await page.keyboard.press('Space');
-  const after = await page.evaluate(() => stateSignature(players, game.discard));
+  const after = await page.evaluate(() => stateSignature(game.players, game.discard));
   ok(after !== mid, 'Spatie op "Speel ronde" deed niets');
   await page.focus('#autoPlayBtn');
   await page.keyboard.press('Enter');

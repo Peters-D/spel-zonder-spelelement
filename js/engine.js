@@ -47,6 +47,22 @@
 // Verloop van één ronde:
 //   engineStartRound → engineResolve → ('battle' → engineLayBattleCards → engineResolve → …) → engineEndRound
 
+// Deelt een nieuw spel: schudt een spel van 52 kaarten en verdeelt het om de beurt over de spelers (namen, in tafelvolgorde).
+// Met een seed (tekst) is de deling altijd dezelfde; zonder seed (leeg of null) is ze willekeurig. De seed staat in state.seed
+// (null = willekeurig spel).
+function dealGame(names, rules, seed){
+  const deck = shuffle(buildDeck(), seed ? mulberry32(hashSeed(seed)) : Math.random);
+  const dealt = names.map((name, i) => ({ id: i, name, deck: [] }));
+  let idx = 0;
+  while (deck.length){
+    dealt[idx % dealt.length].deck.push(deck.pop());
+    idx++;
+  }
+  const state = createGameState(dealt, rules);
+  state.seed = seed || null;
+  return state;
+}
+
 function createGameState(players, rules){
   return {
     players: players.map(p => ({

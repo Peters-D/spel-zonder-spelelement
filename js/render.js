@@ -9,7 +9,7 @@ function renderGrid(faceDown, warFlags){
   const grid = document.getElementById('playerGrid');
   grid.innerHTML = '';
   const inBattle = (phase === 'battle-pending' || phase === 'battle-revealed');
-  players.forEach((p, i) => {
+  game.players.forEach((p, i) => {
     const slot = document.createElement('div');
     const isTied = inBattle && !p.out && game.contenders.includes(p.id);
     slot.className = 'pslot' + (p.out ? ' eliminated' : '') + (warFlags && warFlags[i] ? ' winner-flash' : '') + (isTied ? ' tie-flash' : '');
@@ -95,7 +95,7 @@ function updateIntegrity(){
   const totalEl = document.getElementById('totalCount');
   const statusEl = document.getElementById('integrityStatus');
   // "In het spel" zijn de stapels en de pot; afgelegde kaarten staan er apart bij. Samen moeten het er 52 zijn.
-  const inGame = players.reduce((sum, p) => sum + p.deck.length, 0) + game.pot.length;
+  const inGame = game.players.reduce((sum, p) => sum + p.deck.length, 0) + game.pot.length;
   const away = game.discard.length;
   totalEl.textContent = inGame;
   document.getElementById('discardNote').textContent = away > 0 ? ' (afgelegd: ' + away + ')' : '';

@@ -1,5 +1,7 @@
 // Statistieken-module. Verwijder dit bestand, de <script> in index.html, het
 // stats-blok in de HTML en css/stats.css om de functie te verwijderen.
+// De spelers van het lopende spel; vóór het eerste spel (het paneel wordt ook getekend bij een themawissel) zijn er geen.
+function statsPlayers(){ return typeof game !== 'undefined' && game ? game.players : []; }
 let statsHistory = [];      // [{round, counts:{name: cardCount}}]
 let statsWins = {};         // speler-id -> aantal rondes gewonnen
 let statsTotalBattles = 0;  // aantal keer dat een battle is gestart
@@ -52,7 +54,7 @@ function statsAddRoundWin(winnerId, countsOverride){
   let counts = countsOverride;
   if (!counts){
     counts = {};
-    players.forEach(p => { counts[p.id] = p.deck.length; });
+    statsPlayers().forEach(p => { counts[p.id] = p.deck.length; });
   }
   statsHistory.push({ round: statsRoundCount, counts });
 }
@@ -88,7 +90,7 @@ function renderStatsChart(){
   ctx.stroke();
 
   const colors = statsColors();
-  players.forEach((p, idx) => {
+  statsPlayers().forEach((p, idx) => {
     ctx.strokeStyle = colors[idx % colors.length];
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -108,7 +110,7 @@ function renderStatsLegend(){
   if (!el) return;
   const colors = statsColors();
   el.innerHTML = '';
-  players.forEach((p, i) => {
+  statsPlayers().forEach((p, i) => {
     const item = document.createElement('span');
     item.className = 'stats-legend-item';
     const dot = document.createElement('span');
@@ -139,7 +141,7 @@ function renderStatsSummary(){
   statsLine(el, 'Totaal battles: ', String(statsTotalBattles));
   statsLine(el, 'Langste tie-break: ', String(statsLongestTie), ' ' + (statsLongestTie === 1 ? 'niveau' : 'niveaus'));
   statsLine(el, 'Rondes gespeeld: ', String(statsRoundCount));
-  players.forEach(p => {
+  statsPlayers().forEach(p => {
     const wins = statsWins[p.id] || 0;
     const pct = statsRoundCount > 0 ? Math.round((wins / statsRoundCount) * 100) : 0;
     statsLine(el, p.name + ': ', pct + '%', ' (' + wins + '/' + statsRoundCount + ')');
