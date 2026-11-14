@@ -93,6 +93,7 @@ function buildSuitPicker(){
       const other = suitSelects.find(x => x !== sel && x.value === sel.value);
       if (other) other.value = sel.dataset.prev;
       suitSelects.forEach(x => { x.dataset.prev = x.value; });
+      colorSuitSelects();
     });
     suitSelects.push(sel);
     box.appendChild(sel);
@@ -102,7 +103,13 @@ function buildSuitPicker(){
   suitPickerHint.textContent = '"Battle ruimt de pot op" doet niets zolang dit aan staat: er is dan nooit een battle.';
   box.appendChild(suitPickerHint);
   suitPickerBox = box;
+  colorSuitSelects();
   return box;
+}
+
+// ♥ en ♦ staan rood in hun vakje, net als op de kaarten; de kleur volgt het gekozen symbool.
+function colorSuitSelects(){
+  suitSelects.forEach(sel => sel.classList.toggle('red-suit', isRed({ suit: sel.value })));
 }
 
 function readSuitOrder(){
