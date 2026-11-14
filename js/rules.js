@@ -14,6 +14,8 @@
 //               Een regel zonder decide (alleen haken) laat een scenario zien: { decks: [de stapels vóór de ronde, per speler, bovenste
 //               kaart eerst], after: [de stapels na de ronde], discarded: aantal kaarten op de aflegstapel na de ronde, text,
 //               with }. Het scenario wordt een ronde lang gespeeld door de spelkern (de test controleert het).
+//   logic       de regel als beschrijving (gegevens in plaats van code), zie js/rule-dsl.js. Voorlopig staat hij naast de functies
+//               hieronder; de test controleert dat de beschrijving precies hetzelfde doet. Later vervangt hij de functies.
 //   decide      (optioneel) decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
 //   breakTie    (optioneel) breakTie(winners, rules) krijgt de spelers die gelijk eindigden en geeft de ene speler terug die wint
@@ -46,6 +48,7 @@ const RULES = [
       { cards: ['2', 'A', '7', '7'], with: ['battleFirst'], winners: [2, 3],
         text: 'Het paar gaat voor: de zevens battlen.' }
     ],
+    logic: { moment: 'decide', if: { and: [{ exists: { rank: '2' } }, { exists: { rank: 'A' } }] }, then: { win: { rank: '2' } } },
     decide(inPlay){
       const twos = inPlay.filter(p => p.faceCard.rank === '2');
       const aces = inPlay.filter(p => p.faceCard.rank === 'A');
@@ -70,6 +73,7 @@ const RULES = [
       { cards: ['2', 'A', 'A'], with: ['twoBeatsAce'], winners: [1, 2],
         text: 'Het paar gaat voor: de Azen battlen, de 2 doet niet mee.' }
     ],
+    logic: { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 2, pick: 'highest' } } } },
     decide(inPlay){
       const groups = new Map(); // waarde -> spelers met die kaart
       for (const p of inPlay){
@@ -103,6 +107,7 @@ const RULES = [
       { decks: [['K'], ['K', '3']], after: [[], []], discarded: 3,
         text: 'Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.' }
     ],
+    logic: { moment: 'award', if: { battle: true }, then: { discardPot: true } },
     onAward(ctx){
       if (ctx.state.battleLevel > 0) engineDiscardPot(ctx.state);
     }
@@ -129,6 +134,7 @@ const RULES = [
       { decks: [['K', '4'], ['3'], ['9']], after: [['4', 'K', '3', '9'], [], []], discarded: 0,
         text: 'Nog maar één speler houdt kaarten over: niemand komt terug en het spel is afgelopen.' }
     ],
+    logic: { moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
     onRoundEnd(ctx){
       const state = ctx.state;
       if (state.players.filter(p => p.deck.length > 0).length < 2) return;
@@ -163,6 +169,9 @@ const RULES = [
       { decks: [['K', '9', '2'], ['K', '5', '3'], ['Q', '6', '4']], after: [['2'], ['3'], ['6', '4']], discarded: 5, with: ['battleDiscard'],
         text: 'Dezelfde battle, maar de hele pot gaat naar de aflegstapel: er is dan niets meer te verdelen.' }
     ],
+    logic: { moment: 'award',
+      if: { and: [{ winnerOpened: { rank: 'K' } }, { anyPlayer: { opened: { rank: 'Q' }, exclude: 'winner' } }] },
+      then: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } },
     onAward(ctx){
       const state = ctx.state;
       if (ctx.how === 'void' || !ctx.winner || state.pot.length === 0) return;
@@ -190,6 +199,7 @@ const RULES = [
       { cards: ['A', 'K♥', 'K♠'], winners: [2], with: ['battleFirst'], text: 'Met "Gelijke kaarten gaan voor" winnen de Heren, en ♠ beslist welke: speler 3 wint meteen.' },
       { cards: ['2♦', '2♣', 'A'], winners: [0], with: ['twoBeatsAce'], text: 'Twee 2\'s winnen van de Aas; ♦ staat hoger dan ♣, dus speler 1 wint.' }
     ],
+    logic: { moment: 'tiebreak', then: { win: { highest: 'suitOrder' } } },
     stateNote(rules, detailed){
       const order = suitOrderOf(rules);
       const isDefault = order.join('') === DEFAULT_SUIT_ORDER.join('');

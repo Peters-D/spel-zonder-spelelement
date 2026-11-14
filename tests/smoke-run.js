@@ -1083,6 +1083,131 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   if (without.includes('Symbolen van hoog naar laag')) failures.push('regelboek: de symboolvolgorde staat er terwijl de regel uit staat');
 }
 
+// ---- regels als beschrijving (js/rule-dsl.js) ----
+{
+  const fail = t => failures.push('regelbeschrijving: ' + t);
+  const errorsOf = logic => JSON.parse(run('JSON.stringify(validateRuleLogic(' + JSON.stringify(logic) + '))'));
+  // Elke regel in de catalogus heeft een beschrijving die klopt.
+  const logics = JSON.parse(run('JSON.stringify(RULES.map(r => ({ id: r.id, logic: r.logic || null })))'));
+  for (const r of logics){
+    if (!r.logic){ fail(r.id + ' heeft geen logic'); continue; }
+    const e = errorsOf(r.logic);
+    if (e.length) fail(r.id + ': ' + e.join('; '));
+  }
+
+  // 1. Beslissen en gelijkspel: op duizenden willekeurige tafels doet de beschrijving precies wat de functie doet.
+  const mismatch = run(`(() => {
+    const rnd = mulberry32(12345);
+    const pick = n => Math.floor(rnd() * n);
+    const orders = [undefined, ['♣', '♦', '♥', '♠'], ['♥', '♠', '♣', '♦'], ['♣'], 'x'];
+    const compiled = {};
+    for (const r of RULES) compiled[r.id] = compileRuleLogic(r.logic);
+    for (let t = 0; t < 6000; t++){
+      const deck = shuffle(buildDeck(), rnd);
+      const n = 2 + pick(7);
+      // Weinig verschillende waarden geeft veel paren; soms een kaart zonder symbool (zoals in de voorbeelden van het regelboek).
+      const few = pick(3) === 0 ? null : 2 + pick(4);
+      const inPlay = [];
+      for (let i = 0; i < n; i++){
+        const c = Object.assign({}, deck[i]);
+        if (few){ const v = 2 + pick(few) + (pick(4) === 0 ? 8 : 0); c.value = Math.min(14, v); c.rank = RANKS[c.value - 2]; }
+        if (pick(25) === 0) c.suit = null;
+        inPlay.push({ id: i, faceCard: c });
+      }
+      const rules = { suitOrder: orders[pick(orders.length)] };
+      const ids = list => list ? list.map(p => p.id).join(',') : 'null';
+      for (const r of RULES){
+        if (typeof r.decide === 'function'){
+          const a = ids(r.decide(inPlay)), b = ids(compiled[r.id].decide(inPlay, rules));
+          if (a !== b) return r.id + ' decide op ' + inPlay.map(p => p.faceCard.rank + (p.faceCard.suit || '')).join(' ') + ': functie ' + a + ', beschrijving ' + b;
+        }
+        if (typeof r.breakTie === 'function'){
+          const a = ids(r.breakTie(inPlay, rules)), b = ids(compiled[r.id].breakTie(inPlay, rules));
+          if (a !== b) return r.id + ' breakTie op ' + inPlay.map(p => p.faceCard.rank + (p.faceCard.suit || '')).join(' ') + ' met ' + JSON.stringify(rules.suitOrder) + ': functie ' + a + ', beschrijving ' + b;
+        }
+      }
+    }
+    return '';
+  })()`);
+  if (mismatch) fail('wijkt af van de functie: ' + mismatch);
+
+  // 2. Hele spellen: met de beschrijvingen in plaats van de functies verloopt elk spel precies hetzelfde (alle regelcombinaties).
+  run(`globalThis.__swapLogic = on => { for (const r of RULES){
+    if (on){ r.__orig = { decide: r.decide, breakTie: r.breakTie, onAward: r.onAward, onRoundEnd: r.onRoundEnd };
+      const c = compileRuleLogic(r.logic);
+      for (const k of Object.keys(r.__orig)) if (r.__orig[k]) { if (!c[k]) throw new Error(r.id + ': de beschrijving levert geen ' + k); r[k] = c[k]; }
+    } else if (r.__orig){ for (const k of Object.keys(r.__orig)) if (r.__orig[k]) r[k] = r.__orig[k]; delete r.__orig; } } };
+  globalThis.__playSig = (n, seed, rules) => { const g = dealGame(Array.from({ length: n }, (_, i) => 'S' + i), rules, seed);
+    const t = simulateFullTrace(g.players, 400, g.rules);
+    return t.outcome + '|' + t.rounds + '|' + stateSignature(t.finalPlayers, t.finalDiscard) + '|' + t.trace.length + '|' + JSON.stringify(t.finalMoved); };`);
+  let compared = 0;
+  for (const setName of Object.keys(RULE_SETS)) for (const n of [3, 4, 8]) for (const seed of ['L1', 'L2', 'L3']){
+    const rules = Object.assign({}, RULE_SETS[setName], { suitOrder: seed === 'L2' ? ['♦', '♣', '♥', '♠'] : undefined });
+    const args = n + ', ' + JSON.stringify(seed) + ', ' + JSON.stringify(rules);
+    const a = run('__playSig(' + args + ')');
+    const b = run('(() => { __swapLogic(true); try { return __playSig(' + args + '); } finally { __swapLogic(false); } })()');
+    compared++;
+    if (a !== b){ fail('spel ' + n + '|' + seed + '|' + setName + ' verloopt anders met de beschrijvingen'); break; }
+  }
+  if (compared < 150) fail('te weinig spellen vergeleken (' + compared + ')');
+  run('delete globalThis.__swapLogic; delete globalThis.__playSig;');
+
+  // 3. De controle weigert wat niet klopt, met een melding; compileRuleLogic weigert het dan ook.
+  const bad = [
+    ['geen object', 'x'],
+    ['onbekend moment', { moment: 'later', then: { win: { all: true } } }],
+    ['then ontbreekt', { moment: 'decide' }],
+    ['onbekend onderdeel', { moment: 'decide', then: { win: { all: true } }, code: 'alert(1)' }],
+    ['onbekende waarde', { moment: 'decide', then: { win: { rank: '1' } } }],
+    ['onbekend symbool', { moment: 'decide', then: { win: { suit: 'x' } } }],
+    ['twee keuzes tegelijk', { moment: 'decide', then: { win: { rank: 'K', suit: '♥' } } }],
+    ['groep te klein', { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 1, pick: 'highest' } } } }],
+    ['onbekende relatie', { moment: 'decide', then: { win: { group: { relation: 'friends', min: 2, pick: 'highest' } } } }],
+    ['award-gevolg bij decide', { moment: 'decide', then: { discardPot: true } }],
+    ['win bij award', { moment: 'award', then: { win: { all: true } } }],
+    ['battle-voorwaarde bij decide', { moment: 'decide', if: { battle: true }, then: { win: { all: true } } }],
+    ['exists bij award', { moment: 'award', if: { exists: { rank: 'K' } }, then: { discardPot: true } }],
+    ['winner bij roundEnd', { moment: 'roundEnd', then: { forEach: 'winner', discardTop: 1 } }],
+    ['neighbor buiten from', { moment: 'roundEnd', then: { forEach: { neighbor: 'left' }, discardTop: 1 } }],
+    ['count zonder grens', { moment: 'decide', if: { count: { all: true } }, then: { win: { all: true } } }],
+    ['transfer zonder aantal', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' } } } }],
+    ['lege lijst', { moment: 'decide', then: { win: { and: [] } } }],
+    ['te diep', { moment: 'decide', then: { win: { not: { not: { not: { not: { not: { not: { not: { not: { not: { all: true } } } } } } } } } } } }]
+  ];
+  for (const [name, logic] of bad){
+    if (errorsOf(logic).length === 0) fail('de controle laat door: ' + name);
+    const threw = run('(() => { try { compileRuleLogic(' + JSON.stringify(logic) + '); return false; } catch (e){ return true; } })()');
+    if (!threw) fail('compileRuleLogic maakt toch een regel van: ' + name);
+  }
+
+  // 4. De bouwstenen die nog geen regel gebruikt: relaties tussen kaarten, laagste, tellen.
+  const win = (cards, logic, rules) => JSON.parse(run(`(() => { const c = compileRuleLogic(${JSON.stringify(logic)});
+    const inPlay = ${JSON.stringify(cards)}.map((t, i) => ({ id: i, faceCard: parseExampleCard(t) }));
+    const out = (c.decide || c.breakTie)(inPlay, ${JSON.stringify(rules || {})}); return JSON.stringify(out ? out.map(p => p.id) : null); })()`));
+  const same = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) fail(name + ': verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+  const grp = (relation, min) => ({ moment: 'decide', then: { win: { group: { relation, min, pick: 'highest' } } } });
+  same('opeenvolgend 7-8-9 wint van een A', win(['7♠', 'A♥', '8♦', '9♣'], grp('consecutive', 3)), [0, 2, 3]);
+  same('opeenvolgend: te korte reeks', win(['7♠', 'A♥', '8♦', '3♣'], grp('consecutive', 3)), null);
+  same('opeenvolgend: de hoogste reeks', win(['2♠', '3♥', 'Q♦', 'K♣', '7♠'], grp('consecutive', 2)), [2, 3]);
+  same('zelfde symbool', win(['7♠', 'A♥', '8♠', '9♣'], grp('sameSuit', 2)), [0, 2]);
+  same('zelfde symbool: hoogste kaart beslist tussen groepen', win(['7♠', 'A♥', '8♠', '3♥'], grp('sameSuit', 2)), [1, 3]);
+  same('zelfde symbool: gelijke stand, de grootste groep', win(['K♠', 'K♥', '8♠', '3♥', '2♠'], grp('sameSuit', 2)), [0, 2, 4]);
+  same('zelfde symbool: nog gelijk, dan samen', win(['K♠', 'K♥', '8♠', '3♥'], grp('sameSuit', 2)), [0, 1, 2, 3]);
+  same('zelfde kleur', win(['7♠', 'A♥', '8♣', '9♦', '2♥'], grp('sameColor', 3)), [1, 3, 4]);
+  same('kaart zonder symbool hoort bij geen kleurgroep', win(['7', 'A', '8♣', '9♣'], grp('sameColor', 2)), [2, 3]);
+  same('laagste wint', win(['7♠', 'A♥', '3♣'], { moment: 'decide', then: { win: { lowest: 'value' } } }), [2]);
+  same('hoogste rode kaart', win(['K♠', '9♥', '3♦', 'A♣'], { moment: 'decide', then: { win: { highest: 'value', of: { color: 'red' } } } }), [1]);
+  same('alleen bij precies twee Azen', win(['A♠', 'A♥', 'K♦'], { moment: 'decide', if: { count: { rank: 'A' }, min: 2, max: 2 }, then: { win: { rank: 'K' } } }), [2]);
+  same('niet bij drie Azen', win(['A♠', 'A♥', 'A♦', 'K♣'], { moment: 'decide', if: { count: { rank: 'A' }, min: 2, max: 2 }, then: { win: { rank: 'K' } } }), null);
+  same('en / niet', win(['K♠', 'K♥', 'Q♥'], { moment: 'decide', then: { win: { and: [{ suit: '♥' }, { not: { rank: 'K' } }] } } }), [2]);
+  same('gelijkspel: laagste symbool met eigen volgorde', win(['K♠', 'K♥'], { moment: 'tiebreak', then: { win: { lowest: 'suitOrder' } } }, { suitOrder: ['♥', '♠', '♦', '♣'] }), [0]);
+  // Afleggen aan het einde van de ronde (nog door geen regel gebruikt).
+  const dis = JSON.parse(run(`(() => { const c = compileRuleLogic({ moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { opened: { rank: 'A' } }, discardTop: 2 } });
+    const st = __state([['A♠', '4♠', '5♠', '6♠'], ['K♥', '7♥', '8♥']]); engineStartRound(st); c.onRoundEnd({ state: st });
+    return JSON.stringify({ decks: st.players.map(p => p.deck.length), discard: st.discard.length }); })()`));
+  same('discardTop', dis, { decks: [1, 2], discard: 2 });
+}
+
 // ---- testgevallen ----
 const cases = [];
 for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rules of Object.keys(RULE_SETS)) cases.push({ n, seed, rules });
