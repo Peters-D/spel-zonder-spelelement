@@ -19,13 +19,15 @@ function renderGrid(faceDown, warFlags){
     pname.textContent = p.name;
     const cardEl = document.createElement('div');
     const isSidelined = inBattle && !p.out && !game.contenders.includes(p.id);
+    // Na een battle: de kaart van wie niet meedeed ligt in de pot en blijft dicht tot de tafel is opgeruimd.
+    const inPotOnly = !inBattle && !p.out && typeof roundSidelined !== 'undefined' && roundSidelined.includes(p.id);
     if (p.out){
       cardEl.className = 'card back';
       cardEl.style.opacity = '0.4';
     } else if (isSidelined){
       cardEl.className = 'card back';
       cardEl.style.opacity = '0.35';
-    } else if (faceDown || !p.faceCard){
+    } else if (faceDown || !p.faceCard || inPotOnly){
       cardEl.className = 'card back';
     } else {
       cardEl.className = 'card flip' + (isRed(p.faceCard) ? ' red-suit' : '');

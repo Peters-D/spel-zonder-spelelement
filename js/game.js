@@ -24,26 +24,32 @@ function updateButtonLabel(){
   if (typeof updateUndoButton === 'function') updateUndoButton();
 }
 
-// Wie de kaarten van de vorige ronde kreeg (speler-id), voor de animatie bij het opruimen van de tafel. null als niemand
-// ze kreeg (alles afgelegd, geen winnaar) of als de pot is verdeeld over meer spelers.
-let lastPotWinner = null;
+// Alleen voor de weergave van de lopende ronde (de spelkern weet hier niets van):
+//   roundPot       alle kaarten die deze ronde in de pot kwamen, in volgorde van leggen. Bij het opruimen schuiven ze zichtbaar
+//                  naar waar ze terechtkwamen (animate.js), ook de kaarten die bij een battle al in de pot lagen.
+//   roundSidelined ids van spelers die bij een battle niet meededen: hun kaart ligt in de pot en blijft tot het einde van de
+//                  ronde dicht (zie renderGrid).
+let roundPot = [];
+let roundSidelined = [];
 
 function clearBoard(){
-  const flying = typeof animCapture === 'function' && lastPotWinner !== null ? animCapture() : [];
-  const flyTo = lastPotWinner;
-  lastPotWinner = null;
+  const plan = typeof animPlanClear === 'function' ? animPlanClear(roundPot) : [];
+  roundPot = [];
+  roundSidelined = [];
   game.pot = [];
   displayPot = 0;
   game.players.forEach(p => { p.faceCard = null; });
   renderGrid(true);
   setDispatch('Tafel opgeruimd. Klaar voor de volgende ronde.');
   setPhase('cleared');
-  if (flying.length) animFlyToPlayer(flying, flyTo); // de open kaarten schuiven naar de winnaar
+  if (typeof animRunClear === 'function') animRunClear(plan); // de kaarten van de pot schuiven naar wie ze kreeg, of naar de aflegstapel
 }
 
 function startRound(){
   if (typeof undoPush === 'function') undoPush(); // de stand aan het begin van de ronde, voor "stap terug"
   engineStartRound(game);
+  roundPot = game.pot.slice();
+  roundSidelined = [];
   displayPot = game.pot.length;
   renderGrid(false);
   setDispatch('Bekijk de kaarten en bepaal de winnaar.');
@@ -53,6 +59,11 @@ function startRound(){
 function layBattleCards(){
   // De kaarten waarmee de spelers in de battle gelijk eindigden, schuiven naar de pot; daarna liggen hun nieuwe kaarten er.
   const toPot = typeof animCapture === 'function' ? animCapture(p => game.contenders.includes(p.id)) : [];
+  // De kaarten die nu gelegd worden komen ook in de pot (ook als de spelkern de pot in dezelfde stap al toekent).
+  for (const id of game.contenders){
+    const p = enginePlayerById(game, id);
+    if (p.deck.length) roundPot.push(p.deck[0]);
+  }
   const ev = engineLayBattleCards(game);
   if (ev.type === 'battle-revealed'){
     renderGrid(false);
@@ -78,7 +89,8 @@ function compareAndResolve(){
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
     // Wie niet meedoet aan de battle: die kaart ligt vanaf nu in de pot.
-    const toPot = typeof animCapture === 'function' ? animCapture(p => !ev.contenders.includes(p)) : [];
+    const toPot = typeof animCapture === 'function' ? animCapture(p => !ev.contenders.includes(p) && !roundSidelined.includes(p.id)) : [];
+    for (const p of game.players) if (!p.out && p.faceCard && !ev.contenders.includes(p) && !roundSidelined.includes(p.id)) roundSidelined.push(p.id);
     setPhase('battle-pending');
     renderGrid(false);
     if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
@@ -107,13 +119,12 @@ function revivedNote(list){
 
 function showRoundResult(ev){
   displayPot = ev.potSize;
-  const potShared = ev.shared && ev.shared.length > 0;
-  lastPotWinner = ev.type === 'win' && ev.toWinner > 0 && !potShared ? ev.winner.id : null;
   if (ev.type !== 'win'){
     const text = [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(ev)].filter(Boolean).join(' ');
     if (text) setDispatch(text);
     finalizeRoundOver();
     renderGrid(false);
+    if (typeof animFlyTransfers === 'function') animFlyTransfers(roundEndTransfers);
     return;
   }
   const w = ev.winner;
@@ -143,10 +154,15 @@ function showRoundResult(ev){
   const winnerIds = sharedWinners ? sharedWinners.map(x => x.player.id) : [w.id];
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(winnerIds.length > 1 ? winnerIds : w.id); // STATS HOOK
   renderGrid(false, game.players.map(p => winnerIds.includes(p.id)));
+  if (typeof animFlyTransfers === 'function') animFlyTransfers(roundEndTransfers);
 }
+
+// Overdrachten van de haken aan het einde van de ronde (bijv. Revival), om na het tekenen te laten zien.
+let roundEndTransfers = [];
 
 function finalizeRoundOver(){
   const end = engineEndRound(game);
+  roundEndTransfers = end.transfers || [];
   // Berichten over wat regels aan het einde van de ronde deden (zonder zulke regels verandert er niets).
   const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(end)].filter(Boolean);
   if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
