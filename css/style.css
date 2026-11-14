@@ -94,7 +94,6 @@ h1{
   color: var(--paper-dim);
   margin-bottom:4px;
 }
-.integrity-line.seed-line{ margin-bottom:14px; }
 .integrity-line #integrityStatus{
   color: var(--brass);
   font-weight:700;
@@ -108,6 +107,7 @@ h1{
   border:1px solid var(--line);
   border-radius:16px;
   padding:18px 14px;
+  margin-top:10px; /* ruimte onder de regels met seed en regelinstellingen */
   margin-bottom:18px;
   position:relative;
   overflow:hidden;

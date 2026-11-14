@@ -1067,6 +1067,22 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   if (JSON.stringify(btn) !== JSON.stringify({ a: { phase: 'game-over', play: true, ff: true }, b: { phase: 'idle', play: false, ff: false, label: 'Speel ronde' } })) failures.push('setPhase: knoppen volgen de fase niet: ' + JSON.stringify(btn));
 }
 
+// ---- wat regels over het spel melden (stateNote) ----
+{
+  const notes = rules => JSON.parse(run('JSON.stringify(ruleStateNotes(' + JSON.stringify(rules) + '))'));
+  const same = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) failures.push('stateNote "' + name + '": verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+  same('regel uit', notes({ suitBreak: false, suitOrder: ['♣', '♦', '♥', '♠'] }), []);
+  same('standaardvolgorde', notes({ suitBreak: true }), ['Symbolen van hoog naar laag: ♠ ♥ ♦ ♣.']);
+  same('eigen volgorde', notes({ suitBreak: true, suitOrder: ['♣', '♦', '♥', '♠'] }), ['Symbolen van hoog naar laag: ♣ ♦ ♥ ♠.']);
+  same('ongeldige volgorde', notes({ suitBreak: true, suitOrder: ['♣'] }), ['Symbolen van hoog naar laag: ♠ ♥ ♦ ♣.']);
+  same('andere regels melden niets', notes({ twoBeatsAce: true, battleFirst: true, battleDiscard: true, secondChance: true, royalFamily: true }), []);
+  // Het regelboek toont de melding alleen bij een regel die aan staat.
+  const withNote = textOf(run('buildRulebook(RULES, BASE_RULES, { suitBreak: true, suitOrder: ["♦", "♣", "♥", "♠"] })'));
+  const without = textOf(run('buildRulebook(RULES, BASE_RULES, { suitBreak: false, suitOrder: ["♦", "♣", "♥", "♠"] })'));
+  if (!withNote.includes('Symbolen van hoog naar laag: ♦ ♣ ♥ ♠. De voorbeelden gebruiken de standaardvolgorde ♠ ♥ ♦ ♣.')) failures.push('regelboek: de gekozen symboolvolgorde ontbreekt bij de regel');
+  if (without.includes('Symbolen van hoog naar laag')) failures.push('regelboek: de symboolvolgorde staat er terwijl de regel uit staat');
+}
+
 // ---- testgevallen ----
 const cases = [];
 for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rules of Object.keys(RULE_SETS)) cases.push({ n, seed, rules });
