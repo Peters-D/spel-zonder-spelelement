@@ -24,13 +24,21 @@ function updateButtonLabel(){
   if (typeof updateUndoButton === 'function') updateUndoButton();
 }
 
+// Wie de kaarten van de vorige ronde kreeg (speler-id), voor de animatie bij het opruimen van de tafel. null als niemand
+// ze kreeg (alles afgelegd, geen winnaar) of als de pot is verdeeld over meer spelers.
+let lastPotWinner = null;
+
 function clearBoard(){
+  const flying = typeof animCapture === 'function' && lastPotWinner !== null ? animCapture() : [];
+  const flyTo = lastPotWinner;
+  lastPotWinner = null;
   game.pot = [];
   displayPot = 0;
   game.players.forEach(p => { p.faceCard = null; });
   renderGrid(true);
   setDispatch('Tafel opgeruimd. Klaar voor de volgende ronde.');
   setPhase('cleared');
+  if (flying.length) animFlyToPlayer(flying, flyTo); // de open kaarten schuiven naar de winnaar
 }
 
 function startRound(){
@@ -43,14 +51,18 @@ function startRound(){
 }
 
 function layBattleCards(){
+  // De kaarten waarmee de spelers in de battle gelijk eindigden, schuiven naar de pot; daarna liggen hun nieuwe kaarten er.
+  const toPot = typeof animCapture === 'function' ? animCapture(p => game.contenders.includes(p.id)) : [];
   const ev = engineLayBattleCards(game);
   if (ev.type === 'battle-revealed'){
     renderGrid(false);
     setDispatch('Bekijk de battle-kaarten en bepaal de winnaar.', true);
     setPhase('battle-revealed');
+    if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
     return;
   }
   showRoundResult(ev);
+  if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
 }
 
 function compareAndResolve(){
@@ -65,8 +77,11 @@ function compareAndResolve(){
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
+    // Wie niet meedoet aan de battle: die kaart ligt vanaf nu in de pot.
+    const toPot = typeof animCapture === 'function' ? animCapture(p => !ev.contenders.includes(p)) : [];
     setPhase('battle-pending');
     renderGrid(false);
+    if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
     return;
   }
   showRoundResult(ev);
@@ -92,6 +107,8 @@ function revivedNote(list){
 
 function showRoundResult(ev){
   displayPot = ev.potSize;
+  const potShared = ev.shared && ev.shared.length > 0;
+  lastPotWinner = ev.type === 'win' && ev.toWinner > 0 && !potShared ? ev.winner.id : null;
   if (ev.type !== 'win'){
     const text = [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(ev)].filter(Boolean).join(' ');
     if (text) setDispatch(text);

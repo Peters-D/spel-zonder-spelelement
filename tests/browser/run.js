@@ -15,8 +15,8 @@ const only = process.argv[2] || null; // optioneel: alleen tests waarvan de naam
 let browser;
 
 // Opent een schone pagina. Fouten in de pagina (uitzonderingen) worden verzameld en laten de test falen.
-async function open(viewport = { width: 420, height: 900 }){
-  const context = await browser.newContext({ viewport });
+async function open(viewport = { width: 420, height: 900 }, extra = {}){
+  const context = await browser.newContext(Object.assign({ viewport }, extra));
   await context.route(/fonts\.(googleapis|gstatic)\.com/, route => route.abort());
   const page = await context.newPage();
   page.errors = [];
@@ -334,6 +334,113 @@ test('spelersnamen worden niet afgesneden (ook niet met accenten) en lange namen
     eq(x.overflow, 'ellipsis', 'afkappen van lange namen');
   }
   eq(await hScroll(page), 0, 'horizontaal scrollen met een lange naam');
+  noErrors(page);
+});
+
+// ---- Animaties ----
+const ghosts = page => page.locator('#animLayer .anim-ghost').count();
+// Speelt door tot de gevraagde fase (met de knop "Speel ronde"); geeft false als dat niet lukt binnen max klikken.
+async function playUntil(page, wanted, max = 400){
+  for (let i = 0; i < max; i++){
+    if (await page.evaluate(() => phase) === wanted) return true;
+    await page.click('#playBtn');
+  }
+  return await page.evaluate(() => phase) === wanted;
+}
+
+test('animaties: bij het opruimen schuiven de open kaarten naar de winnaar en verdwijnen daarna', async page => {
+  await startGame(page);
+  ok(await page.isChecked('#animToggle'), 'animaties horen standaard aan te staan');
+  ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
+  const open = await page.locator('#playerGrid .card:not(.back)').count();
+  const winners = await page.evaluate(() => lastPotWinner);
+  await page.click('#playBtn'); // ruim tafel op
+  if (winners !== null){
+    eq(await ghosts(page), open, 'aantal kaarten onderweg naar de winnaar');
+    // De kopieën hebben de maat van een gewone kaart, ook als de kaart nog aan het omdraaien was toen de tafel werd opgeruimd.
+    const sizes = await page.evaluate(() => ({ card: document.querySelector('#playerGrid .card').offsetWidth,
+      ghosts: [...document.querySelectorAll('#animLayer .anim-ghost')].map(g => g.offsetWidth) }));
+    ok(sizes.ghosts.every(w => Math.abs(w - sizes.card) <= 1), 'kaarten onderweg hebben niet de maat van een kaart: ' + JSON.stringify(sizes));
+  }
+  eq(await page.locator('#playerGrid .card:not(.back)').count(), 0, 'de tafel zelf is al opgeruimd');
+  await page.waitForTimeout(700);
+  eq(await ghosts(page), 0, 'kaarten die nog onderweg zijn na afloop van de animatie');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  noErrors(page);
+});
+
+test('animaties: doorklikken wacht niet en laat geen kaarten achter', async page => {
+  await startGame(page);
+  ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
+  await page.click('#playBtn'); // ruim tafel op: kaarten onderweg
+  await page.click('#playBtn'); // meteen de volgende ronde
+  eq(await page.evaluate(() => phase), 'revealed', 'fase na direct doorklikken');
+  eq(await ghosts(page), 0, 'kaarten van de vorige stap die nog onderweg zijn');
+  // Stap terug midden in een animatie.
+  ok(await playUntil(page, 'round-over'), 'geen tweede ronde afgerond');
+  await page.click('#playBtn');
+  await page.click('#undoBtn');
+  eq(await ghosts(page), 0, 'kaarten onderweg na stap terug');
+  // Doorspoelen midden in een animatie.
+  ok(await playUntil(page, 'round-over'), 'geen ronde afgerond na stap terug');
+  await page.click('#playBtn');
+  await page.click('#fastForwardBtn');
+  eq(await ghosts(page), 0, 'kaarten onderweg na doorspoelen');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  noErrors(page);
+});
+
+test('animaties: bij een battle schuiven kaarten naar de pot', async page => {
+  await startGame(page, { players: 4, seed: '3' });
+  ok(await playUntil(page, 'battle-pending'), 'geen battle gevonden met dit seed');
+  // De klik die de battle vaststelde liet de kaarten van wie niet meedoet naar de pot schuiven; die animatie loopt nog of is klaar.
+  const contenders = await page.evaluate(() => game.contenders.length);
+  await page.waitForTimeout(600);
+  eq(await ghosts(page), 0, 'kaarten onderweg vóór het leggen van de battle-kaarten');
+  await page.click('#playBtn'); // leg battle-kaarten
+  eq(await ghosts(page), contenders, 'aantal kaarten dat naar de pot schuift');
+  await page.waitForTimeout(700);
+  eq(await ghosts(page), 0, 'kaarten onderweg na afloop');
+  noErrors(page);
+});
+
+test('animaties: uitzetten werkt direct en blijft bewaard na verversen', async page => {
+  await startGame(page);
+  await page.uncheck('#animToggle');
+  ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
+  await page.click('#playBtn');
+  eq(await ghosts(page), 0, 'kaarten onderweg met animaties uit');
+  await page.reload();
+  ok(!(await page.isChecked('#animToggle')), 'de keuze "uit" is niet bewaard');
+  await startGame(page);
+  await page.check('#animToggle');
+  await page.reload();
+  ok(await page.isChecked('#animToggle'), 'de keuze "aan" is niet bewaard');
+  noErrors(page);
+});
+
+test('animaties: standaard uit als het apparaat om minder beweging vraagt', async () => {
+  const page = await open({ width: 420, height: 900 }, { reducedMotion: 'reduce' });
+  try {
+    await startGame(page);
+    ok(!(await page.isChecked('#animToggle')), 'animaties staan aan ondanks "minder beweging"');
+    ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
+    await page.click('#playBtn');
+    eq(await ghosts(page), 0, 'kaarten onderweg');
+    noErrors(page);
+  } finally { await page.ctx.close(); }
+});
+
+test('animaties: snel auto-play slaat ze over en het spel blijft kloppen', async page => {
+  await startGame(page);
+  await page.fill('#speedSlider', '100');
+  await page.dispatchEvent('#speedSlider', 'input');
+  await page.click('#autoPlayBtn');
+  let seen = 0;
+  for (let i = 0; i < 12; i++){ seen += await ghosts(page); await page.waitForTimeout(60); }
+  await page.click('#autoPlayBtn');
+  eq(seen, 0, 'kaarten onderweg tijdens auto-play op 100 ms');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
   noErrors(page);
 });
 
