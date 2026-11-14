@@ -1206,6 +1206,22 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     const st = __state([['A♠', '4♠', '5♠', '6♠'], ['K♥', '7♥', '8♥']]); engineStartRound(st); c.onRoundEnd({ state: st });
     return JSON.stringify({ decks: st.players.map(p => p.deck.length), discard: st.discard.length }); })()`));
   same('discardTop', dis, { decks: [1, 2], discard: 2 });
+  // De pot verdelen kan alleen met een winnaar, buiten een ronde zonder winnaar ('void') en met een pot die niet leeg is.
+  const share = JSON.parse(run(`(() => { const c = compileRuleLogic({ moment: 'award', then: { sharePot: [{ opened: { rank: 'Q' } }] } });
+    const play = (how, winner, emptyPot) => { const st = __state([['K♠', '4♠'], ['Q♥', '7♥'], ['9♦', '8♦']]); engineStartRound(st);
+      if (emptyPot) st.pot = []; c.onAward({ state: st, winner: winner === null ? null : st.players[winner], how });
+      return { pot: st.pot.length, shared: st.moved.shared.length, q: st.players[1].deck.length }; };
+    return JSON.stringify({ normaal: play('normal', 0, false), void: play('void', 0, false), geenWinnaar: play('normal', null, false), legePot: play('normal', 0, true) }); })()`));
+  same('sharePot met winnaar', share.normaal, { pot: 0, shared: 1, q: 4 });
+  same('sharePot in een ronde zonder winnaar', share.void, { pot: 3, shared: 0, q: 1 });
+  same('sharePot zonder winnaar', share.geenWinnaar, { pot: 3, shared: 0, q: 1 });
+  same('sharePot met lege pot', share.legePot, { pot: 0, shared: 0, q: 1 });
+  // exclude: 'winner' laat de winnaar zelf buiten de keuze: is hij de enige met zo'n kaart, dan is er "geen andere speler".
+  const excl = JSON.parse(run(`(() => { const mk = sel => compileRuleLogic({ moment: 'award', if: { anyPlayer: sel }, then: { discardPot: true } });
+    const play = (c, decks) => { const st = __state(decks); engineStartRound(st); c.onAward({ state: st, winner: st.players[0], how: 'normal' }); return st.discard.length; };
+    const withEx = mk({ opened: { rank: 'K' }, exclude: 'winner' }), without = mk({ opened: { rank: 'K' } });
+    return JSON.stringify({ alleenWinnaar: play(withEx, [['K♠'], ['Q♥'], ['9♦']]), ookAnder: play(withEx, [['K♠'], ['K♥'], ['9♦']]), zonderExclude: play(without, [['K♠'], ['Q♥'], ['9♦']]) }); })()`));
+  same('exclude winner', excl, { alleenWinnaar: 0, ookAnder: 3, zonderExclude: 3 });
 }
 
 // ---- testgevallen ----
