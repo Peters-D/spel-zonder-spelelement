@@ -352,11 +352,11 @@ test('animaties: bij het opruimen schuiven de open kaarten naar de winnaar en ve
   await startGame(page);
   ok(await page.isChecked('#animToggle'), 'animaties horen standaard aan te staan');
   ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
-  const open = await page.locator('#playerGrid .card:not(.back)').count();
-  const winners = await page.evaluate(() => lastPotWinner);
+  const pot = await page.evaluate(() => roundPot.length);
+  ok(pot >= 2, 'de pot van de ronde is niet bijgehouden (' + pot + ')');
   await page.click('#playBtn'); // ruim tafel op
-  if (winners !== null){
-    eq(await ghosts(page), open, 'aantal kaarten onderweg naar de winnaar');
+  eq(await ghosts(page), pot, 'aantal kaarten onderweg (de hele pot)');
+  {
     // De kopieën hebben de maat van een gewone kaart, ook als de kaart nog aan het omdraaien was toen de tafel werd opgeruimd.
     const sizes = await page.evaluate(() => ({ card: document.querySelector('#playerGrid .card').offsetWidth,
       ghosts: [...document.querySelectorAll('#animLayer .anim-ghost')].map(g => g.offsetWidth) }));
@@ -441,6 +441,88 @@ test('animaties: snel auto-play slaat ze over en het spel blijft kloppen', async
   await page.click('#autoPlayBtn');
   eq(seen, 0, 'kaarten onderweg tijdens auto-play op 100 ms');
   ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  noErrors(page);
+});
+
+// Waar de kaarten die onderweg zijn heen gaan: { 'player-0': 3, discard: 2, ... }
+const ghostTargets = page => page.evaluate(() => {
+  const out = {};
+  document.querySelectorAll('#animLayer .anim-ghost').forEach(g => { out[g.dataset.to] = (out[g.dataset.to] || 0) + 1; });
+  return out;
+});
+// Zet regels aan en zoek een seed waarbij het spel start (met of zonder cyclusmelding).
+async function startWith(page, rules, opts){
+  for (const id of rules) await page.check('#' + id + 'Input');
+  await startGame(page, opts);
+}
+// Speelt rondes tot een ronde eindigt waarvoor test(…) waar is (gekeken op het moment 'round-over'); ruimt tussendoor op.
+async function playUntilRound(page, test, maxRounds = 150){
+  for (let r = 0; r < maxRounds; r++){
+    if (!(await playUntil(page, 'round-over', 30))) return false;
+    if (await page.evaluate(test)) return true;
+    await page.click('#playBtn'); // ruim tafel op
+    if (['game-over', 'cycle-over'].includes(await page.evaluate(() => phase))) return false;
+  }
+  return false;
+}
+
+test('animaties: na een battle schuift de hele pot mee, ook de kaarten van de battle zelf', async page => {
+  await startGame(page, { players: 4, seed: '3' });
+  ok(await playUntilRound(page, () => game.battleLevel > 0 && roundPot.length > 0), 'geen ronde met een battle gevonden');
+  const info = await page.evaluate(() => ({ pot: roundPot.length, open: document.querySelectorAll('#playerGrid .card:not(.back)').length,
+    sidelined: roundSidelined.length, potText: document.getElementById('potCount').textContent }));
+  ok(info.pot > info.open, 'na een battle horen er meer kaarten in de pot te zitten dan er open liggen: ' + JSON.stringify(info));
+  eq(String(info.pot), info.potText, 'de bijgehouden pot is even groot als "Pot: N kaarten"');
+  // Wie niet meedeed aan de battle heeft tot het opruimen een dichte kaart.
+  eq(await page.evaluate(() => roundSidelined.every(id => document.querySelectorAll('#playerGrid .pslot')[game.players.findIndex(p => p.id === id)].querySelector('.card').classList.contains('back'))), true, 'kaart van wie niet meedeed is dicht');
+  const winner = await page.evaluate(() => game.players.findIndex(p => p.deck.some(c => c === roundPot[0] || (c.rank === roundPot[0].rank && c.suit === roundPot[0].suit))));
+  await page.click('#playBtn'); // ruim tafel op
+  eq(await ghosts(page), info.pot, 'aantal kaarten onderweg na een battle');
+  eq(await ghostTargets(page), { ['player-' + winner]: info.pot }, 'bestemming van de kaarten');
+  await page.waitForTimeout(900);
+  eq(await ghosts(page), 0, 'kaarten onderweg na afloop');
+  noErrors(page);
+});
+
+test('animaties: met "Battle ruimt de pot op" schuift de hele pot naar de aflegstapel', async page => {
+  await startWith(page, ['battleDiscard'], { players: 4, seed: '3' });
+  ok(await playUntilRound(page, () => game.battleLevel > 0 && roundPot.length > 0), 'geen ronde met een battle gevonden');
+  const pot = await page.evaluate(() => roundPot.length);
+  await page.click('#playBtn');
+  eq(await ghostTargets(page), { discard: pot }, 'bestemming van de kaarten');
+  await page.waitForTimeout(900);
+  eq(await ghosts(page), 0, 'kaarten onderweg na afloop');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  noErrors(page);
+});
+
+test('animaties: bij Koninklijk paar schuift elke kaart naar wie hem krijgt', async page => {
+  await startWith(page, ['royalFamily'], { players: 6, seed: '2' });
+  ok(await playUntilRound(page, () => /winnen samen/.test(document.getElementById('dispatch').textContent)), 'geen ronde gevonden waarin Heer en Vrouw samen winnen');
+  const expected = await page.evaluate(() => {
+    const out = {};
+    for (const card of roundPot){
+      const i = game.players.findIndex(p => p.deck.some(c => c.rank === card.rank && c.suit === card.suit));
+      out['player-' + i] = (out['player-' + i] || 0) + 1;
+    }
+    return out;
+  });
+  ok(Object.keys(expected).length >= 2, 'de pot is niet verdeeld: ' + JSON.stringify(expected));
+  await page.click('#playBtn');
+  eq(await ghostTargets(page), expected, 'bestemming van de kaarten');
+  noErrors(page);
+});
+
+test('animaties: bij Revival schuift een kaart van de linkerbuur naar de speler die terugkomt', async page => {
+  await startWith(page, ['secondChance'], { players: 4, seed: '5' });
+  let seen = null;
+  for (let i = 0; i < 2500 && !seen; i++){
+    await page.click('#playBtn');
+    if (/weer mee/.test(await page.textContent('#dispatch'))) seen = await ghostTargets(page);
+    if (['game-over', 'cycle-over'].includes(await page.evaluate(() => phase))) break;
+  }
+  ok(seen, 'geen ronde gevonden waarin een speler terugkomt');
+  ok(Object.keys(seen).some(k => k.startsWith('player-')), 'er schuift geen kaart naar de speler die terugkomt: ' + JSON.stringify(seen));
   noErrors(page);
 });
 
