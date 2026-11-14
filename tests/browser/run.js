@@ -210,6 +210,13 @@ test('symboolvolgorde: alleen zichtbaar bij de regel, wisselt en geldt in het sp
   ok(await page.isVisible('.suit-hint'), 'waarschuwing verschijnt niet met "Battle ruimt de pot op"');
   await page.selectOption('.suit-picker select >> nth=0', '♣');
   eq(await page.$$eval('.suit-picker select', s => s.map(x => x.value).join('')), '♣♥♦♠', 'volgorde na wisselen');
+  // ♥ en ♦ staan rood in hun vakje, ♠ en ♣ niet; de kleur volgt het symbool, ook in het vakje dat meewisselde.
+  const colors = await page.$$eval('.suit-picker select', s => s.map(x => [x.value, x.classList.contains('red-suit'), getComputedStyle(x).color]));
+  eq(colors.map(c => c[1]), [false, true, true, false], 'welke vakjes rood zijn (♣ ♥ ♦ ♠)');
+  ok(colors[1][2] === colors[2][2] && colors[0][2] === colors[3][2] && colors[0][2] !== colors[1][2], 'rood en zwart zijn niet te onderscheiden: ' + JSON.stringify(colors));
+  await page.selectOption('.suit-picker select >> nth=0', '♥');
+  eq(await page.$$eval('.suit-picker select', s => s.map(x => x.value + (x.classList.contains('red-suit') ? 'r' : 'z')).join(' ')), '♥r ♣z ♦r ♠z', 'kleuren na nog een wissel');
+  await page.selectOption('.suit-picker select >> nth=0', '♣');
   await page.uncheck('#battleDiscardInput');
   await startGame(page, { players: 4, seed: 'sy1' });
   eq(await page.evaluate(() => game.rules.suitOrder.join('')), '♣♥♦♠', 'volgorde in het spel');
