@@ -285,6 +285,27 @@ test('zonder de symboolregel staat er geen regel over de volgorde', async page =
   noErrors(page);
 });
 
+// ---- Statistieken ----
+test('grafiek wordt niet getekend terwijl het paneel dicht is, en klopt bij het openen', async page => {
+  await startGame(page);
+  await page.evaluate(() => { window.__draws = 0; const orig = renderStatsChart; renderStatsChart = () => { window.__draws++; orig(); }; });
+  for (let i = 0; i < 12; i++) await page.click('#playBtn');
+  eq(await page.evaluate(() => window.__draws), 0, 'aantal keer getekend met het paneel dicht');
+  await page.click('#statsToggleBtn');
+  ok(await page.isVisible('#statsPanel'), 'paneel opent niet');
+  eq(await page.evaluate(() => window.__draws), 1, 'aantal keer getekend bij het openen');
+  const rounds = await page.evaluate(() => statsRoundCount);
+  ok(rounds >= 2, 'er zijn te weinig rondes geteld (' + rounds + ')');
+  ok((await text(page, '#statsSummary')).includes('Rondes gespeeld: ' + rounds), 'de samenvatting loopt achter op het spel');
+  eq(await page.locator('#statsLegend .stats-legend-item').count(), 4, 'aantal spelers in de legenda');
+  // Met het paneel open tekent elke afgeronde ronde opnieuw.
+  const before = await page.evaluate(() => window.__draws);
+  for (let i = 0; i < 6; i++) await page.click('#playBtn');
+  ok(await page.evaluate(() => window.__draws) > before, 'met het paneel open wordt de grafiek niet bijgewerkt');
+  ok((await text(page, '#statsSummary')).includes('Rondes gespeeld: ' + await page.evaluate(() => statsRoundCount)), 'de samenvatting loopt achter met het paneel open');
+  noErrors(page);
+});
+
 // ---- Smalle schermen ----
 for (const width of [320, 360, 420, 768]){
   test('geen horizontaal scrollen bij ' + width + ' px (start en spel met 8 spelers)', async () => {
