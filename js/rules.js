@@ -14,8 +14,9 @@
 //               Een regel zonder decide (alleen haken) laat een scenario zien: { decks: [de stapels vóór de ronde, per speler, bovenste
 //               kaart eerst], after: [de stapels na de ronde], discarded: aantal kaarten op de aflegstapel na de ronde, text,
 //               with }. Het scenario wordt een ronde lang gespeeld door de spelkern (de test controleert het).
-//   logic       de regel als beschrijving (gegevens in plaats van code), zie js/rule-dsl.js. Voorlopig staat hij naast de functies
-//               hieronder; de test controleert dat de beschrijving precies hetzelfde doet. Later vervangt hij de functies.
+//   logic       wat de regel doet, als beschrijving (gegevens in plaats van code). De bouwstenen staan in js/rule-dsl.js; daar
+//               wordt de beschrijving gecontroleerd en omgezet in de functies hieronder (decide, breakTie, onAward of onRoundEnd).
+//               Een regel schrijft die functies dus niet zelf. (Zonder logic mag een regel ze nog wel zelf meegeven.)
 //   decide      (optioneel) decide(inPlay) geeft de winnende spelers terug, of null als de regel niets beslist
 //   overruledMessage (optioneel) tekst voor spelers die zonder deze regel hadden gewonnen
 //   breakTie    (optioneel) breakTie(winners, rules) krijgt de spelers die gelijk eindigden en geeft de ene speler terug die wint
@@ -25,7 +26,7 @@
 //   usesDiscard (optioneel) true als de regel kaarten aflegt of terughaalt: dan staat de aflegstapel op het scherm
 //   onAward(ctx), onRoundEnd(ctx)  (optioneel) haken voor regels die iets doen na de beslissing, bijvoorbeeld kaarten
 //               afleggen. Zie engine.js voor ctx en voor de handelingen voor de aflegstapel.
-// Een regel heeft minstens een decide of een haak nodig.
+// Een regel heeft een logic nodig (of, zonder logic, minstens een decide of een haak).
 //
 // Een nieuwe regel toevoegen = een object toevoegen aan RULES. De volgorde van RULES is de volgorde
 // van de vinkjes op het scherm.
@@ -49,11 +50,6 @@ const RULES = [
         text: 'Het paar gaat voor: de zevens battlen.' }
     ],
     logic: { moment: 'decide', if: { and: [{ exists: { rank: '2' } }, { exists: { rank: 'A' } }] }, then: { win: { rank: '2' } } },
-    decide(inPlay){
-      const twos = inPlay.filter(p => p.faceCard.rank === '2');
-      const aces = inPlay.filter(p => p.faceCard.rank === 'A');
-      return twos.length > 0 && aces.length > 0 ? twos : null;
-    }
   },
   {
     id: 'battleFirst',
@@ -74,18 +70,6 @@ const RULES = [
         text: 'Het paar gaat voor: de Azen battlen, de 2 doet niet mee.' }
     ],
     logic: { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 2, pick: 'highest' } } } },
-    decide(inPlay){
-      const groups = new Map(); // waarde -> spelers met die kaart
-      for (const p of inPlay){
-        if (!groups.has(p.faceCard.value)) groups.set(p.faceCard.value, []);
-        groups.get(p.faceCard.value).push(p);
-      }
-      let best = null;
-      for (const [value, group] of groups){
-        if (group.length >= 2 && (best === null || value > best[0])) best = [value, group];
-      }
-      return best ? best[1] : null;
-    },
     overruledMessage: names => names + ' had de winnende kaart, maar gelijke kaarten gaan voor.'
   },
   {
@@ -108,9 +92,6 @@ const RULES = [
         text: 'Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.' }
     ],
     logic: { moment: 'award', if: { battle: true }, then: { discardPot: true } },
-    onAward(ctx){
-      if (ctx.state.battleLevel > 0) engineDiscardPot(ctx.state);
-    }
   },
   {
     id: 'secondChance',
@@ -135,14 +116,6 @@ const RULES = [
         text: 'Nog maar één speler houdt kaarten over: niemand komt terug en het spel is afgelopen.' }
     ],
     logic: { moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
-    onRoundEnd(ctx){
-      const state = ctx.state;
-      if (state.players.filter(p => p.deck.length > 0).length < 2) return;
-      const dead = state.players.filter(p => p.deck.length === 0);
-      // De gevers worden bepaald vóór er kaarten verschuiven, zodat een speler die net een kaart kreeg niet meteen weer geeft.
-      const givers = dead.map(p => engineNeighbor(state, p.id, 'left'));
-      dead.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, 1); });
-    }
   },
   {
     id: 'royalFamily',
@@ -172,15 +145,6 @@ const RULES = [
     logic: { moment: 'award',
       if: { and: [{ winnerOpened: { rank: 'K' } }, { anyPlayer: { opened: { rank: 'Q' }, exclude: 'winner' } }] },
       then: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } },
-    onAward(ctx){
-      const state = ctx.state;
-      if (ctx.how === 'void' || !ctx.winner || state.pot.length === 0) return;
-      const start = state.opening[ctx.winner.id];
-      if (!start || start.rank !== 'K') return;
-      const women = state.players.filter(p => p.id !== ctx.winner.id && state.opening[p.id] && state.opening[p.id].rank === 'Q');
-      if (women.length === 0) return;
-      engineSharePot(state, [ctx.winner.id].concat(women.map(p => p.id)));
-    }
   },
   {
     id: 'suitBreak',
@@ -205,16 +169,14 @@ const RULES = [
       const isDefault = order.join('') === DEFAULT_SUIT_ORDER.join('');
       return 'Symbolen van hoog naar laag: ' + order.join(' ') + '.' + (isDefault || !detailed ? '' : ' De voorbeelden gebruiken de standaardvolgorde ' + DEFAULT_SUIT_ORDER.join(' ') + '.');
     },
-    breakTie(winners, rules){
-      const order = suitOrderOf(rules);
-      const rank = p => order.indexOf(p.faceCard.suit);
-      if (winners.some(p => rank(p) < 0)) return null;
-      const best = Math.min(...winners.map(rank));
-      const top = winners.filter(p => rank(p) === best);
-      return top.length === 1 ? top : null;
-    }
   }
 ];
+
+// Elke beschrijving (logic) wordt hier omgezet in de functie die de spelkern aanroept. Klopt een beschrijving niet, dan stopt
+// het laden met een melding: een regel die half werkt is erger dan een regel die niet laadt.
+for (const rule of RULES){
+  if (rule.logic) Object.assign(rule, compileRuleLogic(rule.logic));
+}
 
 // Een voorbeeld met stapels (decks) in plaats van open kaarten: zie de uitleg bovenaan.
 function isScenarioExample(ex){
@@ -310,7 +272,7 @@ function decideRound(inPlay, rules){
   let decided = null;
   for (const rule of RULES_BY_PRIORITY){
     if (!rules[rule.id] || typeof rule.decide !== 'function') continue;
-    const winners = rule.decide(inPlay);
+    const winners = rule.decide(inPlay, rules);
     if (winners){ decided = { winners, rule }; break; }
   }
   if (!decided){

@@ -1095,13 +1095,81 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     if (e.length) fail(r.id + ': ' + e.join('; '));
   }
 
+  // De regels zoals ze met de hand geschreven waren voordat ze een beschrijving werden. Ze doen in het spel niet meer mee: ze staan
+  // hier alleen als referentie, zodat de test blijft bewijzen dat de beschrijvingen precies hetzelfde doen.
+  run(`globalThis.__REF = {
+  twoBeatsAce: {
+    decide(inPlay){
+      const twos = inPlay.filter(p => p.faceCard.rank === '2');
+      const aces = inPlay.filter(p => p.faceCard.rank === 'A');
+      return twos.length > 0 && aces.length > 0 ? twos : null;
+    }
+  },
+  battleFirst: {
+    decide(inPlay){
+      const groups = new Map(); // waarde -> spelers met die kaart
+      for (const p of inPlay){
+        if (!groups.has(p.faceCard.value)) groups.set(p.faceCard.value, []);
+        groups.get(p.faceCard.value).push(p);
+      }
+      let best = null;
+      for (const [value, group] of groups){
+        if (group.length >= 2 && (best === null || value > best[0])) best = [value, group];
+      }
+      return best ? best[1] : null;
+    }
+  },
+  battleDiscard: {
+    onAward(ctx){
+      if (ctx.state.battleLevel > 0) engineDiscardPot(ctx.state);
+    }
+  },
+  secondChance: {
+    onRoundEnd(ctx){
+      const state = ctx.state;
+      if (state.players.filter(p => p.deck.length > 0).length < 2) return;
+      const dead = state.players.filter(p => p.deck.length === 0);
+      // De gevers worden bepaald vóór er kaarten verschuiven, zodat een speler die net een kaart kreeg niet meteen weer geeft.
+      const givers = dead.map(p => engineNeighbor(state, p.id, 'left'));
+      dead.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, 1); });
+    }
+  },
+  royalFamily: {
+    onAward(ctx){
+      const state = ctx.state;
+      if (ctx.how === 'void' || !ctx.winner || state.pot.length === 0) return;
+      const start = state.opening[ctx.winner.id];
+      if (!start || start.rank !== 'K') return;
+      const women = state.players.filter(p => p.id !== ctx.winner.id && state.opening[p.id] && state.opening[p.id].rank === 'Q');
+      if (women.length === 0) return;
+      engineSharePot(state, [ctx.winner.id].concat(women.map(p => p.id)));
+    }
+  },
+  suitBreak: {
+    breakTie(winners, rules){
+      const order = suitOrderOf(rules);
+      const rank = p => order.indexOf(p.faceCard.suit);
+      if (winners.some(p => rank(p) < 0)) return null;
+      const best = Math.min(...winners.map(rank));
+      const top = winners.filter(p => rank(p) === best);
+      return top.length === 1 ? top : null;
+    }
+  }
+};`);
+  {
+    const refIds = JSON.parse(run('JSON.stringify(Object.keys(__REF))'));
+    if (JSON.stringify(refIds.slice().sort()) !== JSON.stringify(RULE_IDS.slice().sort())) fail('de referentie dekt niet precies de regels van de catalogus: ' + JSON.stringify(refIds));
+    // Geen enkele regel in de catalogus schrijft zijn functies nog zelf: ze komen uit de beschrijving.
+    const src = fs.readFileSync(path.join(root, 'js', 'rules.js'), 'utf8');
+    const own = src.split('\n').filter(l => /^\s+(decide|breakTie|onAward|onRoundEnd)\s*\(/.test(l));
+    if (own.length) fail('js/rules.js bevat nog met de hand geschreven regelfuncties: ' + JSON.stringify(own.map(l => l.trim())));
+  }
+
   // 1. Beslissen en gelijkspel: op duizenden willekeurige tafels doet de beschrijving precies wat de functie doet.
   const mismatch = run(`(() => {
     const rnd = mulberry32(12345);
     const pick = n => Math.floor(rnd() * n);
     const orders = [undefined, ['♣', '♦', '♥', '♠'], ['♥', '♠', '♣', '♦'], ['♣'], 'x'];
-    const compiled = {};
-    for (const r of RULES) compiled[r.id] = compileRuleLogic(r.logic);
     for (let t = 0; t < 6000; t++){
       const deck = shuffle(buildDeck(), rnd);
       const n = 2 + pick(7);
@@ -1117,12 +1185,13 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
       const rules = { suitOrder: orders[pick(orders.length)] };
       const ids = list => list ? list.map(p => p.id).join(',') : 'null';
       for (const r of RULES){
-        if (typeof r.decide === 'function'){
-          const a = ids(r.decide(inPlay)), b = ids(compiled[r.id].decide(inPlay, rules));
+        const ref = __REF[r.id];
+        if (typeof ref.decide === 'function'){
+          const a = ids(ref.decide(inPlay)), b = ids(r.decide(inPlay, rules));
           if (a !== b) return r.id + ' decide op ' + inPlay.map(p => p.faceCard.rank + (p.faceCard.suit || '')).join(' ') + ': functie ' + a + ', beschrijving ' + b;
         }
-        if (typeof r.breakTie === 'function'){
-          const a = ids(r.breakTie(inPlay, rules)), b = ids(compiled[r.id].breakTie(inPlay, rules));
+        if (typeof ref.breakTie === 'function'){
+          const a = ids(ref.breakTie(inPlay, rules)), b = ids(r.breakTie(inPlay, rules));
           if (a !== b) return r.id + ' breakTie op ' + inPlay.map(p => p.faceCard.rank + (p.faceCard.suit || '')).join(' ') + ' met ' + JSON.stringify(rules.suitOrder) + ': functie ' + a + ', beschrijving ' + b;
         }
       }
@@ -1131,11 +1200,11 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   })()`);
   if (mismatch) fail('wijkt af van de functie: ' + mismatch);
 
-  // 2. Hele spellen: met de beschrijvingen in plaats van de functies verloopt elk spel precies hetzelfde (alle regelcombinaties).
+  // 2. Hele spellen: met de referentiefuncties in plaats van de beschrijvingen verloopt elk spel precies hetzelfde (alle regelcombinaties).
   run(`globalThis.__swapLogic = on => { for (const r of RULES){
     if (on){ r.__orig = { decide: r.decide, breakTie: r.breakTie, onAward: r.onAward, onRoundEnd: r.onRoundEnd };
-      const c = compileRuleLogic(r.logic);
-      for (const k of Object.keys(r.__orig)) if (r.__orig[k]) { if (!c[k]) throw new Error(r.id + ': de beschrijving levert geen ' + k); r[k] = c[k]; }
+      const c = __REF[r.id];
+      for (const k of Object.keys(r.__orig)){ if (!!r.__orig[k] !== !!c[k]) throw new Error(r.id + ': beschrijving en referentie hebben niet dezelfde functies (' + k + ')'); if (c[k]) r[k] = c[k]; }
     } else if (r.__orig){ for (const k of Object.keys(r.__orig)) if (r.__orig[k]) r[k] = r.__orig[k]; delete r.__orig; } } };
   globalThis.__playSig = (n, seed, rules) => { const g = dealGame(Array.from({ length: n }, (_, i) => 'S' + i), rules, seed);
     const t = simulateFullTrace(g.players, 400, g.rules);
@@ -1150,7 +1219,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     if (a !== b){ fail('spel ' + n + '|' + seed + '|' + setName + ' verloopt anders met de beschrijvingen'); break; }
   }
   if (compared < 150) fail('te weinig spellen vergeleken (' + compared + ')');
-  run('delete globalThis.__swapLogic; delete globalThis.__playSig;');
+  run('delete globalThis.__swapLogic; delete globalThis.__playSig; delete globalThis.__REF;');
 
   // 3. De controle weigert wat niet klopt, met een melding; compileRuleLogic weigert het dan ook.
   const bad = [
@@ -1222,6 +1291,14 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     const withEx = mk({ opened: { rank: 'K' }, exclude: 'winner' }), without = mk({ opened: { rank: 'K' } });
     return JSON.stringify({ alleenWinnaar: play(withEx, [['K♠'], ['Q♥'], ['9♦']]), ookAnder: play(withEx, [['K♠'], ['K♥'], ['9♦']]), zonderExclude: play(without, [['K♠'], ['Q♥'], ['9♦']]) }); })()`));
   same('exclude winner', excl, { alleenWinnaar: 0, ookAnder: 3, zonderExclude: 3 });
+  // Een gever die geen buur is: wie zonder kaarten zit, krijgt er twee van de speler die de ronde met een Aas begon.
+  const give = JSON.parse(run(`(() => { const c = compileRuleLogic({ moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { opened: { rank: 'A' } }, count: 2 } } });
+    const st = __state([['K♠'], ['9♥', '7♥'], ['A♦', '4♦', '5♦', '6♦']]); engineStartRound(st); st.players[0].deck = []; c.onRoundEnd({ state: st });
+    return JSON.stringify({ decks: st.players.map(p => p.deck.map(x => x.rank).join('')), transfers: st.moved.transfers }); })()`));
+  same('transfer van een niet-buur', give, { decks: ['45', '7', '6'], transfers: [{ from: 2, to: 0, count: 2 }] });
+  // Een beschrijving in de catalogus die niet klopt, laat het laden stoppen met een duidelijke melding.
+  const loadError = run(`(() => { try { compileRuleLogic({ moment: 'decide', then: { win: { rank: 'Z' } } }); return ''; } catch (e){ return e.message; } })()`);
+  if (!/Regelbeschrijving klopt niet/.test(loadError) || !/onbekende waarde/.test(loadError)) fail('een kapotte beschrijving geeft geen duidelijke melding: ' + JSON.stringify(loadError));
 }
 
 // ---- testgevallen ----
