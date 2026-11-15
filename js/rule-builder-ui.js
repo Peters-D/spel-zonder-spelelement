@@ -87,7 +87,7 @@ function rbChips(options, selected, label, onChange){
 function rbCardsEditor(cs, single, label){
   const box = rbMake('div', 'bld-cards');
   const kinds = single ? ['rank', 'suit', 'color'] : ['rank', 'suit', 'color', 'all', 'highest', 'lowest', 'group'];
-  box.appendChild(rbSelect(kinds.map(k => [k, RB_CARD_LABELS[k]]), cs.kind, label + ': soort kaarten', v => { cs.kind = v; }, true));
+  box.appendChild(rbSelect(kinds.map(k => [k, RB_CARD_LABELS[k]]), cs.kind, label + ': welke kaarten?', v => { cs.kind = v; }, true));
   if (cs.kind === 'rank'){
     box.appendChild(rbChips(RANKS.slice().reverse().map(r => [r, r]), cs.ranks, label + ': waarden', (v, on) => {
       cs.ranks = on ? cs.ranks.concat(v) : cs.ranks.filter(x => x !== v);
@@ -190,7 +190,7 @@ function rbCondRow(c, i, list, prefix){
 function rbEffectEditor(e){
   const box = rbMake('div', 'bld-row');
   const keys = ruleChoicesFor(rb.moment).effects;
-  box.appendChild(rbSelect(keys.map(k => [k.key, k.label]), e.key, 'Gevolg: soort', v => { rb.effect = rbNewEffect(v); if (rb.moment === 'tiebreak' && v === 'win') rb.effect.cs = Object.assign(rbNewCards('highest'), { by: 'suitOrder' }); }, true));
+  box.appendChild(rbSelect(keys.map(k => [k.key, k.label]), e.key, 'Wat gebeurt er?', v => { rb.effect = rbNewEffect(v); if (rb.moment === 'tiebreak' && v === 'win') rb.effect.cs = Object.assign(rbNewCards('highest'), { by: 'suitOrder' }); }, true));
   if (e.key === 'win') box.appendChild(rbCardsEditor(e.cs, false, 'Gevolg'));
   if (e.key === 'sharePot'){
     e.who.forEach((p, i) => {
@@ -233,7 +233,7 @@ function rbRender(){
   title.setAttribute('autocomplete', 'off');
   title.addEventListener('input', () => { rb.title = title.value; rbChanged(false); });
   top.appendChild(title);
-  top.appendChild(rbSelect(RULE_MOMENTS.map(m => [m.id, m.label]), rb.moment, 'Moment', v => { rb = Object.assign(rbNewState(v), { title: rb.title, meta: rb.meta }); }, true));
+  top.appendChild(rbSelect(RULE_MOMENTS.map(m => [m.id, m.label]), rb.moment, 'Wanneer?', v => { rb = Object.assign(rbNewState(v), { title: rb.title, meta: rb.meta }); }, true));
   form.appendChild(top);
 
   const conds = rbMake('div', 'bld-section');
