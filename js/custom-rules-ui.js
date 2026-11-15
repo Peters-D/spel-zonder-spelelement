@@ -162,6 +162,7 @@ function customCheck(){
   } else {
     lines.push([true, 'Het blok klopt.']);
     lines.push([true, 'De voorbeelden kloppen: ' + ex.passed + ' van de ' + ex.total + '.']);
+    lines.push([null, 'Zo leest het spel je regel: ' + describeRuleLogic(parsed.def.logic)]); // controleer of dit is wat je bedoelde
     if (customRules().some(r => r.id === parsed.def.id)) lines.push([null, 'Er is al een eigen regel met deze id: toevoegen vervangt die.']);
     customDef = parsed.def;
   }

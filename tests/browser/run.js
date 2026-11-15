@@ -574,7 +574,7 @@ test('eigen regels: voorbeeld, controleren en wijzigen', async page => {
   eq(JSON.parse(text).id, 'custom-opeenvolgend', 'het voorbeeld staat in het tekstvak');
   ok(await page.isDisabled('#customRuleAdd'), 'toevoegen kan pas na controleren');
   await page.click('#customRuleCheck');
-  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.'], 'meldingen');
+  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Zo leest het spel je regel: Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij.'], 'meldingen');
   ok(!(await page.isDisabled('#customRuleTrialBtn')) && !(await page.isDisabled('#customRuleAdd')), 'knoppen na een goede controle');
   await page.fill('#customRuleText', text + ' ');
   ok(await page.isDisabled('#customRuleTrialBtn') && await page.isDisabled('#customRuleAdd'), 'wijzigen haalt de goedkeuring weg');
@@ -721,7 +721,7 @@ test('eigen regels: dezelfde id vervangt, exporteren en weghalen werken', async 
   eq(await page.$$eval('#customRuleAdded li span', x => x.map(e => e.textContent)), ['Tweede versie (custom-opeenvolgend)'], 'lijst met toegevoegde regels');
   await page.click('#customRuleAdded button:has-text("Exporteer")');
   eq(await page.evaluate(() => JSON.parse(document.getElementById('customRuleText').value).title), 'Tweede versie', 'export zet het blok in het tekstvak');
-  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Er is al een eigen regel met deze id: toevoegen vervangt die.'], 'export wordt meteen gecontroleerd');
+  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Zo leest het spel je regel: Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij.', 'ℹ Er is al een eigen regel met deze id: toevoegen vervangt die.'], 'export wordt meteen gecontroleerd');
   await page.click('#customRuleAdded button:has-text("Haal weg")');
   eq(await page.locator('#custom-opeenvolgendInput').count(), 0, 'vinkje is weg');
   eq(await page.locator('#rulesList label.rule-check').count(), 6, 'zes vinkjes over');
@@ -769,6 +769,20 @@ test('eigen regels: het venster past op smalle schermen', async () => {
       noErrors(page);
     } finally { await page.ctx.close(); }
   }
+});
+
+test('eigen regels: het venster leest de regel terug in gewone taal', async page => {
+  await crOpen(page);
+  const rood = await page.evaluate(() => ({ id: 'custom-rood', title: 'Rood', short: 'Rood gaat voor', description: 'Rood gaat voor.', logic: { moment: 'decide', if: { exists: { color: 'red' } }, then: { win: { highest: 'value', of: { color: 'red' } } } },
+    examples: [{ cards: ['K♠', '9♥', '3♦'], winners: [1], text: 'x' }] }));
+  await crFill(page, rood);
+  const msgs = await crMessages(page);
+  eq(msgs[2], 'ℹ Zo leest het spel je regel: Als er een rode kaart ligt, dan winnen de spelers met de hoogste kaart onder de rode kaarten. Zijn het er meer dan één, dan battlen zij.', 'zin bij een regel met een voorwaarde');
+  // Bij een blok dat niet klopt is er geen zin.
+  rood.logic.then.win = { rank: 'Z' };
+  await crFill(page, rood);
+  ok(!(await crMessages(page)).some(m => m.includes('Zo leest')), 'een kapot blok krijgt geen zin');
+  noErrors(page);
 });
 
 // ---- Smalle schermen ----
