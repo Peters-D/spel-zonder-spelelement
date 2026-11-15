@@ -718,7 +718,7 @@ test('eigen regels: dezelfde id vervangt, exporteren en weghalen werken', async 
   ok((await crMessages(page)).some(m => m.includes('toevoegen vervangt die')), 'melding dat er al een regel met deze id is');
   await page.click('#customRuleAdd');
   eq(await page.locator('#rulesList label.rule-check').count(), 7, 'nog steeds één vinkje erbij');
-  ok((await page.textContent('#custom-opeenvolgendInput >> xpath=..')).includes('Tweede korte tekst'), 'het vinkje toont de korte tekst van de nieuwste versie');
+  ok((await page.textContent('#custom-opeenvolgendInput >> xpath=..')).includes('Tweede versie'), 'het vinkje toont de naam van de nieuwste versie');
   await crOpen(page);
   eq(await page.$$eval('#customRuleAdded li span', x => x.map(e => e.textContent)), ['Tweede versie (custom-opeenvolgend)'], 'lijst met toegevoegde regels');
   await page.click('#customRuleAdded button:has-text("Exporteer")');
@@ -740,7 +740,7 @@ test('eigen regels: teksten blijven tekst, ook met HTML erin', async page => {
   await crFill(page, sample);
   await page.click('#customRuleAdd');
   const label = await page.textContent('#custom-opeenvolgendInput >> xpath=..');
-  ok(label.includes(evil + ' kort'), 'het label toont de tekst letterlijk: ' + label);
+  ok(label.includes(evil), 'het label toont de naam letterlijk: ' + label);
   await page.click('#rulebookBtnSetup');
   ok((await text(page, '#rulebookBody')).includes(evil + ' uitleg'), 'het regelboek toont de tekst letterlijk');
   await page.keyboard.press('Escape');
@@ -1123,6 +1123,25 @@ test('instructie voor Claude: als kopiëren niet mag, staat de tekst klaar om ze
   await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }); document.getElementById('customPromptStatus').textContent = ''; });
   await page.click('#customPromptCopy');
   ok((await text(page, '#customPromptStatus')).startsWith('Kopiëren lukte niet'), 'melding zonder klembord');
+  noErrors(page);
+});
+
+// ---- Namen en uitleg op het startscherm ----
+test('startscherm: het vinkje heet als de regel in het regelboek, en de i-knop toont de uitleg zonder het vinkje aan te zetten', async page => {
+  const names = await page.$$eval('#rulesList label.rule-check > span:not(.rule-by)', x => x.map(e => e.textContent));
+  const book = await page.evaluate(() => RULES.map(r => r.title));
+  eq(names, book, 'namen bij de vinkjes');
+  eq(await page.locator('#rulesList .rule-info-btn').count(), book.length, 'een i-knop per regel');
+  const before = await page.isChecked('#battleDiscardInput');
+  await page.click('#battleDiscardInfo');
+  ok(await page.isVisible('#battleDiscardInfoText'), 'de uitleg staat open na klikken op de i');
+  eq(await page.getAttribute('#battleDiscardInfo', 'aria-expanded'), 'true', 'aria-expanded open');
+  eq(await page.isChecked('#battleDiscardInput'), before, 'de i-knop zet het vinkje niet aan');
+  eq(await text(page, '#battleDiscardInfoText'), await page.evaluate(() => RULES.find(r => r.id === 'battleDiscard').description), 'de volledige uitleg');
+  await page.click('#battleDiscardInfo');
+  ok(!(await page.isVisible('#battleDiscardInfoText')), 'de uitleg klapt weer dicht');
+  await page.click('#battleDiscardInput + span');
+  eq(await page.isChecked('#battleDiscardInput'), !before, 'klikken op de naam zet het vinkje wel aan');
   noErrors(page);
 });
 

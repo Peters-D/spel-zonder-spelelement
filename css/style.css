@@ -501,3 +501,16 @@ header::before{
   color: var(--paper-dim);
   border:1px solid var(--line);
 }
+
+/* Een regel op het startscherm: het vinkje met de naam, en een i-knop voor de volledige uitleg (js/setup.js). */
+.rule-row{ display:flex; align-items:flex-start; gap:8px; }
+.rule-row .rule-check{ flex:1; min-width:0; }
+.rule-info-btn{
+  flex-shrink:0; width:24px; height:24px; margin-top:1px; border-radius:50%; cursor:pointer;
+  background:transparent; color: var(--paper-dim); border:1px solid var(--line);
+  font-family:'Special Elite', monospace; font-size:13px; line-height:1; padding:0;
+}
+.rule-info-btn:hover, .rule-info-btn[aria-expanded="true"]{ color: var(--paper); border-color: var(--paper-dim); }
+.rule-info-btn:focus-visible{ outline:2px solid var(--brass); outline-offset:2px; }
+.rule-info{ margin:2px 0 10px 25px; font-size:12.5px; line-height:1.45; color: var(--paper-dim); }
+.rule-info[hidden]{ display:none; }

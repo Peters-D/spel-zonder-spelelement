@@ -914,13 +914,21 @@ run(`showDeckViewer({ name: 'Anna', deck: [__card('K', '♣')] });`);
 if (document.getElementById('deckViewerTitle').textContent !== 'Anna — stapel (1)' || document.getElementById('deckViewerSub').textContent !== 'Bovenste kaart eerst') failures.push('venster van een spelersstapel is veranderd');
 
 // Het startscherm maakt één vinkje per regel, met het id dat dealNewGame uitleest en de korte tekst uit de catalogus.
-const optionLabels = document.getElementById('rulesList').children.filter(n => (n.className || '').split(' ').includes('rule-check'));
+const optionLabels = document.getElementById('rulesList').children.filter(n => (n.className || '').split(' ').includes('rule-row')).map(row => row.children[0]);
 if (optionLabels.length !== CATALOG.length) failures.push('startscherm: ' + optionLabels.length + ' vinkjes voor ' + CATALOG.length + ' regels');
 CATALOG.forEach((r, i) => {
   const label = optionLabels[i];
   const input = label && label.children[0], text = label && label.children[1];
   if (!input || input.id !== r.id + 'Input' || input.type !== 'checkbox') failures.push('startscherm: vinkje voor ' + r.id + ' ontbreekt of heeft een verkeerd id');
-  if (!text || text.textContent !== r.short) failures.push('startscherm: tekst bij het vinkje van ' + r.id + ' komt niet uit de catalogus');
+  if (!text || text.textContent !== r.title) failures.push('startscherm: naam bij het vinkje van ' + r.id + ' is niet de naam uit het regelboek');
+  // De i-knop toont de volledige uitleg, en klapt die open en dicht.
+  const listKids = document.getElementById('rulesList').children;
+  const row = listKids.find(n => (n.className || '').split(' ').includes('rule-row') && n.children[0] === label);
+  const info = row && row.children.find(n => (n.className || '').includes('rule-info-btn'));
+  const panel = row && listKids[listKids.indexOf(row) + 1];
+  if (!info || info.getAttribute('aria-expanded') !== 'false' || !panel || panel.textContent !== r.description || !panel.hidden)
+    failures.push('startscherm: de i-knop bij ' + r.id + ' ontbreekt, of de uitleg klopt niet (' + JSON.stringify({ info: !!info, exp: info && info.getAttribute('aria-expanded'), panel: !!panel, txt: panel && panel.textContent === r.description, hidden: panel && panel.hidden, cls: row && row.className, kids: row && row.children.length }) + ')');
+  else { info.handlers.click(); if (info.getAttribute('aria-expanded') !== 'true' || panel.hidden) failures.push('startscherm: de i-knop klapt de uitleg niet open bij ' + r.id); info.handlers.click(); if (!panel.hidden) failures.push('startscherm: de i-knop klapt de uitleg niet weer dicht bij ' + r.id); }
   // De browser mag vinkjes niet zelf terugzetten bij verversen (dan staan er regels aan waar geen winnaar voor gekozen heeft).
   if (!input || input.getAttribute('autocomplete') !== 'off') failures.push('startscherm: het vinkje van ' + r.id + ' hoort autocomplete="off" te hebben, anders zet de browser het bij verversen zelf terug');
 });
