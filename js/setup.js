@@ -211,7 +211,7 @@ function launchGame(){
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
   document.getElementById('endBanner').innerHTML = '';
-  document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (willekeurig spel)';
+  document.getElementById('seedLine').textContent = game.seed ? 'Seed: ' + game.seed : 'Seed: geen (elk spel is anders)';
   // Wat actieve regels over dit spel te melden hebben (bijvoorbeeld de gekozen volgorde van de symbolen), zie stateNote in rules.js.
   const notes = ruleStateNotes(game.rules);
   const notesLine = document.getElementById('rulesLine');
@@ -233,8 +233,8 @@ function launchGame(){
 // vallen; dan lijkt de knop niets te doen. Daarom scrollt de pagina hem in beeld.
 function showCycleWarning(result){
   const text = result.outcome === 'cycle'
-    ? 'Deze indeling loopt na ' + result.rounds + ' rondes in een cyclus — het spel zou nooit eindigen.'
-    : 'Geen winnaar gevonden binnen ' + result.rounds + ' rondes — waarschijnlijk een (zeer lange) cyclus.';
+    ? 'Na ' + result.rounds + ' rondes komt dezelfde stand terug: dit spel eindigt nooit.'
+    : 'Na ' + result.rounds + ' rondes is er nog geen winnaar: dit spel eindigt waarschijnlijk nooit.';
   document.getElementById('cycleWarningText').textContent = text;
   const warning = document.getElementById('cycleWarning');
   warning.classList.remove('hidden');

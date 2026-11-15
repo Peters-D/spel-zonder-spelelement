@@ -137,7 +137,18 @@ function rtCondition(node){
   }
   if ('playersWithCards' in node)
     return rtAmount(node.playersWithCards, { pre: '', sing: 'speler kaarten', plural: 'spelers kaarten', vs: 'heeft', vp: 'hebben', none: 'geen enkele speler kaarten heeft' });
-  if ('not' in node) return 'het niet zo is dat ' + wrap(node.not);
+  if ('not' in node){
+    // Een gewone ontkenning waar dat kan ("er geen Aas ligt"); anders de omweg "het niet zo is dat ...".
+    const x = node.not;
+    if ('exists' in x && ('rank' in x.exists || 'suit' in x.exists || 'color' in x.exists)) return 'er geen ' + rtCards(x.exists).bare + ' ligt';
+    if ('battle' in x) return 'er geen battle is geweest';
+    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'withoutCards' in x.anyPlayer) return 'er geen speler zonder kaarten is';
+    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'opened' in x.anyPlayer)
+      return 'er geen ' + (x.anyPlayer.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(x.anyPlayer.opened).single + ' begon';
+    if ('anyPlayer' in x && x.anyPlayer === 'winner') return 'er geen winnaar is';
+    if ('winnerOpened' in x) return 'de winnaar de ronde niet met ' + rtCards(x.winnerOpened).single + ' begon';
+    return 'het niet zo is dat ' + wrap(x);
+  }
   if ('and' in node) return rtJoin(node.and.map(wrap), 'en');
   return rtJoin(node.or.map(wrap), 'of');
 }
@@ -183,9 +194,9 @@ function describeRuleLogic(logic){
 // ---- de keuzes voor de regelbouwer ----
 
 const RULE_MOMENTS = [
-  { id: 'decide', label: 'Bij het bepalen van de winnaar' },
-  { id: 'tiebreak', label: 'Bij een gelijkspel' },
-  { id: 'award', label: 'Als de pot wordt toegekend' },
+  { id: 'decide', label: 'Als de kaarten open liggen: wie wint de ronde?' },
+  { id: 'tiebreak', label: 'Als spelers gelijk eindigen: wie van hen wint?' },
+  { id: 'award', label: 'Als de winnaar de pot krijgt' },
   { id: 'roundEnd', label: 'Aan het einde van de ronde' }
 ];
 
@@ -200,21 +211,21 @@ const RT_SIMPLE_IF = {
 const RULE_BLOCKS = {
   conditions: [
     { key: 'exists', label: 'er ligt een bepaalde kaart', moments: ['decide', 'tiebreak'], sample: { exists: { rank: 'A' } } },
-    { key: 'count', label: 'er liggen een bepaald aantal kaarten van een soort', moments: ['decide', 'tiebreak'], sample: { count: { rank: 'A' }, min: 2 } },
+    { key: 'count', label: 'er liggen zoveel kaarten van een soort (bijvoorbeeld minstens 2 Azen)', moments: ['decide', 'tiebreak'], sample: { count: { rank: 'A' }, min: 2 } },
     { key: 'battle', label: 'er is een battle geweest', moments: ['award'], sample: { battle: true } },
-    { key: 'winnerOpened', label: 'de winnaar begon met een bepaalde kaart', moments: ['award'], sample: { winnerOpened: { rank: 'K' } } },
+    { key: 'winnerOpened', label: 'de winnaar begon de ronde met een bepaalde kaart', moments: ['award'], sample: { winnerOpened: { rank: 'K' } } },
     { key: 'anyPlayer', label: 'er is een speler die …', moments: ['award', 'roundEnd'], sample: { anyPlayer: { withoutCards: true } } },
-    { key: 'playersWithCards', label: 'een bepaald aantal spelers heeft kaarten', moments: ['award', 'roundEnd'], sample: { playersWithCards: { min: 2 } } },
+    { key: 'playersWithCards', label: 'zoveel spelers hebben nog kaarten (bijvoorbeeld minstens 2)', moments: ['award', 'roundEnd'], sample: { playersWithCards: { min: 2 } } },
     { key: 'and', label: 'al deze voorwaarden gelden', moments: RT_ALL, sample: m => ({ and: RT_SIMPLE_IF[m] }) },
     { key: 'or', label: 'minstens één van deze voorwaarden geldt', moments: RT_ALL, sample: m => ({ or: RT_SIMPLE_IF[m] }) },
     { key: 'not', label: 'deze voorwaarde geldt niet', moments: RT_ALL, sample: m => ({ not: RT_SIMPLE_IF[m][0] }) }
   ],
   effects: [
-    { key: 'win', label: 'deze spelers winnen', moments: ['decide', 'tiebreak'], sample: { win: { rank: '2' } } },
+    { key: 'win', label: 'deze kaarten winnen', moments: ['decide', 'tiebreak'], sample: { win: { rank: '2' } } },
     { key: 'discardPot', label: 'de hele pot gaat naar de aflegstapel', moments: ['award'], sample: { discardPot: true } },
     { key: 'sharePot', label: 'de pot wordt verdeeld over deze spelers', moments: ['award'], sample: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } },
-    { key: 'transfer', label: 'elke speler krijgt kaarten van een andere speler', moments: ['roundEnd'], sample: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
-    { key: 'discardTop', label: 'elke speler legt kaarten af', moments: ['roundEnd'], sample: { forEach: { opened: { rank: 'K' } }, discardTop: 1 } }
+    { key: 'transfer', label: 'spelers krijgen kaarten van een andere speler', moments: ['roundEnd'], sample: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
+    { key: 'discardTop', label: 'spelers leggen kaarten af', moments: ['roundEnd'], sample: { forEach: { opened: { rank: 'K' } }, discardTop: 1 } }
   ],
   // Keuzes van kaarten. cards: wat er bij "deze spelers winnen" en bij tellen kan (ook de hoogste en groepen); singleCards: wat er
   // bij "begon met een kaart" kan (één soort kaart).

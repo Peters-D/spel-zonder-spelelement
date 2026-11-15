@@ -196,7 +196,7 @@ for (const r of CATALOG){
     if (el.innerHTML !== '' || !textIn(el).includes(evil)) failures.push('een naam met HTML in de statistieken (' + id + ') wordt als HTML gelezen of ontbreekt: ' + JSON.stringify(el.innerHTML) + ' / ' + JSON.stringify(textIn(el)));
   }
   const sumText = textIn(document.getElementById('statsSummary'));
-  if (!/Totaal battles:/.test(sumText) || !/Bram: /.test(sumText)) failures.push('de samenvatting van de statistieken toont niet alle regels: ' + JSON.stringify(sumText));
+  if (!/Aantal battles:/.test(sumText) || !/Bram: /.test(sumText)) failures.push('de samenvatting van de statistieken toont niet alle regels: ' + JSON.stringify(sumText));
   run('game = null;');
 }
 
@@ -1488,15 +1488,15 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     examples: { total: 3, passed: 3, failures: [] }, avgWinRounds: { without: 200, with: 250 }, ok: true }, over);
   const sumOf = rep => JSON.parse(run('JSON.stringify(customReportSummary(' + J(rep) + '))'));
   const good = sumOf(fakeReport({}));
-  eq('rapport: tabel', good.rows, [['Gespeelde spellen', '10', '10'], ['Eindigen met een winnaar', '2 (20%)', '4 (40%)'], ['Lopen vast in een cyclus', '3 (30%)', '1 (10%)'],
-    ['Niet beslist na 3000 rondes', '5 (50%)', '5 (50%)'], ['Gemiddelde lengte (spellen met een winnaar)', '200 rondes', '250 rondes']]);
+  eq('rapport: tabel', good.rows, [['Gespeelde spellen', '10', '10'], ['Eindigen met een winnaar', '2 (20%)', '4 (40%)'], ['Eindigen nooit (dezelfde stand komt terug)', '3 (30%)', '1 (10%)'],
+    ['Nog bezig na 3000 rondes', '5 (50%)', '5 (50%)'], ['Gemiddeld aantal rondes (spellen met een winnaar)', '200 rondes', '250 rondes']]);
   eq('rapport: alles in orde', [good.ok, good.notes.map(n => n.ok)], [true, [true, true, true]]);
   const noWin = sumOf(fakeReport({ without: side(0, 0, 10, 0), avgWinRounds: { without: null, with: 250 } }));
   eq('rapport: geen enkel spel met een winnaar', [noWin.rows[1][1], noWin.rows[4][1]], ['0 (0%)', '–']);
   const badRep = sumOf(fakeReport({ played: 6, ok: false, conservationFailures: [{ game: 4, players: 3, seed: 'trial-3', side: 'met' }], errors: [{ game: 2, players: 3, seed: 'trial-1', message: 'boem' }],
     examples: { total: 3, passed: 2, failures: ['x'] } }));
   eq('rapport: wat misgaat wordt gemeld', [badRep.ok, badRep.notes.map(n => n.ok), badRep.notes.map(n => n.text)],
-    [false, [false, false, false, false], ['Gestopt na 6 van de 10 spellen.', 'Er gingen kaarten verloren of dubbel in 1 spellen (eerste: spel 4, met de regel).', 'De regel gaf een fout in 1 spellen: boem', 'Van de voorbeelden kloppen er 2 van de 3.']]);
+    [false, [false, false, false, false], ['Gestopt na 6 van de 10 spellen.', 'In 1 spellen raakten kaarten zoek of kwamen ze dubbel voor (eerste: spel 4, met de regel).', 'De regel gaf een fout in 1 spellen: boem', 'Maar 2 van de 3 voorbeelden kloppen.']]);
   eq('er blijft geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
 }
 
@@ -1563,7 +1563,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     [{"moment": "decide", "if": {"count": {"suit": "♥"}, "max": 2}, "then": {"win": {"all": true}}}, "Als er ten hoogste twee kaarten van harten liggen, dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
     [{"moment": "decide", "if": {"and": [{"exists": {"rank": "A"}}, {"exists": {"rank": "2"}}, {"count": {"rank": "K"}, "min": 2}]}, "then": {"win": {"all": true}}}, "Als er een Aas ligt, er een 2 ligt en er minstens twee Heren liggen, dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
     [{"moment": "decide", "if": {"or": [{"exists": {"rank": "A"}}, {"and": [{"exists": {"rank": "2"}}, {"exists": {"rank": "3"}}]}]}, "then": {"win": {"all": true}}}, "Als er een Aas ligt of (er een 2 ligt en er een 3 ligt), dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
-    [{"moment": "decide", "if": {"not": {"exists": {"rank": "A"}}}, "then": {"win": {"all": true}}}, "Als het niet zo is dat er een Aas ligt, dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
+    [{"moment": "decide", "if": {"not": {"exists": {"rank": "A"}}}, "then": {"win": {"all": true}}}, "Als er geen Aas ligt, dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
     [{"moment": "decide", "if": {"not": {"or": [{"exists": {"rank": "A"}}, {"exists": {"rank": "2"}}]}}, "then": {"win": {"all": true}}}, "Als het niet zo is dat (er een Aas ligt of er een 2 ligt), dan winnen alle kaarten. Bij gelijk spel: BATTLE!"],
     [{"moment": "award", "if": {"battle": true}, "then": {"discardPot": true}}, "Als er een battle is geweest, dan gaat de hele pot naar de aflegstapel."],
     [{"moment": "award", "if": {"winnerOpened": {"rank": "A"}}, "then": {"discardPot": true}}, "Als de winnaar de ronde met een Aas begon, dan gaat de hele pot naar de aflegstapel."],
@@ -1580,7 +1580,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     [{"moment": "award", "if": {"playersWithCards": {"min": 3, "max": 3}}, "then": {"discardPot": true}}, "Als precies drie spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
     [{"moment": "award", "if": {"playersWithCards": {"min": 2, "max": 4}}, "then": {"discardPot": true}}, "Als tussen twee en vier spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
     [{"moment": "award", "if": {"playersWithCards": {"min": 1, "max": 1}}, "then": {"discardPot": true}}, "Als precies één speler kaarten heeft, dan gaat de hele pot naar de aflegstapel."],
-    [{"moment": "award", "if": {"not": {"battle": true}}, "then": {"discardPot": true}}, "Als het niet zo is dat er een battle is geweest, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"not": {"battle": true}}, "then": {"discardPot": true}}, "Als er geen battle is geweest, dan gaat de hele pot naar de aflegstapel."],
     [{"moment": "award", "if": {"and": [{"battle": true}, {"winnerOpened": {"rank": "K"}}]}, "then": {"discardPot": true}}, "Als er een battle is geweest en de winnaar de ronde met een Heer begon, dan gaat de hele pot naar de aflegstapel."],
     [{"moment": "award", "then": {"discardPot": true}}, "De hele pot gaat naar de aflegstapel."],
     [{"moment": "award", "then": {"sharePot": ["winner"]}}, "De pot wordt verdeeld over de winnaar, de hoogste kaart eerst."],
@@ -1787,17 +1787,17 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   const bad = [
     ['geen waarde', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("rank"), { ranks: [] }) }) })', 'Kies minstens één waarde.'],
     ['geen symbool', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("suit"), { suits: [] }) }) })', 'Kies minstens één symbool.'],
-    ['groep van 1', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: 1 }) }) })', 'Aantal kaarten in de groep: een getal van 2 t/m 8 verwacht.'],
-    ['groep geen getal', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: NaN }) }) })', 'Aantal kaarten in de groep: een getal van 2 t/m 8 verwacht.'],
+    ['groep van 1', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: 1 }) }) })', 'Aantal kaarten in de groep: vul een getal in van 2 t/m 8.'],
+    ['groep geen getal', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: NaN }) }) })', 'Aantal kaarten in de groep: vul een getal in van 2 t/m 8.'],
     ['tweede aantal te klein', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("count"), { mode: "between", n: 3, m: 2 })] })', 'Het tweede aantal moet minstens zo groot zijn als het eerste.'],
-    ['aantal geen getal', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("count"), { n: NaN })] })', 'Het aantal: een getal van 0 t/m 52 verwacht.'],
-    ['aantal spelers te groot', 'Object.assign(rbNewState("award"), { conds: [Object.assign(rbNewCond("playersWithCards"), { n: 9 })] })', 'Het aantal: een getal van 0 t/m 8 verwacht.'],
-    ['winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { conds: [Object.assign(rbNewCond("anyPlayer"), { who: "winner" })] })', 'De winnaar bestaat alleen als de pot wordt toegekend.'],
-    ['behalve de winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { each: Object.assign(rbNewPlayer("opened"), { other: true }) }) })', '"Behalve de winnaar" kan alleen als de pot wordt toegekend.'],
+    ['aantal geen getal', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("count"), { n: NaN })] })', 'Het aantal: vul een getal in van 0 t/m 52.'],
+    ['aantal spelers te groot', 'Object.assign(rbNewState("award"), { conds: [Object.assign(rbNewCond("playersWithCards"), { n: 9 })] })', 'Het aantal: vul een getal in van 0 t/m 8.'],
+    ['winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { conds: [Object.assign(rbNewCond("anyPlayer"), { who: "winner" })] })', '"De winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".'],
+    ['behalve de winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { each: Object.assign(rbNewPlayer("opened"), { other: true }) }) })', '"Behalve de winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".'],
     ['verdelen over niemand', 'Object.assign(rbNewState("award"), { effect: Object.assign(rbNewEffect("sharePot"), { who: [] }) })', 'Kies over welke spelers de pot wordt verdeeld.'],
-    ['0 kaarten afleggen', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { count: 0 }) })', 'Het aantal kaarten: een getal van 1 t/m 52 verwacht.'],
+    ['0 kaarten afleggen', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { count: 0 }) })', 'Het aantal kaarten: vul een getal in van 1 t/m 52.'],
     ['geen kant van de buur', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("transfer"), { from: Object.assign(rbNewPlayer("neighbor"), { side: "boven" }) }) })', 'Kies de linker- of rechterbuur.'],
-    ['geen soort kaarten', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: { kind: "iets" } }) })', 'Kies welke kaarten bedoeld zijn.'],
+    ['geen soort kaarten', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: { kind: "iets" } }) })', 'Kies welke kaarten je bedoelt.'],
     ['geen gevolg', 'Object.assign(rbNewState("decide"), { effect: { key: "iets" } })', 'Kies wat er gebeurt.'],
     ['lege groep', 'Object.assign(rbNewState("decide"), { conds: [rbNewCond("group")] })', 'Voeg een voorwaarde toe aan de groep.'],
     ['groep in een groep', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("group"), { conds: [Object.assign(rbNewCond("group"), { conds: [rbNewCond("exists")] })] })] })', 'Een groep binnen een groep kan de bouwer niet maken.'],
@@ -2207,7 +2207,7 @@ let liveChecked = 0;
     if (run('__calls') !== run('NEXT_GAME_TRIES')) fail('er horen ten hoogste NEXT_GAME_TRIES pogingen gedaan te worden, het waren er ' + run('__calls'));
     if (hidden('setup') || !hidden('game') || hidden('cycleWarning')) fail('als geen deling eindigt hoort het startscherm met de melding terug te komen');
     if (document.getElementById('seedInput').value !== '2' || seedNow() !== '2') fail('als geen deling eindigt hoort de seed bij de eerste geprobeerde deling te blijven (2), niet tientallen plaatsen op te springen: ' + document.getElementById('seedInput').value + ' / ' + seedNow());
-    if (!document.getElementById('cycleWarningText').textContent.includes('cyclus')) fail('de melding noemt de cyclus niet');
+    if (!document.getElementById('cycleWarningText').textContent.includes('eindigt')) fail('de melding zegt niet dat het spel niet eindigt');
     if (scrolled !== 1) fail('de melding hoort in beeld te scrollen');
     // Hetzelfde bij "Begin het spel": de melding scrolt in beeld.
     document.getElementById('cycleWarning').classList.add('hidden');

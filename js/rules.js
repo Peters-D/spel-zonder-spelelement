@@ -154,7 +154,7 @@ const RULES = [
     description: 'Voor je begint kies je een volgorde van de vier symbolen: standaard ♠, ♥, ♦, ♣ (van hoog naar laag). ' +
       'Eindigen twee of meer spelers gelijk, dan wint de speler met het hoogste symbool en is er geen battle. ' +
       'Dat geldt ook voor gelijke kaarten bij "Gelijke kaarten gaan voor" en voor meerdere 2\'s bij "2 verslaat Aas". ' +
-      'Omdat er geen battle meer komt, doet "Battle ruimt de pot op" dan niets. Staat het symbool niet bekend, dan battlen de spelers zoals gewoonlijk. ' +
+      'Omdat er geen battle meer komt, doet "Battle ruimt de pot op" dan niets. Is van een kaart het symbool niet bekend, dan battlen de spelers zoals gewoonlijk. ' +
       'Spellen duren hiermee meestal veel langer en eindigen vaker in een cyclus.',
     default: false,
     examples: [
@@ -217,7 +217,7 @@ const BASE_RULES = [
       '(bovenop de pot); de andere spelers doen niet meer mee en hun kaarten blijven in de pot. De hoogste nieuwe kaart wint de hele pot. ' +
       'Zijn die weer gelijk, dan volgt een nieuwe battle. Heeft een speler in een battle geen kaart meer om te leggen, dan ligt die speler eruit.',
     examples: [
-      { cards: ['K', 'K', '5'], winners: [0, 1], text: 'Twee Koningen: die twee battlen. De 5 doet niet mee.' }
+      { cards: ['K', 'K', '5'], winners: [0, 1], text: 'Twee Heren: die twee battlen. De 5 doet niet mee.' }
     ]
   },
   {

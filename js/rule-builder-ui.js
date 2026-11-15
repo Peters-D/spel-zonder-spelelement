@@ -6,8 +6,8 @@ let rb = null;            // de stand van de bouwer (zie rbNewState)
 let rbFocus = 0;          // de teller voor de bedieningselementen, om de focus na opnieuw tekenen terug te zetten
 let rbFocusWanted = -1;
 
-const RB_CARD_LABELS = { rank: 'een bepaalde waarde', suit: 'een bepaald symbool', color: 'rode of zwarte kaarten', all: 'alle kaarten',
-  highest: 'de hoogste kaart', lowest: 'de laagste kaart', group: 'de hoogste groep kaarten' };
+const RB_CARD_LABELS = { rank: 'een waarde (zoals Heer of 7)', suit: 'een symbool (zoals ♥)', color: 'rode of zwarte kaarten', all: 'alle kaarten',
+  highest: 'de hoogste kaart', lowest: 'de laagste kaart', group: 'kaarten die bij elkaar horen (paar, reeks)' };
 const RB_RELATION_LABELS = { sameRank: 'met dezelfde waarde', sameSuit: 'van hetzelfde symbool', sameColor: 'van dezelfde kleur', consecutive: 'met opeenvolgende waarden' };
 const RB_MODE_LABELS = { min: 'minstens', max: 'ten hoogste', exact: 'precies', between: 'tussen' };
 
@@ -99,23 +99,23 @@ function rbCardsEditor(cs, single, label){
   } else if (cs.kind === 'color'){
     box.appendChild(rbSelect([['red', 'rode kaarten'], ['black', 'zwarte kaarten']], cs.color, label + ': kleur', v => { cs.color = v; }, false));
   } else if (cs.kind === 'highest' || cs.kind === 'lowest'){
-    box.appendChild(rbSelect([['value', 'op waarde'], ['suitOrder', 'op symbool (jouw volgorde)']], cs.by, label + ': hoogste of laagste op', v => { cs.by = v; }, false));
-    box.appendChild(rbSelect([['none', 'onder alle kaarten'], ['red', 'onder de rode kaarten'], ['black', 'onder de zwarte kaarten']], cs.of, label + ': onder welke kaarten', v => { cs.of = v; }, false));
+    box.appendChild(rbSelect([['value', 'op waarde'], ['suitOrder', 'op symbool (in de volgorde die bij het spel is gekozen)']], cs.by, label + ': op waarde of op symbool?', v => { cs.by = v; }, false));
+    box.appendChild(rbSelect([['none', 'van alle kaarten'], ['red', 'alleen van de rode kaarten'], ['black', 'alleen van de zwarte kaarten']], cs.of, label + ': van welke kaarten?', v => { cs.of = v; }, false));
   } else if (cs.kind === 'group'){
-    box.appendChild(rbSelect(Object.entries(RB_RELATION_LABELS), cs.relation, label + ': kaarten die bij elkaar horen', v => { cs.relation = v; }, false));
+    box.appendChild(rbSelect(Object.entries(RB_RELATION_LABELS), cs.relation, label + ': hoe horen ze bij elkaar?', v => { cs.relation = v; }, false));
     box.appendChild(rbMake('span', 'bld-word', 'minstens'));
     box.appendChild(rbNumber(cs.min, 2, 8, label + ': minstens zoveel kaarten', v => { cs.min = v; }));
   }
   if (['rank', 'suit', 'color'].includes(cs.kind)){
-    box.appendChild(rbCheck('niet deze', cs.not, v => { cs.not = v; }, false));
+    box.appendChild(rbCheck('juist niet deze kaarten', cs.not, v => { cs.not = v; }, false));
     if (cs.also){
       const also = rbMake('div', 'bld-also');
       also.appendChild(rbMake('span', 'bld-word', 'en ook:'));
       also.appendChild(rbCardsEditor(cs.also, true, label + ' (tweede eis)'));
-      also.appendChild(rbButton('× tweede eis weg', label + ': tweede eis weghalen', () => { cs.also = null; }));
+      also.appendChild(rbButton('× tweede eis weghalen', label + ': tweede eis weghalen', () => { cs.also = null; }));
       box.appendChild(also);
     } else {
-      box.appendChild(rbButton('+ en ook een tweede eis', label + ': tweede eis toevoegen', () => { cs.also = rbNewCards('suit'); }));
+      box.appendChild(rbButton('+ nog een eis voor dezelfde kaart', label + ': tweede eis toevoegen', () => { cs.also = rbNewCards('suit'); }));
     }
   }
   return box;
@@ -123,7 +123,7 @@ function rbCardsEditor(cs, single, label){
 
 function rbRangeEditor(c, max, label){
   const box = rbMake('span', 'bld-range');
-  box.appendChild(rbSelect(Object.entries(RB_MODE_LABELS), c.mode, label + ': minstens, ten hoogste, precies of tussen', v => { c.mode = v; }, true));
+  box.appendChild(rbSelect(Object.entries(RB_MODE_LABELS), c.mode, label + ': hoeveel?', v => { c.mode = v; }, true));
   box.appendChild(rbNumber(c.n, 0, max, label + ': aantal', v => { c.n = v; }));
   if (c.mode === 'between'){
     box.appendChild(rbMake('span', 'bld-word', 'en'));
@@ -136,14 +136,14 @@ function rbRangeEditor(c, max, label){
 function rbPlayerEditor(p, slot, label){
   const box = rbMake('div', 'bld-player');
   const choices = rulePlayerChoices(slot, rb.moment);
-  const names = { winner: 'de winnaar', opened: 'spelers die begonnen met een kaart', withoutCards: 'spelers zonder kaarten', neighbor: 'de linker- of rechterbuur' };
+  const names = { winner: 'de winnaar', opened: 'spelers die de ronde begonnen met een bepaalde kaart', withoutCards: 'spelers zonder kaarten', neighbor: 'de linker- of rechterbuur' };
   if (!choices.some(c => c.key === p.kind)) p.kind = choices[0].key;
-  box.appendChild(rbSelect(choices.map(c => [c.key, names[c.key]]), p.kind, label + ': welke spelers', v => { p.kind = v; }, true));
+  box.appendChild(rbSelect(choices.map(c => [c.key, names[c.key]]), p.kind, label + ': welke spelers?', v => { p.kind = v; }, true));
   if (p.kind === 'opened'){
     box.appendChild(rbCardsEditor(p.cs, true, label));
     if (RULE_BLOCKS.players.find(b => b.key === 'opened').excludeMoments.includes(rb.moment)) box.appendChild(rbCheck('behalve de winnaar', p.other, v => { p.other = v; }, false));
   } else if (p.kind === 'neighbor'){
-    box.appendChild(rbSelect([['left', 'de linkerbuur'], ['right', 'de rechterbuur']], p.side, label + ': links of rechts', v => { p.side = v; }, false));
+    box.appendChild(rbSelect([['left', 'de linkerbuur'], ['right', 'de rechterbuur']], p.side, label + ': links of rechts?', v => { p.side = v; }, false));
   }
   return box;
 }
@@ -161,24 +161,24 @@ function rbCondRow(c, i, list, prefix){
   const row = rbMake('div', 'bld-row' + (c.key === 'group' ? ' bld-group' : ''));
   const label = 'Voorwaarde ' + (prefix || '') + (i + 1);
   const options = rbCondKinds().map(k => [k.key, k.label]);
-  if (!nested) options.push(['group', 'een groep voorwaarden (en / of)']);
+  if (!nested) options.push(['group', 'een groepje voorwaarden (en / of)']);
   const head = rbMake('div', 'bld-head');
-  head.appendChild(rbSelect(options, c.key, label + ': soort', v => {
+  head.appendChild(rbSelect(options, c.key, label + ': wat moet er kloppen?', v => {
     list[i] = rbNewCond(v);
     if (v === 'group') list[i].conds = [rbNewCond(rbCondKinds()[0].key), rbNewCond(rbCondKinds()[0].key)];
   }, true));
-  head.appendChild(rbCheck('niet', c.not, v => { c.not = v; }, false));
-  head.appendChild(rbButton('× weg', label + ' weghalen', () => { list.splice(i, 1); }));
+  head.appendChild(rbCheck('juist niet', c.not, v => { c.not = v; }, false));
+  head.appendChild(rbButton('× weghalen', label + ' weghalen', () => { list.splice(i, 1); }));
   row.appendChild(head);
   if (c.key === 'group'){
-    row.appendChild(rbSelect([['or', 'één van deze is genoeg'], ['and', 'deze moeten allemaal gelden']], c.mode, label + ': hoe de groep samengaat', v => { c.mode = v; }, false));
+    row.appendChild(rbSelect([['or', 'één van deze is genoeg'], ['and', 'deze moeten allemaal kloppen']], c.mode, label + ': moeten ze allemaal kloppen?', v => { c.mode = v; }, false));
     c.conds.forEach((sub, k) => row.appendChild(rbCondRow(sub, k, c.conds, (i + 1) + '.')));
     row.appendChild(rbButton('+ voorwaarde in de groep', label + ': voorwaarde toevoegen aan de groep', () => { c.conds.push(rbNewCond(rbCondKinds()[0].key)); }));
   }
   if (c.key === 'exists') row.appendChild(rbCardsEditor(c.cs, false, label));
   if (c.key === 'count'){ row.appendChild(rbRangeEditor(c, 52, label)); row.appendChild(rbCardsEditor(c.cs, false, label)); }
   if (c.key === 'winnerOpened') row.appendChild(rbCardsEditor(c.cs, true, label));
-  if (c.key === 'playersWithCards'){ row.appendChild(rbRangeEditor(c, 8, label)); row.appendChild(rbMake('span', 'bld-word', 'spelers hebben kaarten')); }
+  if (c.key === 'playersWithCards'){ row.appendChild(rbRangeEditor(c, 8, label)); row.appendChild(rbMake('span', 'bld-word', 'spelers hebben nog kaarten')); }
   if (c.key === 'anyPlayer'){
     // Een voorwaarde "er is een speler die ..." heeft dezelfde velden als een speler, onder andere namen: de keuzes gaan direct naar c.
     const p = { get kind(){ return c.who; }, set kind(v){ c.who = v; }, get cs(){ return c.cs; }, set cs(v){ c.cs = v; }, get other(){ return c.other; }, set other(v){ c.other = v; } };
@@ -196,7 +196,7 @@ function rbEffectEditor(e){
     e.who.forEach((p, i) => {
       const line = rbMake('div', 'bld-line');
       line.appendChild(rbPlayerEditor(p, 'sharePot', 'Verdelen over ' + (i + 1)));
-      if (e.who.length > 1) line.appendChild(rbButton('× weg', 'Spelers ' + (i + 1) + ' weghalen', () => { e.who.splice(i, 1); }));
+      if (e.who.length > 1) line.appendChild(rbButton('× weghalen', 'Spelers ' + (i + 1) + ' weghalen', () => { e.who.splice(i, 1); }));
       box.appendChild(line);
     });
     box.appendChild(rbButton('+ spelers erbij', 'Spelers toevoegen', () => { e.who.push(rbNewPlayer('opened')); }));
@@ -237,12 +237,12 @@ function rbRender(){
   form.appendChild(top);
 
   const conds = rbMake('div', 'bld-section');
-  conds.appendChild(rbMake('h4', 'bld-sub', 'Voorwaarden (niet verplicht)'));
+  conds.appendChild(rbMake('h4', 'bld-sub', 'Alleen als… (mag je leeg laten)'));
   rb.conds.forEach((c, i) => conds.appendChild(rbCondRow(c, i, rb.conds, '')));
   if (rb.conds.length > 1){
-    conds.appendChild(rbSelect([['and', 'alle voorwaarden moeten gelden'], ['or', 'één voorwaarde is genoeg']], rb.condMode, 'Hoe de voorwaarden samengaan', v => { rb.condMode = v; }, false));
+    conds.appendChild(rbSelect([['and', 'alle voorwaarden moeten kloppen'], ['or', 'één voorwaarde is genoeg']], rb.condMode, 'Moeten alle voorwaarden kloppen?', v => { rb.condMode = v; }, false));
   }
-  conds.appendChild(rbButton('+ voorwaarde', 'Voorwaarde toevoegen', () => {
+  conds.appendChild(rbButton('+ voorwaarde toevoegen', 'Voorwaarde toevoegen', () => {
     rb.conds.push(rbNewCond(rbCondKinds()[0].key));
   }));
   form.appendChild(conds);
@@ -312,7 +312,7 @@ function rbReset(){
   rb = rbNewState('decide');
   rbRender();
   rbNotice(false);
-  bldById('ruleBuilderSentence').textContent = 'Kies hierboven wat de regel doet; hier staat dan in gewone taal wat het spel ervan maakt.';
+  bldById('ruleBuilderSentence').textContent = 'Hier komt in gewone taal te staan wat je regel doet.';
 }
 
 // Het blok uit het tekstvak in de bouwer laden. De id, de prioriteit, de uitleg en de voorbeelden van het blok blijven (zie rbMetaFrom).
@@ -324,7 +324,7 @@ function rbLoad(){
   }
   const st = rbFromLogic(parsed.def.logic);
   if (!st){
-    customShowMessages([[false, 'De bouwer kan dit blok niet tonen (bijvoorbeeld door een groep binnen een groep, of meer dan twee eisen aan een kaart). Je kunt het blok wel gewoon controleren en toevoegen.']]);
+    customShowMessages([[false, 'De bouwer kan deze regel niet laten zien (bijvoorbeeld door een groep binnen een groep, of meer dan twee eisen aan een kaart). Controleren en toevoegen kan wel gewoon.']]);
     return;
   }
   st.title = parsed.def.title;

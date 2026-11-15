@@ -39,7 +39,7 @@ function renderGrid(faceDown, warFlags){
     pcount.textContent = isSidelined ? 'in de pot' : (p.deck.length + ' kaarten');
     const phint = document.createElement('div');
     phint.className = 'phint';
-    phint.textContent = 'tik voor stapel';
+    phint.textContent = 'tik om de stapel te zien';
     slot.appendChild(pname);
     slot.appendChild(cardEl);
     slot.appendChild(pcount);

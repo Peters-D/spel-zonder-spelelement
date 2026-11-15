@@ -74,7 +74,7 @@ function renderStatsChart(){
     ctx.fillStyle = statsThemeColor('--chart-text');
     ctx.font = '11px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('Nog geen data — speel een ronde.', W/2, H/2);
+    ctx.fillText('Nog niets te zien: speel eerst een ronde.', W/2, H/2);
     return;
   }
   const maxVal = 52;
@@ -138,8 +138,8 @@ function renderStatsSummary(){
   const el = document.getElementById('statsSummary');
   if (!el) return;
   el.innerHTML = '';
-  statsLine(el, 'Totaal battles: ', String(statsTotalBattles));
-  statsLine(el, 'Langste tie-break: ', String(statsLongestTie), ' ' + (statsLongestTie === 1 ? 'niveau' : 'niveaus'));
+  statsLine(el, 'Aantal battles: ', String(statsTotalBattles));
+  statsLine(el, 'Meeste battles achter elkaar in één ronde: ', String(statsLongestTie));
   statsLine(el, 'Rondes gespeeld: ', String(statsRoundCount));
   statsPlayers().forEach(p => {
     const wins = statsWins[p.id] || 0;

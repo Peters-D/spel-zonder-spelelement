@@ -9,7 +9,7 @@ const speedLabel = document.getElementById('speedLabel');
 
 speedSlider.addEventListener('input', () => {
   autoPlaySpeed = parseInt(speedSlider.value);
-  speedLabel.textContent = autoPlaySpeed + ' ms';
+  speedLabel.textContent = (autoPlaySpeed / 1000).toFixed(1).replace('.', ',') + ' s per stap';
 });
 
 function autoPlayTick(){
@@ -34,7 +34,7 @@ function stopAutoPlay(){
   autoPlayActive = false;
   if (autoPlayTimer) clearTimeout(autoPlayTimer);
   autoPlayTimer = null;
-  autoPlayBtn.textContent = '▶ Auto-play';
+  autoPlayBtn.textContent = '▶ Speel vanzelf';
   autoPlayBtn.classList.remove('active');
   if (phase !== 'game-over' && phase !== 'cycle-over') playBtn.disabled = false;
 }
@@ -83,7 +83,7 @@ function fastForward(){
     endCycleDetected();
     setPhase('cycle-over');
   } else {
-    setDispatch('Fast-forward gestopt na ' + result.rounds + ' rondes zonder winnaar.');
+    setDispatch('Doorgespeeld tot ronde ' + result.rounds + ': er is nog steeds geen winnaar.');
     setPhase('round-over');
   }
   renderGrid(true);

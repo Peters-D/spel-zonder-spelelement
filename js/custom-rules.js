@@ -111,7 +111,7 @@ function parseCustomRule(text){
   if (typeof text !== 'string' || text.trim() === '') return { def: null, errors: ['Het tekstvak is leeg.'] };
   if (customByteLength(text) > CUSTOM_LIMITS.textBytes) return { def: null, errors: ['De tekst is te groot (ten hoogste ' + CUSTOM_LIMITS.textBytes + ' bytes).'] };
   let raw;
-  try { raw = JSON.parse(text); } catch (e){ return { def: null, errors: ['Dit is geen geldige JSON: ' + e.message] }; }
+  try { raw = JSON.parse(text); } catch (e){ return { def: null, errors: ['Het spel kan deze tekst niet lezen (geen geldige JSON): ' + e.message] }; }
   if (!customIsObject(raw)) return { def: null, errors: ['Een regelblok is een object met velden tussen { en }.'] };
   for (const k of Object.keys(raw)) if (!['id', 'title', 'short', 'description', 'priority', 'logic', 'examples'].includes(k)) errors.push('onbekend onderdeel "' + k + '"');
 
