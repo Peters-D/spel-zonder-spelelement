@@ -82,6 +82,7 @@ function buildRulebook(rules, base, active){
     const box = rbEl('section', 'rb-section rb-rule');
     const head = rbEl('div', 'rb-rule-head');
     head.appendChild(rbEl('h4', 'rb-title rb-rule-title', rule.title));
+    if (rule.custom) head.appendChild(rbEl('span', 'rb-badge rb-custom', 'eigen regel'));
     head.appendChild(rbEl('span', 'rb-badge ' + (on ? 'rb-on' : 'rb-off'), on ? 'aan' : 'uit'));
     box.appendChild(head);
     box.appendChild(rbEl('p', 'rb-text rb-rule-text', rule.description));

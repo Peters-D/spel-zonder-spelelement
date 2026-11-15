@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/rulebook.css">
 <link rel="stylesheet" href="css/stats.css">
+<link rel="stylesheet" href="css/custom-rules.css">
 <link rel="stylesheet" href="css/cards-bobr.css">
 </head>
 <body>
@@ -34,6 +35,8 @@
     <input type="text" id="seedInput" value="1000" autocomplete="off" placeholder="bijv. test123 — leeg = willekeurig" style="width:100%;background:var(--olive-dark);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:9px 12px;font-family:'Inter',sans-serif;font-size:13.5px;outline:none;margin-bottom:18px;box-sizing:border-box;">
     <h2>Extra regels</h2>
     <div id="rulesList"></div>
+    <button type="button" class="custom-rule-btn" id="customRuleBtn" aria-haspopup="dialog">➕ Eigen regel</button>
+    <p class="custom-rule-status" id="customRuleStatus" aria-live="polite"></p>
     <button class="start-btn" id="startBtn">Begin het spel</button>
     <button class="rulebook-btn" id="rulebookBtnSetup">📖 Spelregels</button>
 
@@ -102,6 +105,37 @@
   </div>
 </div>
 
+<div class="rulebook custom-rule" id="customRule" role="dialog" aria-modal="true" aria-labelledby="customRuleTitle" aria-hidden="true">
+  <div class="rulebook-inner" id="customRuleInner">
+    <button class="rulebook-close" id="customRuleClose" type="button" aria-label="Sluiten">✕</button>
+    <h2 class="rulebook-title" id="customRuleTitle">Eigen regel</h2>
+    <p class="cr-text">Plak een regelblok (JSON), controleer het, speel proefspellen en voeg het toe. Een eigen regel blijft alleen staan tot je de pagina ververst: exporteer hem om hem te bewaren of te delen.</p>
+    <label class="cr-label" for="customRuleText">Regelblok</label>
+    <textarea id="customRuleText" class="cr-textarea" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    <div class="cr-buttons">
+      <button type="button" id="customRuleSample">Voorbeeld</button>
+      <button type="button" id="customRuleCheck">Controleer</button>
+    </div>
+    <ul class="cr-messages" id="customRuleMessages" aria-live="polite"></ul>
+    <div class="cr-trial">
+      <label class="cr-inline" for="customTrialGames">Proefspellen
+        <select id="customTrialGames" autocomplete="off">
+          <option value="50">50</option><option value="100">100</option><option value="200" selected>200</option><option value="500">500</option><option value="1000">1000</option>
+        </select>
+      </label>
+      <label class="cr-inline"><input type="checkbox" id="customTrialBase" autocomplete="off"> met de regels die nu zijn aangevinkt</label>
+    </div>
+    <div class="cr-buttons">
+      <button type="button" id="customRuleTrialBtn" disabled>Speel proefspellen</button>
+      <button type="button" id="customRuleAdd" disabled>Voeg toe</button>
+    </div>
+    <progress class="cr-progress" id="customRuleProgress" max="1" value="0" hidden></progress>
+    <div class="cr-report" id="customRuleReport" aria-live="polite"></div>
+    <h3 class="cr-heading">Toegevoegde regels</h3>
+    <ul class="cr-added" id="customRuleAdded"></ul>
+  </div>
+</div>
+
 <div class="rulebook" id="rulebook" role="dialog" aria-modal="true" aria-labelledby="rulebookTitle" aria-hidden="true">
   <div class="rulebook-inner" id="rulebookInner">
     <button class="rulebook-close" id="rulebookClose" aria-label="Sluiten">✕</button>
@@ -129,5 +163,6 @@
 <script src="js/undo.js"></script>
 <script src="js/rulebook.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/custom-rules-ui.js"></script>
 </body>
 </html>

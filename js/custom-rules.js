@@ -247,7 +247,9 @@ function createCustomTrial(def, options){
   const opt = options || {};
   const lim = CUSTOM_LIMITS.trialGames;
   const games = Math.max(lim.min, Math.min(lim.max, Number.isInteger(opt.games) ? opt.games : lim.default));
-  const counts = Array.isArray(opt.players) && opt.players.length ? opt.players : [3, 4, 5, 6];
+  // Alleen echte aantallen spelers (2 t/m 8, ten hoogste 8 stuks); anders de standaard.
+  const asked = Array.isArray(opt.players) ? opt.players.filter(n => Number.isInteger(n) && n >= 2 && n <= CUSTOM_LIMITS.players).slice(0, 8) : [];
+  const counts = asked.length ? asked : [3, 4, 5, 6];
   const baseRules = {};
   for (const r of RULES) baseRules[r.id] = !!(opt.base && opt.base[r.id]);
   const withRules = Object.assign({}, baseRules, { [def.id]: true });
@@ -292,9 +294,14 @@ function createCustomTrial(def, options){
     },
     get done(){ return done; },
     progress(){ return report.played / games; },
+    // Een kopie: wie het rapport bewaart, ziet het niet veranderen terwijl de proef doorloopt.
     report(){
       const avg = s => (s.win ? Math.round(s.winRounds / s.win) : null);
-      return Object.assign({}, report, { avgWinRounds: { without: avg(report.without), with: avg(report.with) },
+      return Object.assign({}, report, {
+        without: Object.assign({}, report.without), with: Object.assign({}, report.with),
+        conservationFailures: report.conservationFailures.map(x => Object.assign({}, x)), errors: report.errors.map(x => Object.assign({}, x)),
+        examples: { total: report.examples.total, passed: report.examples.passed, failures: report.examples.failures.slice() },
+        avgWinRounds: { without: avg(report.without), with: avg(report.with) },
         ok: report.conservationFailures.length === 0 && report.errors.length === 0 && report.examples.failures.length === 0 });
     },
     dispose(){ preview.restore(); }

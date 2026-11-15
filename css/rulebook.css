@@ -101,3 +101,5 @@
 .rb-order-item:not(.rb-on){ color: color-mix(in srgb, var(--ink) 55%, transparent); }
 
 .rb-rule-note{ font-weight:600; }
+
+.rb-custom{ color: color-mix(in srgb, var(--ink) 70%, transparent); border-style:dashed; }
