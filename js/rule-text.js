@@ -170,7 +170,7 @@ function describeRuleLogic(logic){
     const x = rtCards(then.win), verb = x.verbSingular ? 'wint' : 'winnen';
     if (m === 'tiebreak') return 'Bij een gelijkspel' + (cond ? ', als ' + cond + ', dan' : '') + ' wint ' + x.single + '.';
     const s = cond ? 'Als ' + cond + ', dan ' + verb + ' ' + x.plural + '.' : rtUpper(x.plural) + ' ' + verb + '.';
-    return s + ' Bij een gelijkspel battlen ze.';
+    return s + ' Bij gelijk spel: BATTLE!';
   }
   const e = rtEffect(then);
   if (m === 'roundEnd') return cond
