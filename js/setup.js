@@ -44,6 +44,10 @@ function renderRuleOptions(){
   const chosen = currentWinnerRules();
   for (const k of Object.keys(ruleChoiceNotes)) delete ruleChoiceNotes[k];
   for (const rule of RULES){
+    // Een rij: het vinkje met de naam van de regel (zoals in het regelboek), en een i-knop die de volledige uitleg open- en dichtklapt.
+    // De knop staat buiten het label, zodat een klik op de i het vinkje niet aanzet.
+    const row = document.createElement('div');
+    row.className = 'rule-row';
     const label = document.createElement('label');
     label.className = 'rule-check';
     const input = document.createElement('input');
@@ -52,10 +56,31 @@ function renderRuleOptions(){
     input.checked = chosen[rule.id] ? chosen[rule.id].on : rule.default;
     input.setAttribute('autocomplete', 'off'); // de browser zet vinkjes niet zelf terug bij verversen: alleen de bewaarde winnaarskeuzes tellen
     const text = document.createElement('span');
-    text.textContent = rule.short;
+    text.textContent = rule.title;
     label.appendChild(input);
     label.appendChild(text);
-    list.appendChild(label);
+    const info = document.createElement('button');
+    info.type = 'button';
+    info.className = 'rule-info-btn';
+    info.textContent = 'i';
+    info.setAttribute('aria-label', 'Uitleg: ' + rule.title);
+    info.setAttribute('aria-expanded', 'false');
+    info.id = rule.id + 'Info';
+    const panel = document.createElement('p');
+    panel.className = 'rule-info';
+    panel.id = rule.id + 'InfoText';
+    panel.textContent = rule.description;
+    panel.hidden = true;
+    info.setAttribute('aria-controls', panel.id);
+    info.addEventListener('click', () => {
+      const open = panel.hidden;
+      panel.hidden = !open;
+      info.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    row.appendChild(label);
+    row.appendChild(info);
+    list.appendChild(row);
+    list.appendChild(panel);
     ruleChoiceInputs[rule.id] = input;
     ruleChoiceLabels[rule.id] = label;
     if (chosen[rule.id] && chosen[rule.id].by) markRuleNote(rule.id, chosen[rule.id].by);
