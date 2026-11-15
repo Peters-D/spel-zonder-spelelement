@@ -560,7 +560,7 @@ test('eigen regels: de focus blijft in het venster', async page => {
   await crOpen(page);
   await page.focus('#customRuleClose');
   await page.keyboard.press('Shift+Tab');
-  eq(await page.evaluate(() => document.activeElement.id), 'customTrialBase', 'Shift+Tab voor de eerste gaat naar de laatste');
+  eq(await page.evaluate(() => document.activeElement.id), 'customPromptCopy', 'Shift+Tab voor de eerste gaat naar de laatste');
   await page.keyboard.press('Tab');
   eq(await page.evaluate(() => document.activeElement.id), 'customRuleClose', 'Tab na de laatste gaat naar de eerste');
   noErrors(page);
