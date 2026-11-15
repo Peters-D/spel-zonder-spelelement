@@ -678,10 +678,10 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   // Met "Gelijke kaarten gaan voor" battlen de zevens, dus ook dan geen Heer die wint.
   r = play([['K', '4'], ['Q', '7'], ['7', '5', '6'], ['7', '8', '3']], { battleFirst: true });
   if (r.shared.length !== 0) failures.push('Koninklijk paar: met Gelijke kaarten gaan voor wint een zeven en wordt er niet gedeeld: ' + JSON.stringify(r));
-  // Zeldzaam: in een battle hebben alle spelers geen kaart meer, dus niemand wint. De pot gaat dan naar de eerste speler die nog meedoet,
-  // ook als die met een Heer begon en er een Vrouw ligt: er is geen winnende Heer, dus er wordt niet gedeeld.
+  // Zeldzaam: in een battle hebben alle spelers geen kaart meer. De overige spelers maken het dan onderling uit met hun open kaart:
+  // de Heer wint van de Vrouw, en omdat er een Vrouw ligt delen zij de pot (K, Q, 7, 7): de Heer K en 7, de Vrouw Q en 7.
   r = play([['K', '4'], ['Q', '7'], ['7'], ['7']], { battleFirst: true });
-  if (!same(r.after, [['4', 'K', 'Q', '7', '7'], ['7'], [], []])) failures.push('Koninklijk paar: als niemand een battle wint, wordt de pot niet gedeeld: ' + JSON.stringify(r));
+  if (!same(r.after, [['4', 'K', '7'], ['7', 'Q', '7'], [], []]) || !same(r.shared, [0, 1])) failures.push('Koninklijk paar: vallen alle spelers in de battle af, dan wint de Heer van de overige spelers en deelt hij met de Vrouw: ' + JSON.stringify(r));
   // Twee Vrouwen en een Heer die direct wint (zonder battle): de Heer en beide Vrouwen delen de pot van drie, elk één kaart.
   r = play([['Q', '9', '2'], ['Q', '5', '3'], ['K', '6', '4']]);
   if (!same(r.shared, [2, 0, 1]) || !same(r.after, [['9', '2', 'Q'], ['5', '3', 'Q'], ['6', '4', 'K']])) failures.push('Koninklijk paar: een Heer met twee Vrouwen klopt niet: ' + JSON.stringify(r));
@@ -1498,6 +1498,65 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   eq('rapport: wat misgaat wordt gemeld', [badRep.ok, badRep.notes.map(n => n.ok), badRep.notes.map(n => n.text)],
     [false, [false, false, false, false], ['Gestopt na 6 van de 10 spellen.', 'Er gingen kaarten verloren of dubbel in 1 spellen (eerste: spel 4, met de regel).', 'De regel gaf een fout in 1 spellen: boem', 'Van de voorbeelden kloppen er 2 van de 3.']]);
   eq('er blijft geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
+}
+
+// ---- randgevallen van de spelkern: iedereen in de battle valt af, en een gelijkspel dat een regel beslist ----
+{
+  const fail = t => failures.push('randgevallen: ' + t);
+  const same = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) fail(name + ': verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+  // Speelt één ronde en geeft de stapels (aantallen), de winnaar, het aantal battles en het totaal aan kaarten.
+  const round = (decks, rules) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, ${JSON.stringify(rules || {})});
+    const before = st.players.reduce((n, p) => n + p.deck.length, 0);
+    const r = enginePlayRound(st);
+    const total = st.players.reduce((n, p) => n + p.deck.length, 0) + st.pot.length + st.discard.length;
+    return JSON.stringify({ decks: st.players.map(p => p.deck.length), winner: r.winner ? r.winner.id : null, battles: r.battleLevels, gameOver: r.end.gameOver, discard: st.discard.length, kept: total === before }); })()`));
+  // 1. Alle spelers in de battle vallen af: de overige spelers maken het uit met hun open kaart, niet met hun plek aan tafel.
+  same('de hoogste open kaart van de rest wint (niet wie vooraan zit)', round([['K♠'], ['K♥'], ['3♦', '5♦'], ['4♣', '6♣']]),
+    { decks: [0, 0, 1, 5], winner: 3, battles: 1, gameOver: false, discard: 0, kept: true });
+  same('ook als de winnaar vooraan zit', round([['K♠'], ['K♥'], ['4♦', '5♦'], ['3♣', '6♣']]),
+    { decks: [0, 0, 5, 1], winner: 2, battles: 1, gameOver: false, discard: 0, kept: true });
+  same('één speler over buiten de battle: die krijgt de pot', round([['K♠'], ['K♥'], ['3♦']]),
+    { decks: [0, 0, 3], winner: 2, battles: 1, gameOver: true, discard: 0, kept: true });
+  same('de rest eindigt gelijk: zij battlen verder', round([['K♠'], ['K♥'], ['3♦', '9♦'], ['3♣', '6♣']]),
+    { decks: [0, 0, 6, 0], winner: 2, battles: 2, gameOver: true, discard: 0, kept: true });
+  same('de rest eindigt gelijk en heeft ook geen kaarten: niemand houdt iets over', round([['K♠'], ['K♥'], ['3♦'], ['3♣']]),
+    { decks: [0, 0, 0, 0], winner: null, battles: 2, gameOver: true, discard: 4, kept: true });
+  same('de regels gelden ook voor de rest (2 verslaat Aas)', round([['K♠'], ['K♥'], ['2♦', '5♦'], ['A♣', '6♣']], { battleFirst: true, twoBeatsAce: true }),
+    { decks: [0, 0, 5, 1], winner: 2, battles: 1, gameOver: false, discard: 0, kept: true });
+  same('met Battle ruimt de pot op gaat de pot naar de aflegstapel: er was een battle', round([['K♠'], ['K♥'], ['3♦', '5♦'], ['4♣', '6♣']], { battleDiscard: true }),
+    { decks: [0, 0, 1, 1], winner: 3, battles: 1, gameOver: false, discard: 4, kept: true });
+  // De gebeurtenis zelf: leftover noemt de spelers die weer meedingen.
+  const lay = JSON.parse(run(`(() => { const st = __state([['K♠'], ['K♥'], ['3♦', '5♦'], ['4♣', '6♣']]); engineStartRound(st); engineResolve(st);
+    const ev = engineLayBattleCards(st); return JSON.stringify({ type: ev.type, leftover: ev.leftover.map(p => p.id), contenders: st.contenders, out: st.players.map(p => p.out) }); })()`));
+  same('de gebeurtenis na het leggen', lay, { type: 'battle-revealed', leftover: [2, 3], contenders: [2, 3], out: [true, true, false, false] });
+  const normalLay = JSON.parse(run(`(() => { const st = __state([['K♠', '2♠'], ['K♥', '3♥'], ['4♦']]); engineStartRound(st); engineResolve(st);
+    const ev = engineLayBattleCards(st); return JSON.stringify({ type: ev.type, leftover: 'leftover' in ev }); })()`));
+  same('een gewone battle heeft geen leftover', normalLay, { type: 'battle-revealed', leftover: false });
+
+  // 3. Niemand houdt kaarten over: de pot gaat naar de aflegstapel, er verdwijnen geen kaarten.
+  same('de laatste twee vallen samen af', round([['K♠'], ['K♥']]), { decks: [0, 0], winner: null, battles: 1, gameOver: true, discard: 2, kept: true });
+  const voidEv = JSON.parse(run(`(() => { const st = __state([['K♠'], ['K♥']]); engineStartRound(st); engineResolve(st);
+    const ev = engineLayBattleCards(st); return JSON.stringify({ type: ev.type, potSize: ev.potSize, discarded: ev.discarded, toWinner: ev.toWinner, pot: st.pot.length }); })()`));
+  same('de gebeurtenis zonder winnaar', voidEv, { type: 'void', potSize: 2, discarded: 2, toWinner: 0, pot: 0 });
+
+  // 2. Een eigen regel die een gelijkspel beslist, krijgt niet de tekst over het symbool.
+  const stampOf = () => run('document.getElementById("stamp") ? document.getElementById("stamp").textContent : ""');
+  const tie = (logic, title) => {
+    run(`RULES.push(Object.assign({ id: 'tbTest', priority: 900, title: ${JSON.stringify(title)}, default: false, logic: ${JSON.stringify(logic)} }, compileRuleLogic(${JSON.stringify(logic)})));
+      RULES.push(Object.assign({ id: 'dcTest', priority: 901, title: 'Rood wint', default: false }, compileRuleLogic({ moment: 'decide', then: { win: { color: 'red' } } }))); rulesRefresh();`);
+    run(`game = __state([['K♥', '2♠'], ['3♦', '2♣'], ['A♠', '4♠']]); game.rules = Object.assign({}, game.rules, { tbTest: true, dcTest: true });
+      game.players.forEach((p, i) => { p.name = ['Anna', 'Bas', 'Chris'][i]; }); engineStartRound(game); roundPot = game.pot.slice(); roundSidelined = []; phase = 'revealed'; compareAndResolve();`);
+    const text = textOf(document.getElementById('dispatch'));
+    run(`RULES.splice(RULES.findIndex(r => r.id === 'tbTest'), 1); RULES.splice(RULES.findIndex(r => r.id === 'dcTest'), 1); rulesRefresh();`);
+    return text;
+  };
+  const byRule = tie({ moment: 'tiebreak', then: { win: { rank: 'K' } } }, 'De Heer beslist');
+  if (!byRule.startsWith('Anna wint het gelijkspel door de regel "De Heer beslist". ') || /symbool/.test(byRule)) fail('een eigen gelijkspel-regel hoort bij naam genoemd te worden, zonder "symbool": ' + byRule);
+  const bySuit = tie({ moment: 'tiebreak', then: { win: { lowest: 'suitOrder' } } }, 'Laagste symbool');
+  if (!bySuit.startsWith('Bas wint op symbool (♦). ')) fail('een eigen regel die op symbool kiest houdt de tekst over het symbool: ' + bySuit);
+  run(`game = __state([['K♠', '2♠'], ['K♥', '2♣']]); game.rules = Object.assign({}, game.rules, { suitBreak: true });
+    game.players.forEach((p, i) => { p.name = ['Anna', 'Bas'][i]; }); engineStartRound(game); roundPot = game.pot.slice(); roundSidelined = []; phase = 'revealed'; compareAndResolve();`);
+  if (!textOf(document.getElementById('dispatch')).startsWith('Anna wint op symbool (♠). ')) fail('de symboolregel houdt zijn tekst: ' + textOf(document.getElementById('dispatch')));
 }
 
 // ---- regels in gewone taal (js/rule-text.js) ----

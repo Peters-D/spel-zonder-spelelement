@@ -215,7 +215,8 @@ const BASE_RULES = [
     title: 'Battle',
     description: 'Hebben twee of meer spelers dezelfde hoogste kaart, dan is er een battle. Alleen die spelers leggen een nieuwe kaart open ' +
       '(bovenop de pot); de andere spelers doen niet meer mee en hun kaarten blijven in de pot. De hoogste nieuwe kaart wint de hele pot. ' +
-      'Zijn die weer gelijk, dan volgt een nieuwe battle. Heeft een speler in een battle geen kaart meer om te leggen, dan ligt die speler eruit.',
+      'Zijn die weer gelijk, dan volgt een nieuwe battle. Heeft een speler in een battle geen kaart meer om te leggen, dan ligt die speler eruit. ' +
+      'Vallen zo alle spelers in de battle af, dan dingen de overige spelers met hun open kaart mee naar de pot: de hoogste kaart wint, en bij gelijke kaarten volgt een battle.',
     examples: [
       { cards: ['K', 'K', '5'], winners: [0, 1], text: 'Twee Koningen: die twee battlen. De 5 doet niet mee.' }
     ]
