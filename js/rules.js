@@ -80,7 +80,7 @@ const RULES = [
     description: 'Is er in een ronde een battle geweest, dan wint niemand de pot: alle kaarten op tafel gaan naar de aflegstapel, ' +
       'ook die van de spelers die niet meededen aan de battle. De winnaar van de battle krijgt dus niets. ' +
       'Zonder battle verandert er niets (ook als "Bij gelijkspel beslist het symbool" aan staat: dan is er nooit een battle). Afgelegde kaarten blijven uit het spel. Heeft een speler daardoor geen kaarten meer, dan ligt die eruit; ' +
-      'hebben alle spelers geen kaarten meer, dan is het gelijkspel.',
+      'hebben alle spelers geen kaarten meer, dan winnen de spelers die in die ronde afvielen samen.',
     default: false,
     usesDiscard: true,
     examples: [
@@ -89,7 +89,7 @@ const RULES = [
       { decks: [['A', '4'], ['K', '9']], after: [['4', 'A', 'K'], ['9']], discarded: 0,
         text: 'Zonder battle wint speler 1 de pot gewoon.' },
       { decks: [['K'], ['K', '3']], after: [[], []], discarded: 3,
-        text: 'Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: gelijkspel.' }
+        text: 'Speler 1 heeft in de battle geen kaart meer. Speler 2 wint de battle, maar de pot gaat naar de aflegstapel. Nu hebben beide spelers geen kaarten meer: zij winnen samen.' }
     ],
     logic: { moment: 'award', if: { battle: true }, then: { discardPot: true } },
   },
