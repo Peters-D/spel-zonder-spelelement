@@ -412,6 +412,12 @@ for (const id of ['rulebookBtnSetup', 'rulebookBtnGame', 'rulebook', 'rulebookIn
   if (!pageHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id);
 }
 
+// Het venster voor eigen regels staat in index.html.
+for (const id of ['customRuleBtn', 'customRuleStatus', 'customRule', 'customRuleInner', 'customRuleClose', 'customRuleText', 'customRuleSample', 'customRuleCheck', 'customRuleMessages',
+  'customTrialGames', 'customTrialBase', 'customRuleTrialBtn', 'customRuleAdd', 'customRuleProgress', 'customRuleReport', 'customRuleAdded']){
+  if (!pageHtml.includes('id="' + id + '"')) failures.push('index.html mist het element met id ' + id + ' (venster voor eigen regels)');
+}
+
 // ---- seed: de volgende seed en de knop "Nieuwe seed proberen" ----
 const seedSteps = [['1000', '1001'], ['test', 'test2'], ['test2', 'test3'], ['test123', 'test124'], ['007', '008'], ['0099', '0100'],
   ['999', '1000'], ['  42 ', '43'], ['a1b', 'a1b2'], ['99999999999999999999', '100000000000000000000']];
@@ -1459,6 +1465,29 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     try { RULES.find(r => r.id === 'custom-opeenvolgend').onRoundEnd = () => { throw new Error('boem'); }; t.step(1e9); return JSON.stringify(t.report()); } finally { t.dispose(); } })()`));
   if (thrower.errors.length === 0 || !/boem/.test(thrower.errors[0].message) || thrower.ok || thrower.played !== 4) fail('een regel die een fout geeft wordt niet gemeld: ' + J(thrower.errors));
   eq('de catalogus is na een kapotte proef weer zoals hij was', catalogState(), before);
+  // Spelersaantallen buiten 2 t/m 8 worden genegeerd (anders de standaard), en het rapport is een kopie.
+  const odd = JSON.parse(trial(sample, { games: 4, players: [0, 1, 99, 'x', 3.5] }));
+  eq('onzinnige aantallen spelers geven geen fouten', [odd.played, odd.conservationFailures, odd.ok], [4, [], true]);
+  const copy = JSON.parse(run(`(() => { const t = createCustomTrial(${J(sample)}, { games: 3, players: [3] });
+    try { t.step(1e9); const a = t.report(); a.without.win = 999; a.errors.push('x'); a.examples.failures.push('y'); const b = t.report();
+      return JSON.stringify({ win: b.without.win, errors: b.errors.length, failures: b.examples.failures.length }); } finally { t.dispose(); } })()`));
+  if (copy.win === 999 || copy.errors !== 0 || copy.failures !== 0) fail('het rapport is geen kopie van de interne stand: ' + J(copy));
+
+  // Het rapport als tabel en zinnen (js/custom-rules-ui.js).
+  const side = (win, cycle, unknown, winRounds) => ({ win, cycle, unknown, winRounds, maxWinRounds: 0 });
+  const fakeReport = over => Object.assign({ games: 10, played: 10, without: side(2, 3, 5, 400), with: side(4, 1, 5, 1000), conservationFailures: [], errors: [], ms: 1234,
+    examples: { total: 3, passed: 3, failures: [] }, avgWinRounds: { without: 200, with: 250 }, ok: true }, over);
+  const sumOf = rep => JSON.parse(run('JSON.stringify(customReportSummary(' + J(rep) + '))'));
+  const good = sumOf(fakeReport({}));
+  eq('rapport: tabel', good.rows, [['Gespeelde spellen', '10', '10'], ['Eindigen met een winnaar', '2 (20%)', '4 (40%)'], ['Lopen vast in een cyclus', '3 (30%)', '1 (10%)'],
+    ['Niet beslist na 3000 rondes', '5 (50%)', '5 (50%)'], ['Gemiddelde lengte (spellen met een winnaar)', '200 rondes', '250 rondes']]);
+  eq('rapport: alles in orde', [good.ok, good.notes.map(n => n.ok)], [true, [true, true, true]]);
+  const noWin = sumOf(fakeReport({ without: side(0, 0, 10, 0), avgWinRounds: { without: null, with: 250 } }));
+  eq('rapport: geen enkel spel met een winnaar', [noWin.rows[1][1], noWin.rows[4][1]], ['0 (0%)', '–']);
+  const badRep = sumOf(fakeReport({ played: 6, ok: false, conservationFailures: [{ game: 4, players: 3, seed: 'trial-3', side: 'met' }], errors: [{ game: 2, players: 3, seed: 'trial-1', message: 'boem' }],
+    examples: { total: 3, passed: 2, failures: ['x'] } }));
+  eq('rapport: wat misgaat wordt gemeld', [badRep.ok, badRep.notes.map(n => n.ok), badRep.notes.map(n => n.text)],
+    [false, [false, false, false, false], ['Gestopt na 6 van de 10 spellen.', 'Er gingen kaarten verloren of dubbel in 1 spellen (eerste: spel 4, met de regel).', 'De regel gaf een fout in 1 spellen: boem', 'Van de voorbeelden kloppen er 2 van de 3.']]);
   eq('er blijft geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
 }
 

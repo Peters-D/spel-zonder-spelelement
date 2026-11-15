@@ -59,6 +59,12 @@ function renderRuleOptions(){
     ruleChoiceInputs[rule.id] = input;
     ruleChoiceLabels[rule.id] = label;
     if (chosen[rule.id] && chosen[rule.id].by) markRuleNote(rule.id, chosen[rule.id].by);
+    if (rule.custom){ // een regel die de speler zelf heeft toegevoegd (zie js/custom-rules-ui.js)
+      const own = document.createElement('span');
+      own.className = 'rule-by rule-custom';
+      own.textContent = '(eigen regel)';
+      label.appendChild(own);
+    }
     if (rule.id === 'suitBreak') list.appendChild(buildSuitPicker());
     input.addEventListener('change', refreshSuitPicker);
   }
@@ -122,6 +128,22 @@ function refreshSuitPicker(){
   if (!suitPickerBox) return;
   suitPickerBox.classList.toggle('hidden', !ruleChoiceInputs.suitBreak.checked);
   suitPickerHint.classList.toggle('hidden', !(ruleChoiceInputs.battleDiscard && ruleChoiceInputs.battleDiscard.checked));
+}
+
+// Bouwt de lijst vinkjes opnieuw op (na het toevoegen of weghalen van een eigen regel) en laat alles staan zoals het stond:
+// welke vinkjes aan staan en de volgorde van de symbolen. checkId (optioneel) zet het vinkje van die regel aan.
+function refreshRuleOptions(checkId){
+  const keep = {};
+  for (const [id, input] of Object.entries(ruleChoiceInputs)) keep[id] = input.checked;
+  const order = suitSelects.map(sel => sel.value);
+  for (const id of Object.keys(ruleChoiceInputs)) delete ruleChoiceInputs[id];
+  for (const id of Object.keys(ruleChoiceLabels)) delete ruleChoiceLabels[id];
+  renderRuleOptions();
+  for (const rule of RULES) if (rule.id in keep && ruleChoiceInputs[rule.id]) ruleChoiceInputs[rule.id].checked = keep[rule.id];
+  if (checkId && ruleChoiceInputs[checkId]) ruleChoiceInputs[checkId].checked = true;
+  if (order.length === suitSelects.length) suitSelects.forEach((sel, i) => { sel.value = order[i]; sel.dataset.prev = order[i]; });
+  colorSuitSelects();
+  refreshSuitPicker();
 }
 
 // Zet "gekozen door ..." achter het vinkje van een regel (alleen tekst).

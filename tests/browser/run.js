@@ -526,6 +526,251 @@ test('animaties: bij Revival schuift een kaart van de linkerbuur naar de speler 
   noErrors(page);
 });
 
+// ---- Eigen regels ----
+const CR = '#customRule';
+const crOpen = async page => { await page.click('#customRuleBtn'); await page.waitForSelector(CR + '.show'); };
+const crMessages = page => page.$$eval('#customRuleMessages li', x => x.map(e => e.textContent));
+const crNoCustom = page => page.evaluate(() => RULES.every(r => !r.custom) && customRun === null);
+// Vult het tekstvak met het voorbeeldblok (of een eigen blok), laat het controleren en geeft het blok terug.
+async function crFill(page, obj){
+  await page.fill('#customRuleText', JSON.stringify(obj));
+  await page.click('#customRuleCheck');
+}
+const crSample = page => page.evaluate(() => JSON.parse(JSON.stringify(CUSTOM_RULE_SAMPLE)));
+
+test('eigen regels: venster openen en sluiten met toetsenbord, kruisje en klik ernaast', async page => {
+  await page.click('#customRuleBtn');
+  eq(await page.getAttribute(CR, 'aria-hidden'), 'false', 'aria-hidden open');
+  eq(await page.evaluate(() => document.activeElement.id), 'customRuleText', 'focus bij openen');
+  await page.keyboard.press('Escape');
+  eq(await page.getAttribute(CR, 'aria-hidden'), 'true', 'aria-hidden dicht na Escape');
+  eq(await page.evaluate(() => document.activeElement.id), 'customRuleBtn', 'focus terug naar de knop');
+  await page.focus('#customRuleBtn');
+  await page.keyboard.press('Enter');
+  await page.waitForSelector(CR + '.show');
+  await page.click('#customRuleClose');
+  eq(await page.getAttribute(CR, 'aria-hidden'), 'true', 'kruisje sluit');
+  await crOpen(page);
+  await page.mouse.click(2, 2);
+  eq(await page.getAttribute(CR, 'aria-hidden'), 'true', 'klik ernaast sluit');
+  noErrors(page);
+});
+
+test('eigen regels: de focus blijft in het venster', async page => {
+  await crOpen(page);
+  await page.focus('#customRuleClose');
+  await page.keyboard.press('Shift+Tab');
+  eq(await page.evaluate(() => document.activeElement.id), 'customTrialBase', 'Shift+Tab voor de eerste gaat naar de laatste');
+  await page.keyboard.press('Tab');
+  eq(await page.evaluate(() => document.activeElement.id), 'customRuleClose', 'Tab na de laatste gaat naar de eerste');
+  noErrors(page);
+});
+
+test('eigen regels: voorbeeld, controleren en wijzigen', async page => {
+  await crOpen(page);
+  ok(await page.isDisabled('#customRuleTrialBtn') && await page.isDisabled('#customRuleAdd'), 'proefspellen en toevoegen staan aan zonder een goed blok');
+  await page.click('#customRuleSample');
+  const text = await page.inputValue('#customRuleText');
+  eq(JSON.parse(text).id, 'custom-opeenvolgend', 'het voorbeeld staat in het tekstvak');
+  ok(await page.isDisabled('#customRuleAdd'), 'toevoegen kan pas na controleren');
+  await page.click('#customRuleCheck');
+  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.'], 'meldingen');
+  ok(!(await page.isDisabled('#customRuleTrialBtn')) && !(await page.isDisabled('#customRuleAdd')), 'knoppen na een goede controle');
+  await page.fill('#customRuleText', text + ' ');
+  ok(await page.isDisabled('#customRuleTrialBtn') && await page.isDisabled('#customRuleAdd'), 'wijzigen haalt de goedkeuring weg');
+  ok(await crNoCustom(page), 'niets toegevoegd');
+  noErrors(page);
+});
+
+test('eigen regels: fouten staan er in gewone taal, en het blok wordt niet toegevoegd', async page => {
+  await crOpen(page);
+  await page.fill('#customRuleText', '{ geen json');
+  await page.click('#customRuleCheck');
+  ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij kapotte JSON: ' + (await crMessages(page))[0]);
+  const sample = await crSample(page);
+  sample.code = 'alert(1)'; sample.id = 'mijn-regel'; sample.logic.then.win = { rank: 'Z' };
+  await crFill(page, sample);
+  const msgs = (await crMessages(page)).join(' | ');
+  ok(msgs.includes('onbekend onderdeel "code"') && msgs.includes('id:') && msgs.includes('onbekende waarde'), 'meldingen noemen alle drie de fouten: ' + msgs);
+  ok(await page.isDisabled('#customRuleTrialBtn') && await page.isDisabled('#customRuleAdd'), 'knoppen blijven uit');
+  // Een voorbeeld dat niet klopt wordt gemeld en laat het toevoegen niet toe.
+  const wrong = await crSample(page);
+  wrong.examples[0].winners = [3];
+  await crFill(page, wrong);
+  const msgs2 = await crMessages(page);
+  ok(msgs2[0].startsWith('✗ voorbeeld 1') && msgs2[msgs2.length - 1].includes('1 van de 2'), 'melding bij een fout voorbeeld: ' + msgs2.join(' | '));
+  ok(await page.isDisabled('#customRuleAdd'), 'een blok met een fout voorbeeld kan niet worden toegevoegd');
+  ok(await crNoCustom(page), 'niets toegevoegd');
+  noErrors(page);
+});
+
+test('eigen regels: proefspellen met voortgang en rapport', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.selectOption('#customTrialGames', '50');
+  await page.click('#customRuleTrialBtn');
+  eq(await text(page, '#customRuleTrialBtn'), 'Stop', 'knop tijdens de proef');
+  ok(await page.isDisabled('#customRuleAdd') && await page.isDisabled('#customRuleCheck'), 'tijdens de proef kan er niets worden toegevoegd of gecontroleerd');
+  await page.waitForSelector('#customRuleReport table', { timeout: 60000 });
+  eq(await text(page, '#customRuleTrialBtn'), 'Speel proefspellen', 'knop na de proef');
+  ok(await page.isHidden('#customRuleProgress'), 'voortgangsbalk weg na de proef');
+  ok(!(await page.isDisabled('#customRuleAdd')), 'toevoegen kan weer');
+  const rows = await page.$$eval('#customRuleReport .cr-table tr', trs => trs.map(tr => [...tr.children].map(c => c.textContent)));
+  eq(rows.map(r => r[0]), ['', 'Gespeelde spellen', 'Eindigen met een winnaar', 'Lopen vast in een cyclus', 'Niet beslist na 3000 rondes', 'Gemiddelde lengte (spellen met een winnaar)'], 'rijen van het rapport');
+  eq(rows[1], ['Gespeelde spellen', '50', '50'], 'aantal spellen');
+  const notes = await page.$$eval('#customRuleReport .cr-messages li', x => x.map(e => e.textContent));
+  eq(notes.map(n => n[0]), ['✓', '✓', '✓'], 'alles in orde');
+  ok(await crNoCustom(page), 'de regel staat na de proef niet in het spel');
+  noErrors(page);
+});
+
+test('eigen regels: stoppen, en sluiten tijdens een proef, laat niets achter', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.selectOption('#customTrialGames', '1000');
+  await page.click('#customRuleTrialBtn');
+  await page.waitForFunction(() => document.getElementById('customRuleProgress').value > 0);
+  eq(await page.evaluate(() => RULES.some(r => r.custom)), true, 'de regel staat tijdens de proef tijdelijk in het spel');
+  await page.click('#customRuleTrialBtn'); // Stop
+  ok(await crNoCustom(page), 'na stoppen is de regel weer weg');
+  eq(await text(page, '#customRuleTrialBtn'), 'Speel proefspellen', 'knop na stoppen');
+  await page.click('#customRuleTrialBtn');
+  await page.waitForFunction(() => document.getElementById('customRuleProgress').value > 0);
+  await page.keyboard.press('Escape'); // venster dicht tijdens de proef
+  ok(await crNoCustom(page), 'na sluiten is de regel weer weg');
+  await page.waitForTimeout(200);
+  ok(await crNoCustom(page), 'en blijft weg (de proef loopt niet door)');
+  noErrors(page);
+});
+
+test('eigen regels: de proef kan meespelen met de regels die zijn aangevinkt', async page => {
+  await page.evaluate(() => { const orig = createCustomTrial; window.__opts = []; createCustomTrial = (d, o) => { window.__opts.push(o); return orig(d, o); }; });
+  await page.check('#battleFirstInput');
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.selectOption('#customTrialGames', '50');
+  await page.click('#customRuleTrialBtn');
+  await page.waitForSelector('#customRuleReport table', { timeout: 60000 });
+  await page.check('#customTrialBase');
+  await page.click('#customRuleTrialBtn');
+  await page.waitForFunction(() => window.__opts.length === 2);
+  await page.click('#customRuleTrialBtn'); // Stop: het gaat om de opties
+  eq(await page.evaluate(() => window.__opts.map(o => [o.games, o.base])), [[50, {}], [50, { battleFirst: true }]], 'opties van de proef');
+  noErrors(page);
+});
+
+test('eigen regels: toevoegen zet een aangevinkt vinkje bij, en laat de andere keuzes staan', async page => {
+  await page.check('#twoBeatsAceInput');
+  await page.check('#suitBreakInput');
+  await page.selectOption('.suit-picker select >> nth=0', '♣');
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.click('#customRuleAdd');
+  eq(await page.getAttribute(CR, 'aria-hidden'), 'true', 'venster dicht na toevoegen');
+  eq(await page.evaluate(() => document.activeElement.id), 'custom-opeenvolgendInput', 'focus op het nieuwe vinkje');
+  ok(await page.isChecked('#custom-opeenvolgendInput'), 'het nieuwe vinkje staat aan');
+  ok((await text(page, '#customRuleStatus')).includes('Opeenvolgende kaarten'), 'melding: ' + await text(page, '#customRuleStatus'));
+  ok((await page.textContent('#custom-opeenvolgendInput >> xpath=..')).includes('(eigen regel)'), 'label noemt het een eigen regel');
+  ok(await page.isChecked('#twoBeatsAceInput') && await page.isChecked('#suitBreakInput'), 'andere vinkjes blijven aan');
+  ok(!(await page.isChecked('#battleFirstInput')), 'vinkjes die uit stonden blijven uit');
+  eq(await page.$$eval('.suit-picker select', s => s.map(x => x.value).join('')), '♣♥♦♠', 'volgorde van de symbolen blijft');
+  // Het regelboek kent de regel, met zijn voorbeelden en een label.
+  await page.click('#rulebookBtnSetup');
+  const book = await text(page, '#rulebookBody');
+  ok(book.includes('Opeenvolgende kaarten') && book.includes('eigen regel') && book.includes('Geen reeks van drie'), 'regelboek toont de eigen regel met zijn voorbeelden');
+  await page.keyboard.press('Escape');
+  noErrors(page);
+});
+
+test('eigen regels: het spel gebruikt de regel, en F5 zet alles terug', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.click('#customRuleAdd');
+  await startGame(page, { players: 4, seed: 'cr1' });
+  eq(await page.evaluate(() => game.rules['custom-opeenvolgend']), true, 'de regel staat aan in het spel');
+  eq(await page.evaluate(() => JSON.stringify(findWinningPlayers(['7♠', '8♥', '9♦', 'A♣'].map((c, i) => ({ id: i, faceCard: parseExampleCard(c) })), game.rules).map(p => p.id))), '[0,1,2]', 'de regel beslist een tafel');
+  for (let i = 0; i < 40; i++) await page.click('#playBtn');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  await page.click('#rulebookBtnGame');
+  ok((await text(page, '#rulebookBody')).includes('Opeenvolgende kaarten'), 'regelboek in het spel kent de regel');
+  await page.keyboard.press('Escape');
+  await page.reload();
+  eq(await page.locator('#custom-opeenvolgendInput').count(), 0, 'na verversen is de eigen regel weg');
+  noErrors(page);
+});
+
+test('eigen regels: dezelfde id vervangt, exporteren en weghalen werken', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#customRuleCheck');
+  await page.click('#customRuleAdd');
+  const second = await crSample(page);
+  second.title = 'Tweede versie'; second.short = 'Tweede korte tekst';
+  await crOpen(page);
+  await crFill(page, second);
+  ok((await crMessages(page)).some(m => m.includes('toevoegen vervangt die')), 'melding dat er al een regel met deze id is');
+  await page.click('#customRuleAdd');
+  eq(await page.locator('#rulesList label.rule-check').count(), 7, 'nog steeds één vinkje erbij');
+  ok((await page.textContent('#custom-opeenvolgendInput >> xpath=..')).includes('Tweede korte tekst'), 'het vinkje toont de korte tekst van de nieuwste versie');
+  await crOpen(page);
+  eq(await page.$$eval('#customRuleAdded li span', x => x.map(e => e.textContent)), ['Tweede versie (custom-opeenvolgend)'], 'lijst met toegevoegde regels');
+  await page.click('#customRuleAdded button:has-text("Exporteer")');
+  eq(await page.evaluate(() => JSON.parse(document.getElementById('customRuleText').value).title), 'Tweede versie', 'export zet het blok in het tekstvak');
+  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Er is al een eigen regel met deze id: toevoegen vervangt die.'], 'export wordt meteen gecontroleerd');
+  await page.click('#customRuleAdded button:has-text("Haal weg")');
+  eq(await page.locator('#custom-opeenvolgendInput').count(), 0, 'vinkje is weg');
+  eq(await page.locator('#rulesList label.rule-check').count(), 6, 'zes vinkjes over');
+  ok((await text(page, '#customRuleStatus')).includes('verwijderd'), 'melding na weghalen');
+  ok(await crNoCustom(page), 'regel is weg uit het spel');
+  noErrors(page);
+});
+
+test('eigen regels: teksten blijven tekst, ook met HTML erin', async page => {
+  const evil = '<img src=x onerror="window.__pwned=1">';
+  const sample = await crSample(page);
+  sample.title = evil; sample.short = evil + ' kort'; sample.description = evil + ' uitleg';
+  await crOpen(page);
+  await crFill(page, sample);
+  await page.click('#customRuleAdd');
+  const label = await page.textContent('#custom-opeenvolgendInput >> xpath=..');
+  ok(label.includes(evil + ' kort'), 'het label toont de tekst letterlijk: ' + label);
+  await page.click('#rulebookBtnSetup');
+  ok((await text(page, '#rulebookBody')).includes(evil + ' uitleg'), 'het regelboek toont de tekst letterlijk');
+  await page.keyboard.press('Escape');
+  await crOpen(page);
+  ok((await text(page, '#customRuleAdded')).includes(evil), 'de lijst toont de tekst letterlijk');
+  eq(await page.locator('img[src="x"]').count(), 0, 'er is geen img-element ontstaan');
+  eq(await page.evaluate(() => window.__pwned), undefined, 'er is niets uitgevoerd');
+  noErrors(page);
+});
+
+test('eigen regels: het venster past op smalle schermen', async () => {
+  for (const width of [320, 412]){
+    const page = await open({ width, height: 700 });
+    try {
+      await crOpen(page);
+      await page.click('#customRuleSample');
+      await page.click('#customRuleCheck');
+      await page.selectOption('#customTrialGames', '50');
+      await page.click('#customRuleTrialBtn');
+      await page.waitForSelector('#customRuleReport table', { timeout: 60000 });
+      eq(await hScroll(page), 0, 'horizontaal scrollen bij ' + width + ' px');
+      const inner = await page.evaluate(() => { const i = document.getElementById('customRuleInner'); return { scroll: i.scrollWidth - i.clientWidth, w: i.getBoundingClientRect().width }; });
+      ok(inner.scroll <= 1 && inner.w <= width, 'het venster is te breed bij ' + width + ' px: ' + JSON.stringify(inner));
+      for (const id of ['customRuleSample', 'customRuleCheck', 'customRuleTrialBtn', 'customRuleAdd', 'customRuleClose']){
+        const box = await page.locator('#' + id).boundingBox();
+        ok(box && box.x >= 0 && box.x + box.width <= width + 0.5, 'knop ' + id + ' valt buiten het scherm bij ' + width + ' px');
+      }
+      noErrors(page);
+    } finally { await page.ctx.close(); }
+  }
+});
+
 // ---- Smalle schermen ----
 for (const width of [320, 360, 420, 768]){
   test('geen horizontaal scrollen bij ' + width + ' px (start en spel met 8 spelers)', async () => {
