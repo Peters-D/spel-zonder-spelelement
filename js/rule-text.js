@@ -10,15 +10,17 @@
 // elke bouwsteen een zin geeft. Komt er een bouwsteen bij in js/rule-dsl.js, dan moet hij hier ook bij (de test faalt anders niet
 // vanzelf voor een bouwsteen die ontbreekt: let daar zelf op).
 
+// Het enkelvoud en meervoud van een waarde, zoals die in een zin staat.
 const RT_RANK = {
-  '2': ['2', "2's"], '3': ['3', "3's"], '4': ['4', "4's"], '5': ['5', "5's"], '6': ['6', "6's"], '7': ['7', "7's"], '8': ['8', "8's"],
-  '9': ['9', "9's"], '10': ['10', "10's"], J: ['Boer', 'Boeren'], Q: ['Vrouw', 'Vrouwen'], K: ['Heer', 'Heren'], A: ['Aas', 'Azen']
+  '2': ['2', "2'en"], '3': ['3', "3'en"], '4': ['4', "4'en"], '5': ['5', "5'en"], '6': ['6', "6'en"], '7': ['7', "7'en"], '8': ['8', "8'en"],
+  '9': ['9', "9'en"], '10': ['10', "10'en"], J: ['Boer', 'Boeren'], Q: ['Vrouw', 'Vrouwen'], K: ['Heer', 'Heren'], A: ['Aas', 'Azen']
 };
 const RT_SUIT = { '♠': 'schoppen', '♥': 'harten', '♦': 'ruiten', '♣': 'klaveren' };
 const RT_RELATION = {
-  sameRank: 'kaarten met dezelfde waarde', sameSuit: 'kaarten van hetzelfde symbool',
-  sameColor: 'kaarten van dezelfde kleur', consecutive: 'kaarten met opeenvolgende waarden'
+  sameRank: 'met dezelfde waarde', sameSuit: 'van hetzelfde symbool',
+  sameColor: 'van dezelfde kleur', consecutive: 'met opeenvolgende waarden'
 };
+const RT_NUMBER = { 1: 'één', 2: 'twee', 3: 'drie', 4: 'vier', 5: 'vijf', 6: 'zes', 7: 'zeven', 8: 'acht' };
 
 const rtList = v => Array.isArray(v) ? v : [v];
 
@@ -27,138 +29,156 @@ function rtJoin(items, word){
   if (items.length <= 1) return items.join('');
   return items.slice(0, -1).join(', ') + ' ' + word + ' ' + items[items.length - 1];
 }
+const rtUpper = t => t.charAt(0).toUpperCase() + t.slice(1);
 
-// Een keuze van kaarten als zinsdeel. one: "een Heer", bare: "Heer" (zonder lidwoord), many: "Heren".
-// Bij een keuze die er één uit haalt (de hoogste, een groep) staat dat in sel of group.
+// Een keuze van kaarten als zinsdelen:
+//   single: de kaart in een zin met "er ligt" ("een 2", "de hoogste kaart")
+//   plural: de kaarten als onderwerp, met een meervoudig werkwoord ("kaarten met een 2")
+//   verbSingular: true als het onderwerp één kaart is ("de hoogste kaart wint")
 function rtCards(node){
   if ('rank' in node){
     const r = rtList(node.rank);
-    return { one: rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'), bare: rtJoin(r.map(x => RT_RANK[x][0]), 'of'), many: rtJoin(r.map(x => RT_RANK[x][1]), 'of') };
+    return {
+      single: rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'),
+      plural: 'kaarten met ' + rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'),
+      bare: rtJoin(r.map(x => RT_RANK[x][0]), 'of'), barePlural: rtJoin(r.map(x => RT_RANK[x][1]), 'of')
+    };
   }
   if ('suit' in node){
     const names = rtJoin(rtList(node.suit).map(x => RT_SUIT[x]), 'of');
-    return { one: 'een kaart van ' + names, bare: 'kaart van ' + names, many: 'kaarten van ' + names };
+    return { single: 'een kaart van ' + names, plural: 'kaarten van ' + names, bare: 'kaart van ' + names, barePlural: 'kaarten van ' + names };
   }
   if ('color' in node){
     const adj = node.color === 'red' ? 'rode' : 'zwarte';
-    return { one: 'een ' + adj + ' kaart', bare: adj + ' kaart', many: adj + ' kaarten' };
+    return { single: 'een ' + adj + ' kaart', plural: adj + ' kaarten', bare: adj + ' kaart', barePlural: adj + ' kaarten' };
   }
-  if ('all' in node) return { one: 'een kaart', bare: 'kaart', many: 'kaarten' };
+  if ('all' in node) return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' };
+  if ('highest' in node || 'lowest' in node){
+    const high = 'highest' in node, kind = high ? node.highest : node.lowest, word = high ? 'hoogste' : 'laagste';
+    const color = node.of && node.of.color ? (node.of.color === 'red' ? 'rode ' : 'zwarte ') : '';
+    const what = kind === 'value' ? (color ? 'de ' + word + ' ' + color + 'kaart' : 'de ' + word + ' kaart')
+      : (color ? 'de ' + color.trim() + ' kaart met het ' + word + ' symbool' : 'de kaart met het ' + word + ' symbool');
+    return { single: what, plural: what, bare: what, barePlural: what, verbSingular: true };
+  }
+  if ('group' in node){
+    const g = node.group, rel = RT_RELATION[g.relation];
+    const what = 'een groep van minstens ' + g.min + ' kaarten ' + rel;
+    return { single: what, plural: 'de kaarten van de hoogste groep van minstens ' + g.min + ' kaarten ' + rel, bare: 'groep', barePlural: 'groepen' };
+  }
   if ('not' in node){
     const x = rtCards(node.not);
-    return { one: 'een kaart die geen ' + x.bare + ' is', bare: 'kaart die geen ' + x.bare + ' is', many: 'kaarten die geen ' + x.bare + ' zijn' };
+    return { single: 'een kaart die niet ' + x.single.replace(/^een /, ''), plural: 'kaarten die niet ' + x.single.replace(/^een /, '') + ' zijn', bare: 'kaart', barePlural: 'kaarten' };
   }
   if ('or' in node){
     const xs = node.or.map(rtCards);
-    return { one: rtJoin(xs.map(x => x.one), 'of'), bare: rtJoin(xs.map(x => x.bare), 'of'), many: rtJoin(xs.map(x => x.many), 'of') };
+    return { single: rtJoin(xs.map(x => x.single), 'of'), plural: rtJoin(xs.map(x => x.plural), 'of'), bare: 'kaart', barePlural: 'kaarten' };
   }
-  if ('and' in node){
-    // "kaart van harten die ook een Heer is en ook geen Aas is"; een "niet" erbij wordt "geen ... is"
-    const [a, ...rest] = node.and.map(rtCards);
-    const restNodes = node.and.slice(1);
-    const one = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).bare : o.one) + ' is');
-    const many = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).many : o.many) + ' zijn');
-    const bare = a.bare + ' die ook ' + one.join(' en ook ');
-    return { one: 'een ' + bare, bare, many: a.many + ' die ook ' + many.join(' en ook ') };
-  }
-  if ('highest' in node || 'lowest' in node){
-    const high = 'highest' in node, kind = high ? node.highest : node.lowest, word = high ? 'hoogste' : 'laagste';
-    let p = kind === 'value' ? 'de ' + word + ' kaart' : 'het ' + word + ' symbool';
-    if ('of' in node) p += ' onder de ' + rtCards(node.of).many;
-    const be = kind === 'value' ? ['is', 'zijn'] : ['heeft', 'hebben'];
-    // player: voor "de spelers met ..."; one/bare/many: voor "er ligt een kaart die ..." (tellen en voorwaarden)
-    return { one: 'een kaart die ' + p + ' ' + be[0], bare: 'kaart die ' + p + ' ' + be[0], many: 'kaarten die ' + p + ' ' + be[1], sel: true, player: p };
-  }
-  // group
-  const g = node.group, rel = RT_RELATION[g.relation];
-  return { one: 'een groep van minstens ' + g.min + ' ' + rel, bare: 'groep van minstens ' + g.min + ' ' + rel, many: 'groepen van minstens ' + g.min + ' ' + rel,
-    group: 'de hoogste groep van minstens ' + g.min + ' ' + rel };
+  // and: de kaarten die aan alle eisen tegelijk voldoen
+  const xs = node.and.map(rtCards);
+  return { single: 'een kaart die aan alle eisen voldoet', plural: 'kaarten die aan alle eisen voldoen: ' + rtJoin(xs.map(x => x.plural), 'en'), bare: 'kaart', barePlural: 'kaarten' };
 }
 
-// "de spelers met een Heer" (single: "de speler met een Heer", als er maar één kan winnen)
-function rtPlayersWith(node, single){
-  if ('all' in node) return 'alle spelers';
-  const p = rtCards(node);
-  if (p.group) return 'de spelers in ' + p.group;
-  return (single ? 'de speler' : 'de spelers') + ' met ' + (p.sel ? p.player : p.one);
-}
+const rtWin = (x, verb) => (x.verbSingular ? verb + 't' : verb + 'en');
 
-// Een keuze van spelers bij award en roundEnd.
+// Een keuze van spelers, als zinsdeel. forEach: "elke speler ..."; anders "de spelers ...".
 function rtPlayer(node, forEach){
   if (node === 'winner') return 'de winnaar';
-  if ('withoutCards' in node) return forEach ? 'elke speler zonder kaarten' : 'alle spelers zonder kaarten';
-  if ('neighbor' in node) return node.neighbor === 'left' ? 'de linkerbuur met kaarten' : 'de rechterbuur met kaarten';
+  if ('withoutCards' in node) return forEach ? 'elke speler zonder kaarten' : 'de spelers zonder kaarten';
+  if ('neighbor' in node) return (node.neighbor === 'left' ? 'de linkerbuur' : 'de rechterbuur') + ' met kaarten';
   const c = rtCards(node.opened);
   const other = node.exclude === 'winner' ? 'andere ' : '';
-  return forEach ? 'elke ' + other + 'speler die de ronde begon met ' + c.one : 'alle ' + other + 'spelers die de ronde begonnen met ' + c.one;
+  return forEach ? 'elke ' + other + 'speler die de ronde begon met ' + c.single
+    : 'de ' + other + 'spelers die de ronde begonnen met ' + c.single;
 }
 
-function rtRange(node, noun1, nounN, verb1, verbN, subject){
-  // "minstens 2 Azen liggen", "precies één Aas ligt", "geen Azen liggen", "tussen 1 en 3 Azen liggen"
-  const lo = node.min, hi = node.max, has = x => x !== undefined;
-  const num = n => n === 1 ? 'één ' + noun1 : n + ' ' + nounN;
-  const verb = n => n === 1 ? verb1 : verbN;
-  const none = subject + 'geen ' + nounN + ' ' + verbN;
-  if (has(lo) && has(hi)){
-    if (lo === hi) return lo === 0 ? none : subject + 'precies ' + num(lo) + ' ' + verb(lo);
-    return subject + 'tussen ' + lo + ' en ' + hi + ' ' + nounN + ' ' + verbN;
+// Een aantal voor een zin met "er": "er liggen minstens 2 Azen", "er ligt ten hoogste één Aas", "er liggen geen Azen".
+// sing/plural: het naamwoord bij 1 en bij meer.
+function rtCountLine(node, sing, plural){
+  const lo = node.min, hi = node.max;
+  const n = v => (v === 1 ? 'één' : RT_NUMBER[v] || String(v));
+  const verbFor = v => (v === 1 ? 'ligt' : 'liggen');
+  if (lo !== undefined && hi !== undefined){
+    if (lo === hi){
+      if (lo === 0) return 'er geen ' + plural + ' liggen';
+      return 'er ' + n(lo) + ' ' + (lo === 1 ? sing : plural) + ' ' + verbFor(lo);
+    }
+    return 'er tussen ' + n(lo) + ' en ' + n(hi) + ' ' + plural + ' liggen';
   }
-  if (has(lo)) return subject + 'minstens ' + num(lo) + ' ' + verb(lo);
-  return hi === 0 ? none : subject + 'ten hoogste ' + num(hi) + ' ' + verb(hi);
+  if (lo !== undefined) return 'er minstens ' + n(lo) + ' ' + (lo === 1 ? sing : plural) + ' ' + verbFor(lo);
+  if (hi === 0) return 'er geen ' + plural + ' liggen';
+  return 'er ten hoogste ' + n(hi) + ' ' + (hi === 1 ? sing : plural) + ' ' + verbFor(hi);
 }
 
-// Een voorwaarde als bijzin (werkwoord achteraan): "er een Aas ligt".
+// Een voorwaarde als bijzin: "er ligt een 2", "er liggen minstens 2 Azen".
 function rtCondition(node){
   const wrap = n => ('and' in n || 'or' in n) ? '(' + rtCondition(n) + ')' : rtCondition(n);
-  if ('exists' in node) return 'er ' + rtCards(node.exists).one + ' ligt';
+  if ('exists' in node) return 'er ' + rtCards(node.exists).single + ' ligt';
   if ('count' in node){
     const c = rtCards(node.count);
-    return rtRange(node, c.bare, c.many, 'ligt', 'liggen', 'er ');
+    return rtCountLine(node, c.bare, c.barePlural);
   }
   if ('battle' in node) return 'er een battle is geweest';
-  if ('winnerOpened' in node) return 'de winnaar de ronde begon met ' + rtCards(node.winnerOpened).one;
+  if ('winnerOpened' in node) return 'de winnaar de ronde met ' + rtCards(node.winnerOpened).single + ' begon';
   if ('anyPlayer' in node){
     const p = node.anyPlayer;
     if (p === 'winner') return 'er een winnaar is';
     if ('withoutCards' in p) return 'er een speler zonder kaarten is';
-    return 'er een ' + (p.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde begon met ' + rtCards(p.opened).one;
+    return 'er een ' + (p.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(p.opened).single + ' begon';
   }
   if ('playersWithCards' in node){
     const r = node.playersWithCards;
-    if (r.max === 0 && (r.min === undefined || r.min === 0)) return 'geen enkele speler kaarten heeft';
-    return rtRange(r, 'speler', 'spelers', 'kaarten heeft', 'kaarten hebben', '');
+    if (r.max === 0 && (r.min === undefined || r.min === 0)) return 'geen enkele speler heeft kaarten';
+    const lo = r.min, hi = r.max;
+    const n = v => (v === 1 ? 'één' : RT_NUMBER[v] || String(v));
+    if (lo !== undefined && hi !== undefined){
+      if (lo === hi) return 'precies ' + n(lo) + ' ' + (lo === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
+      return 'tussen ' + n(lo) + ' en ' + n(hi) + ' spelers hebben kaarten';
+    }
+    if (lo !== undefined) return 'minstens ' + n(lo) + ' ' + (lo === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
+    return 'ten hoogste ' + n(hi) + ' ' + (hi === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
   }
   if ('not' in node) return 'het niet zo is dat ' + wrap(node.not);
   if ('and' in node) return rtJoin(node.and.map(wrap), 'en');
   return rtJoin(node.or.map(wrap), 'of');
 }
 
-// Een gevolg met het werkwoord vooraan (na "dan" of "Altijd"): "winnen de spelers met een 2".
-function rtEffect(node, moment){
-  if ('win' in node) return moment === 'tiebreak' ? 'wint ' + rtPlayersWith(node.win, true) : 'winnen ' + rtPlayersWith(node.win, false);
-  if ('discardPot' in node) return 'gaat de hele pot naar de aflegstapel';
-  if ('sharePot' in node) return 'wordt de pot verdeeld over ' + rtJoin(node.sharePot.map(p => rtPlayer(p, false)), 'en') + ', de hoogste kaart eerst';
+// Een gevolg in drie delen: onderwerp (s), persoonsvorm (v) en de rest (r).
+// Na "dan" komt de persoonsvorm eerst: "dan gaat de hele pot naar de aflegstapel".
+function rtEffect(node){
+  if ('discardPot' in node) return {s:'de hele pot', v:'gaat', r:'naar de aflegstapel'};
+  if ('sharePot' in node){
+    const who = node.sharePot.map(p => rtPlayer(p, false));
+    return {s:'de pot', v:'wordt', r:'verdeeld over ' + rtJoin(who, 'en') + ', de hoogste kaart eerst'};
+  }
   if ('transfer' in node){
     const t = node.transfer, n = t.count === 1 ? '1 kaart' : t.count + ' kaarten';
-    const from = 'neighbor' in t.from ? rtPlayer(t.from, false) : 'de eerste speler die de ronde begon met ' + rtCards(t.from.opened).one;
-    return 'krijgt ' + rtPlayer(node.forEach, true) + ' ' + n + ' van ' + from;
+    const from = 'neighbor' in t.from ? rtPlayer(t.from, false)
+      : 'withoutCards' in t.from ? 'de eerste speler zonder kaarten'
+      : 'de eerste speler die de ronde begon met ' + rtCards(t.from.opened).single;
+    return {s:rtPlayer(node.forEach, true), v:'krijgt', r:n + ' van ' + from};
   }
-  return 'legt ' + rtPlayer(node.forEach, true) + ' ' + (node.discardTop === 1 ? 'zijn bovenste kaart' : 'zijn bovenste ' + node.discardTop + ' kaarten') + ' af';
+  return {s:rtPlayer(node.forEach, true), v:'legt',
+    r:(node.discardTop === 1 ? 'zijn bovenste kaart' : 'zijn bovenste ' + node.discardTop + ' kaarten') + ' af'};
 }
 
 // De hele regel als zin(nen). Geeft '' als de beschrijving niet klopt (zie validateRuleLogic).
 function describeRuleLogic(logic){
   if (validateRuleLogic(logic).length) return '';
-  const m = logic.moment, eff = rtEffect(logic.then, m);
-  let s;
-  if ('if' in logic){
-    const cond = rtCondition(logic.if);
-    s = (m === 'tiebreak' ? 'Bij een gelijkspel: als ' : m === 'roundEnd' ? 'Aan het einde van de ronde: als ' : 'Als ') + cond + ', dan ' + eff + '.';
-  } else {
-    s = (m === 'tiebreak' ? 'Bij een gelijkspel ' : m === 'roundEnd' ? 'Aan het einde van de ronde ' : 'Altijd ') + eff + '.';
+  const m = logic.moment, then = logic.then;
+  const cond = 'if' in logic ? rtCondition(logic.if) : null;
+  if ('win' in then){
+    const x = rtCards(then.win), verb = x.verbSingular ? 'wint' : 'winnen';
+    if (m === 'tiebreak') return 'Bij een gelijkspel' + (cond ? ', als ' + cond + ', dan' : '') + ' wint ' + x.single + '.';
+    const s = cond ? 'Als ' + cond + ', dan ' + verb + ' ' + x.plural + '.' : rtUpper(x.plural) + ' ' + verb + '.';
+    return s + ' Bij een gelijkspel battlen ze.';
   }
-  if (m === 'decide') s += ' Zijn het er meer dan één, dan battlen zij.';
-  return s;
+  const e = rtEffect(then);
+  if (m === 'roundEnd') return cond
+    ? 'Aan het einde van de ronde, als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
+    : 'Aan het einde van de ronde ' + e.s + ' ' + e.v + ' ' + e.r + '.';
+  return cond
+    ? 'Als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
+    : rtUpper(e.s) + ' ' + e.v + ' ' + e.r + '.';
 }
 
 // ---- de keuzes voor de regelbouwer ----
@@ -182,7 +202,7 @@ const RULE_BLOCKS = {
   conditions: [
     { key: 'exists', label: 'er ligt een bepaalde kaart', moments: ['decide', 'tiebreak'], sample: { exists: { rank: 'A' } } },
     { key: 'count', label: 'er liggen een bepaald aantal kaarten van een soort', moments: ['decide', 'tiebreak'], sample: { count: { rank: 'A' }, min: 2 } },
-    { key: 'battle', label: 'er is een battle geweest', moments: ['award'], sample: { battle: true } },
+    { key: 'battle', label: 'er een battle is geweest', moments: ['award'], sample: { battle: true } },
     { key: 'winnerOpened', label: 'de winnaar begon met een bepaalde kaart', moments: ['award'], sample: { winnerOpened: { rank: 'K' } } },
     { key: 'anyPlayer', label: 'er is een speler die …', moments: ['award', 'roundEnd'], sample: { anyPlayer: { withoutCards: true } } },
     { key: 'playersWithCards', label: 'een bepaald aantal spelers heeft kaarten', moments: ['award', 'roundEnd'], sample: { playersWithCards: { min: 2 } } },
