@@ -2120,6 +2120,51 @@ let liveChecked = 0;
   run('endGame(null)');
   if (choiceBox()) failures.push('winnaarsregel: bij gelijkspel kiest niemand een regel');
 
+  // Samen winnen: heeft na een ronde niemand meer kaarten, dan winnen de spelers die aan die ronde begonnen samen.
+  {
+    const endOf = (decks, rules) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, ${JSON.stringify(rules || {})});
+      const r = enginePlayRound(st); return JSON.stringify({ gameOver: r.end.gameOver, winner: r.end.winner ? r.end.winner.id : null, joint: r.end.jointWinners.map(p => p.id) }); })()`));
+    const expectEnd = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) failures.push('samen winnen: ' + name + ': verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+    expectEnd('de laatste twee vallen samen af in een battle', endOf([['K♠'], ['K♥']]), { gameOver: true, winner: null, joint: [0, 1] });
+    expectEnd('er speelt nog iemand mee: die krijgt de pot en wint alleen', endOf([['K♠'], ['K♥'], ['3♦']]), { gameOver: true, winner: 2, joint: [] });
+    expectEnd('een gewone winnaar', endOf([['K♠'], ['3♥']]), { gameOver: true, winner: 0, joint: [] });
+    expectEnd('het spel gaat door', endOf([['K♠', '2♠'], ['3♥', '4♥'], ['5♦', '6♦']]), { gameOver: false, winner: 0, joint: [] });
+    expectEnd('de pot gaat naar de aflegstapel en niemand houdt kaarten over', endOf([['K♠'], ['K♥', '3♥']], { battleDiscard: true }), { gameOver: true, winner: null, joint: [0, 1] });
+    expectEnd('wie al eerder uitgeschakeld was, wint niet mee', JSON.parse(run(`(() => { const st = __state([['K♠'], ['K♥'], []]); st.players[2].out = true;
+      const r = enginePlayRound(st); return JSON.stringify({ gameOver: r.end.gameOver, winner: r.end.winner ? r.end.winner.id : null, joint: r.end.jointWinners.map(p => p.id) }); })()`)), { gameOver: true, winner: null, joint: [0, 1] });
+    // De simulatie (voor doorspoelen) geeft dezelfde winnaars.
+    const sim = JSON.parse(run(`(() => { const st = __state([['K♠'], ['K♥']]); const r = simulateFullTrace(st.players, 10, {}); return JSON.stringify({ outcome: r.outcome, winnerId: r.winnerId, joint: r.jointWinnerIds }); })()`));
+    expectEnd('de simulatie', sim, { outcome: 'win', winnerId: null, joint: [0, 1] });
+    const simOne = JSON.parse(run(`(() => { const st = __state([['K♠'], ['3♥']]); const r = simulateFullTrace(st.players, 10, {}); return JSON.stringify({ winnerId: r.winnerId, joint: r.jointWinnerIds }); })()`));
+    expectEnd('de simulatie met één winnaar', simOne, { winnerId: 0, joint: [] });
+
+    // Het scherm: een eigen banner, en samen één keuze met alle namen erbij.
+    run('winnerRules = {}; winnerChoiceReset();');
+    run(`game = createGameState([{ id: 0, name: 'Anna', deck: [] }, { id: 1, name: '<b>Bas</b>', deck: [] }, { id: 2, name: 'Chris', deck: [] }], {});`);
+    run('endGame(null, [game.players[0], game.players[1]])');
+    if (!/ANNA EN <B>BAS<\/B> WINNEN SAMEN/.test(textOf(banner()))) failures.push('samen winnen: de banner noemt de winnaars niet: ' + textOf(banner()));
+    if (/GELIJKSPEL/.test(textOf(banner()))) failures.push('samen winnen: de banner zegt nog gelijkspel');
+    const jb = choiceBox();
+    if (!jb) failures.push('samen winnen: de keuzeknoppen horen er te zijn');
+    else {
+      if (jb.children[0].textContent !== 'Anna en <b>Bas</b> mogen samen één regel omzetten voor het volgende spel:') failures.push('samen winnen: de uitnodiging klopt niet: ' + jb.children[0].textContent);
+      jb.children[1].children[RULE_IDS.indexOf('secondChance')].handlers.click();
+      const saved = savedNow();
+      if (JSON.stringify(saved) !== JSON.stringify({ secondChance: { on: true, by: 'Anna en <b>Bas</b>' } })) failures.push('samen winnen: de keuze is verkeerd onthouden: ' + JSON.stringify(saved));
+      jb.children[1].children && jb.children[0].textContent.includes('gekozen door Anna en <b>Bas</b>.') || failures.push('samen winnen: na de keuze hoort er te staan wie koos: ' + jb.children[0].textContent);
+    }
+    // Acht lange namen passen erbij; één winnaar houdt de oude grens.
+    const long = Array.from({ length: 8 }, (_, i) => 'Speler-nummer' + i);
+    const byJoint = JSON.parse(run(`JSON.stringify(chooseWinnerRule({}, RULES[0].id, true, formatNamesNL(${JSON.stringify(long)}), true))`))[RULE_IDS[0]].by;
+    if (byJoint !== long.slice(0, -1).join(', ') + ' en ' + long[7]) failures.push('samen winnen: acht namen horen te passen: ' + byJoint);
+    // Eén "samen-winnaar" of een lege lijst blijft een gelijkspel zonder keuze.
+    for (const list of ['[]', '[game.players[0]]', 'undefined']){
+      run('winnerChoiceReset(); endGame(null, ' + list + ')');
+      if (!/GELIJKSPEL/.test(textOf(banner())) || choiceBox()) failures.push('samen winnen: endGame(null, ' + list + ') hoort een gelijkspel zonder keuze te zijn');
+    }
+    run('winnerRules = {}; winnerChoiceReset();');
+  }
+
   // Het startscherm volgt de keuzes van de winnaars zolang de pagina openstaat; een nieuwe pagina (F5) begint op de standaard,
   // ook als een eerdere versie iets in de browser bewaarde.
   run(`winnerRules = { battleFirst: { on: true, by: 'Anna' }, twoBeatsAce: { on: false, by: 'Bo' } }; renderRuleOptions();`);

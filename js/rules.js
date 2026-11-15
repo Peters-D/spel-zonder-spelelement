@@ -223,7 +223,8 @@ const BASE_RULES = [
   {
     id: 'uitschakelen',
     title: 'Uitgeschakeld en winnen',
-    description: 'Een speler zonder kaarten ligt eruit. Blijft er één speler over, dan wint die het spel: de laatste speler met kaarten.'
+    description: 'Een speler zonder kaarten ligt eruit. Blijft er één speler over, dan wint die het spel: de laatste speler met kaarten. ' +
+      'Vallen de laatste spelers in dezelfde ronde af en heeft niemand meer kaarten, dan winnen zij samen.'
   },
   {
     id: 'winnaarkiest',
@@ -231,7 +232,7 @@ const BASE_RULES = [
     description: 'Wie een spel wint, mag één van de extra regels omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond ' +
       'gaat uit. Die keuze geldt voor de spellen daarna zolang de pagina openstaat en staat op het startscherm als vinkje met de naam van de winnaar erbij; na verversen is alles weer standaard. ' +
       'Dat vinkje kun je voor een spel nog zelf omzetten. Met de knop "Volgend spel" ga je meteen verder met dezelfde spelers en regels, op een andere deling (met een ingevulde seed wordt dat de volgende seed). ' +
-      'Bij gelijkspel of een spel zonder einde kiest niemand.'
+      'Winnen er spelers samen, dan kiezen zij samen één regel. Bij een spel zonder einde kiest niemand.'
   },
   {
     id: 'eindeloos',

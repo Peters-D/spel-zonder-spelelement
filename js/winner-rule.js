@@ -1,4 +1,4 @@
-// De winnaar kiest een regel: na een spel met een winnaar mag die winnaar één regel uit de catalogus (RULES in rules.js)
+// De winnaar kiest een regel: na een spel met een winnaar (of met spelers die samen winnen) mag die winnaar één regel uit de catalogus (RULES in rules.js)
 // omzetten voor het volgende spel: een regel die uit stond gaat aan, een regel die aan stond gaat uit. De keuze geldt voor de spellen
 // daarna zolang de pagina openstaat en staat op het startscherm als vinkje, met "gekozen door ..." erbij. Er komen geen nieuwe
 // regels bij: de winnaar kiest alleen uit de bestaande.
@@ -7,6 +7,8 @@
 // nog staat wordt bij het laden gewist (forgetOldWinnerRules).
 
 const WINNER_BY_MAX = 30;
+// Winnen er meer spelers samen, dan staan al hun namen erbij ("Anna, Bas en Chris"): ruimte voor 8 namen van 14 tekens.
+const WINNER_BY_MAX_JOINT = 140;
 const WINNER_OLD_STORAGE_KEY = 'spelzonderspelelement.winnaarsregels';
 // { <regel-id>: { on: true/false, by: 'naam van de winnaar' } }, alleen voor regels waar een winnaar iets aan veranderd heeft
 let winnerRules = {};
@@ -27,25 +29,26 @@ function forgetOldWinnerRules(){
 forgetOldWinnerRules();
 
 // Een nieuwe lijst waarin de regel de gekozen stand heeft (de oude lijst blijft ongewijzigd), of null als de keuze niet klopt.
-function chooseWinnerRule(map, ruleId, on, by){
+// joint: de naam is een lijst van spelers die samen wonnen (langer toegestaan).
+function chooseWinnerRule(map, ruleId, on, by, joint){
   if (!RULES.some(r => r.id === ruleId) || typeof on !== 'boolean') return null;
-  return Object.assign({}, map, { [ruleId]: { on, by: typeof by === 'string' ? by.trim().slice(0, WINNER_BY_MAX) : '' } });
+  return Object.assign({}, map, { [ruleId]: { on, by: typeof by === 'string' ? by.trim().slice(0, joint ? WINNER_BY_MAX_JOINT : WINNER_BY_MAX) : '' } });
 }
 
-function applyWinnerRuleChoice(rule, on, byName){
-  const next = chooseWinnerRule(winnerRules, rule.id, on, byName);
+function applyWinnerRuleChoice(rule, on, byName, joint){
+  const next = chooseWinnerRule(winnerRules, rule.id, on, byName, joint);
   if (next) winnerRules = next;
   if (typeof markRuleChoice === 'function') markRuleChoice(rule.id, on, byName); // het vinkje op het startscherm
 }
 
 // Onder de eindbanner: de winnaar zet één regel om. Na één keuze verdwijnen de knoppen. Namen komen alleen als gewone tekst
-// in de pagina.
+// in de pagina. Wonnen er meer spelers samen, dan is winner { name: 'Anna en Bas', joint: true } en kiezen zij samen één regel.
 function showWinnerRuleChoice(winner){
   const banner = document.getElementById('endBanner');
   const box = document.createElement('div');
   box.className = 'winner-choice';
   const intro = document.createElement('p');
-  intro.textContent = winner.name + ' mag één regel omzetten voor het volgende spel:';
+  intro.textContent = winner.name + (winner.joint ? ' mogen samen' : ' mag') + ' één regel omzetten voor het volgende spel:';
   box.appendChild(intro);
   const buttons = document.createElement('div');
   buttons.className = 'winner-choice-buttons';
@@ -70,7 +73,7 @@ function showWinnerRuleChoice(winner){
     btn.addEventListener('click', () => {
       if (done) return;
       done = true;
-      applyWinnerRuleChoice(rule, !wasOn, winner.name);
+      applyWinnerRuleChoice(rule, !wasOn, winner.name, !!winner.joint);
       box.innerHTML = '';
       const result = document.createElement('p');
       result.textContent = rule.title + ' staat in het volgende spel ' + (wasOn ? 'uit' : 'aan') + ', gekozen door ' + winner.name + '.';

@@ -32,7 +32,7 @@ function simulateFullTrace(startPlayers, capRounds, rules, start){
   while (rounds < capRounds){
     const active = engineActivePlayers(state);
     if (active.length <= 1){
-      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
+      return { outcome: 'win', winnerId: active[0] ? active[0].id : null, jointWinnerIds: engineJointWinners(state).map(p => p.id), rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
     }
     const sig = stateSignature(state.players, state.discard);
     if (seen.has(sig)){

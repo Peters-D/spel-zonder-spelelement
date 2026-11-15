@@ -147,14 +147,23 @@ function engineLayBattleCards(state){
 }
 
 // Einde van de ronde: eerst de haken onRoundEnd van de actieve regels, daarna ligt eruit wie geen kaarten meer heeft.
-// Geeft terug of het spel voorbij is en zo ja wie er wint (null als er niemand over is), plus hoeveel kaarten
+// Geeft terug of het spel voorbij is en zo ja wie er wint (winner: null als er niemand over is; dan staan in jointWinners
+// de spelers die samen winnen, zie engineJointWinners), plus hoeveel kaarten
 // de haken hebben afgelegd en teruggehaald. Kaarten op de aflegstapel tellen niet mee: het spel eindigt zodra
 // er één speler met kaarten over is.
 function engineEndRound(state){
   const moved = engineRunHooks(state, 'onRoundEnd', {});
   state.players.forEach(p => { if (p.deck.length === 0) p.out = true; });
   const alive = engineActivePlayers(state);
-  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned, revived: moved.revived, transfers: moved.transfers };
+  return { gameOver: alive.length <= 1, winner: alive[0] || null, jointWinners: engineJointWinners(state), discarded: moved.discarded, returned: moved.returned, revived: moved.revived, transfers: moved.transfers };
+}
+
+// Samen winnen: heeft na een ronde niemand meer kaarten, dan winnen de spelers die aan die laatste ronde begonnen samen
+// (zij vielen in dezelfde ronde af). Geeft die spelers in de volgorde van de tafel, of een lege lijst zolang er nog iemand
+// meedoet. state.opening zegt wie de laatste ronde begon: elke speler die toen nog meedeed, legde een kaart.
+function engineJointWinners(state){
+  if (engineActivePlayers(state).length > 0) return [];
+  return state.players.filter(p => state.opening[p.id]);
 }
 
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
