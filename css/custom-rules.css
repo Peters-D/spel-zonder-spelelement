@@ -17,6 +17,7 @@
   border:1px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius:8px; padding:8px 10px;
 }
 .cr-textarea:focus-visible, .custom-rule button:focus-visible, .custom-rule select:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.cr-wish{ min-height:0; font-family:'Inter', sans-serif; font-size:13px; }
 .cr-buttons{ display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
 .custom-rule .cr-buttons button, .cr-added-item button{
   background: var(--olive-dark); color: var(--paper); border:none; border-radius:8px;
@@ -66,3 +67,6 @@
 }
 .bld-form button:focus-visible, .bld-form input:focus-visible, .bld-form select:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 .bld-sentence{ margin:8px 0; font-size:13px; line-height:1.45; font-weight:600; }
+
+.bld-group{ padding:6px 8px; border-left:3px solid color-mix(in srgb, var(--ink) 35%, transparent); }
+.bld-group > .bld-row{ margin-left:4px; }

@@ -1760,7 +1760,15 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
       ['de pot verdelen', st('award', [], Object.assign(rbNewEffect('sharePot'), { who: [rbNewPlayer('winner'), Object.assign(rbNewPlayer('opened'), { cs: cs('rank', { ranks: ['Q'] }), other: true })] })), { moment: 'award', then: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } }],
       ['kaarten krijgen van een buur', st('roundEnd', [], Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('neighbor'), { side: 'right' }), count: 2 })), { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'right' }, count: 2 } } }],
       ['kaarten afleggen', st('roundEnd', [], Object.assign(rbNewEffect('discardTop'), { each: Object.assign(rbNewPlayer('opened'), { cs: cs('suit', { suits: ['♥'] }) }), count: 3 })), { moment: 'roundEnd', then: { forEach: { opened: { suit: '♥' } }, discardTop: 3 } }],
-      ['de beginstand per moment', rbNewState('tiebreak'), { moment: 'tiebreak', then: { win: { highest: 'suitOrder' } } }]
+      ['de beginstand per moment', rbNewState('tiebreak'), { moment: 'tiebreak', then: { win: { highest: 'suitOrder' } } }],
+      ['een groep: a en (b of c)', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['2'] }) }), Object.assign(rbNewCond('group'), { mode: 'or', conds: [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('exists', { cs: cs('rank', { ranks: ['K'] }) })] })], win(cs('all'))),
+        { moment: 'decide', if: { and: [{ exists: { rank: '2' } }, { or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }] }, then: { win: { all: true } } }],
+      ['een groep met niet: a of niet (b en c)', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['2'] }) }), Object.assign(rbNewCond('group'), { mode: 'and', not: true, conds: [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('count', { cs: cs('rank', { ranks: ['K'] }), mode: 'min', n: 2 })] })], win(cs('all')), 'or'),
+        { moment: 'decide', if: { or: [{ exists: { rank: '2' } }, { not: { and: [{ exists: { rank: 'A' } }, { count: { rank: 'K' }, min: 2 }] } }] }, then: { win: { all: true } } }],
+      ['een groep met één voorwaarde is die voorwaarde', st('decide', [Object.assign(rbNewCond('group'), { conds: [cond('exists', { cs: cs('rank', { ranks: ['A'] }) })] })], win(cs('all'))),
+        { moment: 'decide', if: { exists: { rank: 'A' } }, then: { win: { all: true } } }],
+      ['alleen een ontkende groep', st('award', [Object.assign(rbNewCond('group'), { mode: 'or', not: true, conds: [cond('battle', {}), cond('winnerOpened', { cs: cs('rank', { ranks: ['K'] }) })] })], rbNewEffect('discardPot')),
+        { moment: 'award', if: { not: { or: [{ battle: true }, { winnerOpened: { rank: 'K' } }] } }, then: { discardPot: true } }]
     ];
     return JSON.stringify(cases.map(([name, state, expected]) => [name, JSON.stringify(rbToLogic(state).logic) === JSON.stringify(expected), rbToLogic(state).logic || rbToLogic(state).error])); })()`));
   for (const [name, same, got] of golden) if (!same) fail('vaste uitkomst "' + name + '": kreeg ' + J(got));
@@ -1783,6 +1791,8 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     ['geen kant van de buur', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("transfer"), { from: Object.assign(rbNewPlayer("neighbor"), { side: "boven" }) }) })', 'Kies de linker- of rechterbuur.'],
     ['geen soort kaarten', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: { kind: "iets" } }) })', 'Kies welke kaarten bedoeld zijn.'],
     ['geen gevolg', 'Object.assign(rbNewState("decide"), { effect: { key: "iets" } })', 'Kies wat er gebeurt.'],
+    ['lege groep', 'Object.assign(rbNewState("decide"), { conds: [rbNewCond("group")] })', 'Voeg een voorwaarde toe aan de groep.'],
+    ['groep in een groep', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("group"), { conds: [Object.assign(rbNewCond("group"), { conds: [rbNewCond("exists")] })] })] })', 'Een groep binnen een groep kan de bouwer niet maken.'],
     ['andere soort bij begon met', 'Object.assign(rbNewState("award"), { conds: [Object.assign(rbNewCond("winnerOpened"), { cs: rbNewCards("highest") })] })', 'Hier past alleen een waarde, een symbool of een kleur.']
   ];
   for (const [name, code, expected] of bad){
@@ -1792,7 +1802,8 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
 
   // 4. Wat de bouwer niet kan tonen, geeft null (geen fout), en een kapot blok ook.
   const unsupported = [
-    { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } },
+    { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { and: [{ exists: { rank: 'K' } }, { exists: { rank: 'Q' } }] }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } },
+    { moment: 'decide', if: { not: { not: { exists: { rank: 'A' } } } }, then: { win: { rank: '2' } } },
     { moment: 'decide', then: { win: { and: [{ rank: 'K' }, { suit: '♥' }, { color: 'red' }] } } },
     { moment: 'decide', then: { win: { highest: 'value', of: { rank: 'K' } } } },
     { moment: 'decide', then: { win: { or: [{ rank: 'K' }, { rank: 'Q' }] } } },
@@ -1801,6 +1812,17 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     { moment: 'decide', then: { win: { rank: 'Z' } } }
   ];
   for (const u of unsupported) if (R('rbFromLogic(' + J(u) + ')') !== null) fail('de bouwer toont iets wat hij niet kan: ' + J(u).slice(0, 120));
+
+  // 4b. Groepen komen identiek terug uit de bouwer (ook de ontkende groep op het hoogste niveau), met een zin.
+  for (const logic of [
+    { moment: 'decide', if: { and: [{ exists: { rank: '2' } }, { or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }] }, then: { win: { all: true } } },
+    { moment: 'decide', if: { or: [{ and: [{ exists: { rank: '2' } }, { exists: { rank: '3' } }] }, { not: { or: [{ exists: { rank: 'A' } }, { count: { suit: '♥' }, max: 1 }] } }] }, then: { win: { all: true } } },
+    { moment: 'award', if: { not: { and: [{ battle: true }, { winnerOpened: { rank: 'K' } }] } }, then: { discardPot: true } },
+    { moment: 'roundEnd', if: { and: [{ playersWithCards: { min: 2 } }, { or: [{ anyPlayer: { withoutCards: true } }, { anyPlayer: { opened: { rank: 'A' } } }] }] }, then: { forEach: { withoutCards: true }, discardTop: 1 } }
+  ]){
+    const back = R('(() => { const st = rbFromLogic(' + J(logic) + '); return st ? { logic: rbToLogic(st).logic, sentence: describeRuleLogic(rbToLogic(st).logic) } : null; })()');
+    if (!back || J(back.logic) !== J(logic) || !back.sentence) fail('een groep komt niet identiek terug: ' + J(logic).slice(0, 160) + ' -> ' + J(back).slice(0, 200));
+  }
 
   // 5. Het blok: id en teksten, en de voorbeelden kloppen met het spel.
   const blockOf = (title, moment) => R('(() => { const st = rbNewState(' + J(moment || 'decide') + '); st.title = ' + J(title) + '; const b = rbBlock(st); return b.def ? { id: b.def.id, title: b.def.title, short: b.def.short, descr: b.def.description, n: b.def.examples.length } : b; })()');
@@ -1835,6 +1857,62 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   if (never.found !== 0 || !/niets/.test(never.note) || never.examples.length < 1) fail('een regel die nooit iets doet: ' + J(never).slice(0, 300));
   eq2('het zoeken van voorbeelden laat de catalogus zoals hij was', J(R('RULES.map(r => r.id)')), catalogBefore);
   eq2('het zoeken van voorbeelden laat geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
+}
+
+// ---- de instructie voor een taalmodel (js/rule-prompt.js) ----
+{
+  const fail = t => failures.push('instructie: ' + t);
+  const J = v => JSON.stringify(v);
+  const prompt = run('buildRulePrompt(' + J('twee Vrouwen winnen samen van een Heer') + ')');
+  if (!prompt.includes('Mijn regel:\ntwee Vrouwen winnen samen van een Heer\n')) fail('de wens staat er niet in');
+  // Elk sleutelwoord dat de controle kent, staat in de uitleg (anders kan het model die bouwsteen niet gebruiken).
+  const grammar = run('RULE_PROMPT_GRAMMAR');
+  const words = ['moment', 'if', 'then', 'decide', 'tiebreak', 'award', 'roundEnd', 'rank', 'suit', 'color', 'red', 'black', 'all', 'highest', 'lowest', 'value', 'suitOrder', 'of', 'group', 'relation',
+    'sameRank', 'sameSuit', 'sameColor', 'consecutive', 'min', 'max', 'pick', 'and', 'or', 'not', 'winner', 'opened', 'exclude', 'withoutCards', 'neighbor', 'left', 'right',
+    'exists', 'count', 'battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'win', 'discardPot', 'sharePot', 'forEach', 'transfer', 'from', 'discardTop'];
+  for (const w of words) if (!grammar.includes('"' + w + '"')) fail('de uitleg noemt "' + w + '" niet');
+  // En omgekeerd: elk woord tussen aanhalingstekens in de uitleg is een bekend sleutelwoord, een waarde of een symbool.
+  const known = new Set(words.concat(JSON.parse(run('JSON.stringify(RANKS.concat(SUITS))'))));
+  for (const m of grammar.matchAll(/"([^"]+)"/g)) if (!known.has(m[1])) fail('de uitleg noemt een onbekend woord: "' + m[1] + '"');
+  // De sleutels van de bouwstenenlijst (die met de controle is vergeleken) staan er ook allemaal in.
+  const blockKeys = JSON.parse(run('JSON.stringify([].concat(RULE_BLOCKS.conditions, RULE_BLOCKS.effects, RULE_BLOCKS.cards, RULE_BLOCKS.players).map(b => b.key))'));
+  for (const k of blockKeys) if (!grammar.includes('"' + k + '"')) fail('de uitleg mist de bouwsteen ' + k);
+  // De regels van het spel staan erin als voorbeeld, met zin en beschrijving, net als de grenzen en het voorbeeldblok.
+  const ruleInfo = JSON.parse(run('JSON.stringify(RULES.map(r => [r.title, describeRuleLogic(r.logic), JSON.stringify(r.logic)]))'));
+  for (const [title, sentence, logic] of ruleInfo) if (!prompt.includes('- ' + title + ': ' + sentence + '\n  ' + logic)) fail('de regel ' + title + ' staat niet als voorbeeld in de instructie');
+  const limits = JSON.parse(run('JSON.stringify(CUSTOM_LIMITS)'));
+  for (const n of [limits.idMax, limits.title, limits.short, limits.description, limits.priorityMin, limits.priorityMax, limits.examples, limits.players]) if (!prompt.includes(String(n))) fail('de grens ' + n + ' staat niet in de instructie');
+  if (!prompt.includes(run('JSON.stringify(CUSTOM_RULE_SAMPLE, null, 2)'))) fail('het voorbeeldblok staat niet in de instructie');
+  // Een eigen regel die is toegevoegd hoort niet bij de voorbeelden van het spel.
+  const withCustom = run('(() => { addCustomRule(parseCustomRule(JSON.stringify(CUSTOM_RULE_SAMPLE)).def); try { return buildRulePrompt("x"); } finally { removeCustomRule(CUSTOM_RULE_SAMPLE.id); } })()');
+  if (withCustom.includes('- Opeenvolgende kaarten: ')) fail('een eigen regel staat tussen de voorbeelden van het spel');
+  // De wens: één regel, begrensd, en nooit leeg.
+  const wishOf = w => run('rulePromptWish(' + J(w) + ')');
+  if (wishOf('  a\n\nb\t c  ') !== 'a b c') fail('de wens wordt niet tot één regel gemaakt: ' + J(wishOf('  a\n\nb\t c  ')));
+  if (wishOf('x'.repeat(900)).length !== 600) fail('de wens wordt niet afgekapt op 600 tekens');
+  for (const empty of ['', '   ', null, undefined]) if (run('rulePromptWish(' + (empty === undefined ? 'undefined' : J(empty)) + ')') !== '(vul hier in wat de regel moet doen)') fail('een lege wens geeft geen invulregel');
+  if (run('rulePromptWish(42)') !== '42') fail('een wens die geen tekst is');
+
+  // Het regelblok uit een antwoord halen.
+  const sampleText = run('JSON.stringify(CUSTOM_RULE_SAMPLE)');
+  const extract = t => run('extractRuleJson(' + J(t) + ')');
+  const cases2 = [
+    ['al JSON: ongewijzigd', '  ' + sampleText + '\n', '  ' + sampleText + '\n'],
+    ['codeblok met taal', 'Hier is je regel:\n```json\n' + sampleText + '\n```\nSucces!', sampleText],
+    ['codeblok zonder taal', '```\n' + sampleText + '\n```', sampleText],
+    ['tekst eromheen zonder codeblok', 'Zie hier: ' + sampleText + ' Dat is hem.', sampleText],
+    ['twee codeblokken: het eerste', '```json\n{"a":1}\n```\nen\n```json\n{"b":2}\n```', '{"a":1}'],
+    ['geen JSON te vinden: ongewijzigd', 'Dit kan niet met de bouwstenen.', 'Dit kan niet met de bouwstenen.'],
+    ['kapotte JSON in een codeblok: ongewijzigd', '```json\n{ kapot\n```', '```json\n{ kapot\n```'],
+    ['een getal is geen blok', '5', '5'],
+    ['leeg', '', '']
+  ];
+  for (const [name, input, expected] of cases2) if (extract(input) !== expected) fail('uit een antwoord halen, ' + name + ': kreeg ' + J(extract(input)).slice(0, 120));
+  if (run('extractRuleJson(null)') !== null) fail('extractRuleJson(null)');
+  // Wat eruit komt gaat door de gewone controle.
+  const viaAnswer = JSON.parse(run('JSON.stringify(parseCustomRule(extractRuleJson(' + J('Hier:\n```json\n' + sampleText + '\n```') + ')).errors)'));
+  if (viaAnswer.length) fail('een blok uit een antwoord komt niet door de controle: ' + J(viaAnswer));
+  for (const id of ['customWish', 'customPromptCopy', 'customPromptStatus', 'customPromptOut']) if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('id="' + id + '"')) fail('index.html mist het element met id ' + id);
 }
 
 // ---- testgevallen ----

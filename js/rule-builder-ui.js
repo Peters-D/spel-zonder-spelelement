@@ -150,15 +150,31 @@ function rbPlayerEditor(p, slot, label){
 
 // ---- voorwaarden en gevolg ----
 
-function rbCondRow(c, i){
-  const row = rbMake('div', 'bld-row');
-  const label = 'Voorwaarde ' + (i + 1);
-  const keys = ruleChoicesFor(rb.moment).conditions.filter(x => !['and', 'or', 'not'].includes(x.key));
+// De soorten voorwaarden bij het moment (zonder en/of/niet: daarvoor zijn de groep en het vinkje "niet").
+function rbCondKinds(){
+  return ruleChoicesFor(rb.moment).conditions.filter(x => !['and', 'or', 'not'].includes(x.key));
+}
+
+// Eén voorwaarde. list: de lijst waar hij in staat (de voorwaarden van de regel, of die van een groep); prefix: het nummer van de groep.
+function rbCondRow(c, i, list, prefix){
+  const nested = !!prefix;
+  const row = rbMake('div', 'bld-row' + (c.key === 'group' ? ' bld-group' : ''));
+  const label = 'Voorwaarde ' + (prefix || '') + (i + 1);
+  const options = rbCondKinds().map(k => [k.key, k.label]);
+  if (!nested) options.push(['group', 'een groep voorwaarden (en / of)']);
   const head = rbMake('div', 'bld-head');
-  head.appendChild(rbSelect(keys.map(k => [k.key, k.label]), c.key, label + ': soort', v => { rb.conds[i] = rbNewCond(v); }, true));
+  head.appendChild(rbSelect(options, c.key, label + ': soort', v => {
+    list[i] = rbNewCond(v);
+    if (v === 'group') list[i].conds = [rbNewCond(rbCondKinds()[0].key), rbNewCond(rbCondKinds()[0].key)];
+  }, true));
   head.appendChild(rbCheck('niet', c.not, v => { c.not = v; }, false));
-  head.appendChild(rbButton('× weg', label + ' weghalen', () => { rb.conds.splice(i, 1); }));
+  head.appendChild(rbButton('× weg', label + ' weghalen', () => { list.splice(i, 1); }));
   row.appendChild(head);
+  if (c.key === 'group'){
+    row.appendChild(rbSelect([['or', 'één van deze is genoeg'], ['and', 'deze moeten allemaal gelden']], c.mode, label + ': hoe de groep samengaat', v => { c.mode = v; }, false));
+    c.conds.forEach((sub, k) => row.appendChild(rbCondRow(sub, k, c.conds, (i + 1) + '.')));
+    row.appendChild(rbButton('+ voorwaarde in de groep', label + ': voorwaarde toevoegen aan de groep', () => { c.conds.push(rbNewCond(rbCondKinds()[0].key)); }));
+  }
   if (c.key === 'exists') row.appendChild(rbCardsEditor(c.cs, false, label));
   if (c.key === 'count'){ row.appendChild(rbRangeEditor(c, 52, label)); row.appendChild(rbCardsEditor(c.cs, false, label)); }
   if (c.key === 'winnerOpened') row.appendChild(rbCardsEditor(c.cs, true, label));
@@ -222,13 +238,12 @@ function rbRender(){
 
   const conds = rbMake('div', 'bld-section');
   conds.appendChild(rbMake('h4', 'bld-sub', 'Voorwaarden (niet verplicht)'));
-  rb.conds.forEach((c, i) => conds.appendChild(rbCondRow(c, i)));
+  rb.conds.forEach((c, i) => conds.appendChild(rbCondRow(c, i, rb.conds, '')));
   if (rb.conds.length > 1){
     conds.appendChild(rbSelect([['and', 'alle voorwaarden moeten gelden'], ['or', 'één voorwaarde is genoeg']], rb.condMode, 'Hoe de voorwaarden samengaan', v => { rb.condMode = v; }, false));
   }
   conds.appendChild(rbButton('+ voorwaarde', 'Voorwaarde toevoegen', () => {
-    const first = ruleChoicesFor(rb.moment).conditions.find(x => !['and', 'or', 'not'].includes(x.key));
-    rb.conds.push(rbNewCond(first.key));
+    rb.conds.push(rbNewCond(rbCondKinds()[0].key));
   }));
   form.appendChild(conds);
 
@@ -285,7 +300,7 @@ function rbLoad(){
   }
   const st = rbFromLogic(parsed.def.logic);
   if (!st){
-    customShowMessages([[false, 'De bouwer kan dit blok niet tonen (bijvoorbeeld door "en" of "of" binnen een voorwaarde). Je kunt het blok wel gewoon controleren en toevoegen.']]);
+    customShowMessages([[false, 'De bouwer kan dit blok niet tonen (bijvoorbeeld door een groep binnen een groep, of meer dan twee eisen aan een kaart). Je kunt het blok wel gewoon controleren en toevoegen.']]);
     return;
   }
   st.title = parsed.def.title;

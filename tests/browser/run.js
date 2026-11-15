@@ -560,7 +560,7 @@ test('eigen regels: de focus blijft in het venster', async page => {
   await crOpen(page);
   await page.focus('#customRuleClose');
   await page.keyboard.press('Shift+Tab');
-  eq(await page.evaluate(() => document.activeElement.id), 'customTrialBase', 'Shift+Tab voor de eerste gaat naar de laatste');
+  eq(await page.evaluate(() => document.activeElement.id), 'customPromptCopy', 'Shift+Tab voor de eerste gaat naar de laatste');
   await page.keyboard.press('Tab');
   eq(await page.evaluate(() => document.activeElement.id), 'customRuleClose', 'Tab na de laatste gaat naar de eerste');
   noErrors(page);
@@ -839,7 +839,7 @@ test('regelbouwer: het moment bepaalt wat er te kiezen valt', async page => {
   eq(await effects(), ['discardPot', 'sharePot'], 'gevolgen bij het toekennen van de pot');
   eq(await bSentence(page), 'Altijd gaat de hele pot naar de aflegstapel.', 'zin na wisselen van moment');
   await page.click('text=+ voorwaarde');
-  eq(await page.$$eval('[aria-label="Voorwaarde 1: soort"] option', o => o.map(x => x.value)), ['battle', 'winnerOpened', 'anyPlayer', 'playersWithCards'], 'voorwaarden bij award');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: soort"] option', o => o.map(x => x.value)), ['battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'group'], 'voorwaarden bij award (en een groep)');
   await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
   eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers"] option', o => o.map(x => x.value)), ['winner', 'opened', 'withoutCards'], 'spelers bij award, met de winnaar');
   await bPick(page, 'Moment', 'roundEnd');
@@ -882,7 +882,7 @@ test('regelbouwer: een bestaand blok in de bouwer laden', async page => {
   eq((await bBlock(page)).logic.then.win.group.relation, 'sameSuit', 'het blok volgt de bouwer');
   // Een blok dat de bouwer niet kan tonen geeft een melding en laat het tekstvak staan.
   const odd = await crSample(page);
-  odd.logic = { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } };
+  odd.logic = { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { and: [{ exists: { rank: 'K' } }, { exists: { rank: 'Q' } }] }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } };
   odd.examples = [{ cards: ['A♠', '2♥'], winners: [1], text: 'x' }];
   await page.fill('#customRuleText', JSON.stringify(odd));
   await page.click('#ruleBuilderLoad');
@@ -962,6 +962,80 @@ test('regelbouwer: de bouwer past op smalle schermen', async () => {
     ok(inner.scroll <= 1, 'het venster scrolt zijwaarts: ' + JSON.stringify(inner));
     noErrors(page);
   } finally { await page.ctx.close(); }
+});
+
+test('regelbouwer: een groep voorwaarden (a en (b of c))', async page => {
+  await crOpen(page);
+  await page.click('text=+ voorwaarde');
+  await bChip(page, 'Voorwaarde 1: waarden', 'A', false);
+  await bChip(page, 'Voorwaarde 1: waarden', '2', true);
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 2: soort', 'group');
+  eq(await page.$$eval('[aria-label="Voorwaarde 2.1: soort"] option', o => o.map(x => x.value)), ['exists', 'count'], 'in een groep kan geen groep');
+  await bChip(page, 'Voorwaarde 2.2: waarden', 'A', false);
+  await bChip(page, 'Voorwaarde 2.2: waarden', 'K', true);
+  eq(await bSentence(page), 'Als er een 2 ligt en (er een Aas ligt of er een Heer ligt), dan winnen de spelers met een Aas. Zijn het er meer dan één, dan battlen zij.', 'zin met een groep');
+  eq((await bBlock(page)).logic.if, { and: [{ exists: { rank: '2' } }, { or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }] }, 'beschrijving met een groep');
+  await bPick(page, 'Voorwaarde 2: hoe de groep samengaat', 'and');
+  await page.click('[aria-label="Voorwaarde 2: voorwaarde toevoegen aan de groep"]');
+  eq((await bBlock(page)).logic.if.and[1].and.length, 3, 'derde voorwaarde in de groep');
+  await page.click('[aria-label="Voorwaarde 2.3 weghalen"]');
+  await page.click('[aria-label="Voorwaarde 2.2 weghalen"]');
+  eq((await bBlock(page)).logic.if, { and: [{ exists: { rank: '2' } }, { exists: { rank: 'A' } }] }, 'een groep met één voorwaarde is die voorwaarde');
+  await page.click('[aria-label="Voorwaarde 2.1 weghalen"]');
+  eq(await bSentence(page), 'Nog niet klaar: Voeg een voorwaarde toe aan de groep.', 'melding bij een lege groep');
+  // Een blok met een groep laadt in de bouwer.
+  const blk = await crSample(page);
+  blk.logic = { moment: 'decide', if: { or: [{ exists: { rank: '2' } }, { not: { and: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] } }] }, then: { win: { rank: '2' } } };
+  blk.examples = [{ cards: ['2♠', 'A♥'], winners: [0], text: 'x' }];
+  await page.fill('#customRuleText', JSON.stringify(blk));
+  await page.click('#ruleBuilderLoad');
+  eq(await page.$eval('[aria-label="Voorwaarde 2: soort"]', e => e.value), 'group', 'de groep is geladen');
+  eq((await bBlock(page)).logic, blk.logic, 'de beschrijving blijft gelijk na laden');
+  noErrors(page);
+});
+
+// ---- De instructie voor Claude ----
+test('instructie voor Claude: kopiëren, en een antwoord met tekst eromheen plakken', async () => {
+  const page = await open({ width: 420, height: 900 }, { permissions: ['clipboard-read', 'clipboard-write'] });
+  try {
+    await crOpen(page);
+    ok(await page.isHidden('#customPromptOut'), 'het vak met de instructie staat al open');
+    await page.fill('#customWish', 'twee Vrouwen winnen samen van een Heer');
+    await page.click('#customPromptCopy');
+    await page.waitForFunction(() => document.getElementById('customPromptStatus').textContent.startsWith('Gekopieerd'));
+    const shown = await page.inputValue('#customPromptOut');
+    ok(shown.includes('Mijn regel:\ntwee Vrouwen winnen samen van een Heer') && shown.includes('"winnerOpened"') && shown.includes('custom-opeenvolgend'), 'de instructie staat in het vak');
+    eq(await page.evaluate(() => navigator.clipboard.readText()), shown, 'het klembord bevat de instructie');
+    ok(await page.isVisible('#customPromptOut'), 'het vak met de instructie is zichtbaar');
+    // Een antwoord zoals een taalmodel het geeft: tekst, een codeblok, en nog wat tekst.
+    const sample = await crSample(page);
+    await page.fill('#customRuleText', 'Hier is je regel:\n\n```json\n' + JSON.stringify(sample, null, 2) + '\n```\n\nVeel plezier!');
+    await page.click('#customRuleCheck');
+    eq((await crMessages(page))[0], '✓ Het blok klopt.', 'het blok uit het antwoord klopt');
+    eq(await bBlock(page), sample, 'alleen het blok blijft in het tekstvak staan');
+    // Een antwoord zonder blok (het model legt uit dat het niet kan) geeft een gewone melding en blijft staan.
+    await page.fill('#customRuleText', 'Dit kan niet met de bouwstenen: er is geen geheugen over rondes.');
+    await page.click('#customRuleCheck');
+    ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij een antwoord zonder blok');
+    eq(await page.inputValue('#customRuleText'), 'Dit kan niet met de bouwstenen: er is geen geheugen over rondes.', 'het antwoord blijft staan');
+    noErrors(page);
+  } finally { await page.ctx.close(); }
+});
+
+test('instructie voor Claude: als kopiëren niet mag, staat de tekst klaar om zelf te kopiëren', async page => {
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('nee')) }, configurable: true }); });
+  await crOpen(page);
+  await page.click('#customPromptCopy');
+  await page.waitForFunction(() => document.getElementById('customPromptStatus').textContent.startsWith('Kopiëren lukte niet'));
+  eq(await page.evaluate(() => document.activeElement.id), 'customPromptOut', 'de focus staat op de tekst');
+  const sel = await page.evaluate(() => { const t = document.getElementById('customPromptOut'); return [t.selectionStart, t.selectionEnd === t.value.length, t.value.includes('(vul hier in wat de regel moet doen)')]; });
+  eq(sel, [0, true, true], 'de hele tekst is geselecteerd, met een invulregel voor de wens');
+  // Zonder klembord in de browser hetzelfde.
+  await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true }); document.getElementById('customPromptStatus').textContent = ''; });
+  await page.click('#customPromptCopy');
+  ok((await text(page, '#customPromptStatus')).startsWith('Kopiëren lukte niet'), 'melding zonder klembord');
+  noErrors(page);
 });
 
 // ---- Smalle schermen ----

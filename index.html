@@ -136,6 +136,15 @@
     </div>
     <progress class="cr-progress" id="customRuleProgress" max="1" value="0" hidden></progress>
     <div class="cr-report" id="customRuleReport" aria-live="polite"></div>
+    <h3 class="cr-heading">Laat Claude de regel schrijven</h3>
+    <p class="cr-text">Het spel maakt zelf geen verbinding. Beschrijf je regel, kopieer de instructie, plak die in een gesprek met Claude (of een ander taalmodel) en plak het antwoord hierboven in het tekstvak.</p>
+    <label class="cr-label" for="customWish">Wat moet de regel doen?</label>
+    <textarea id="customWish" class="cr-textarea cr-wish" rows="2" maxlength="600" autocomplete="off" placeholder="Bijvoorbeeld: twee Vrouwen winnen samen van een Heer"></textarea>
+    <div class="cr-buttons">
+      <button type="button" id="customPromptCopy">Kopieer instructie</button>
+    </div>
+    <p class="cr-text" id="customPromptStatus" aria-live="polite"></p>
+    <textarea id="customPromptOut" class="cr-textarea" rows="6" readonly hidden aria-label="De instructie voor Claude"></textarea>
     <h3 class="cr-heading">Toegevoegde regels</h3>
     <ul class="cr-added" id="customRuleAdded"></ul>
   </div>
@@ -170,6 +179,7 @@
 <script src="js/undo.js"></script>
 <script src="js/rulebook.js"></script>
 <script src="js/stats.js"></script>
+<script src="js/rule-prompt.js"></script>
 <script src="js/custom-rules-ui.js"></script>
 <script src="js/rule-builder-ui.js"></script>
 </body>
