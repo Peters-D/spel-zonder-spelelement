@@ -50,6 +50,7 @@ const RULE_PROMPT_GRAMMAR = [
   '  decide, tiebreak:  { "win": <kaarten> }',
   '  award:             { "discardPot": true }   of   { "sharePot": [<spelers>, ...] }   (verdelen van hoog naar laag, in deze volgorde)',
   '  roundEnd:          { "forEach": <spelers>, "transfer": { "from": <spelers>, "count": n } }   of   { "forEach": <spelers>, "discardTop": n }',
+  '                     (count en discardTop: een geheel getal van 1 t/m 52)',
   '',
   'Er bestaat niets anders: geen andere sleutels, geen code, geen geheugen over meerdere rondes en geen keuzes van spelers.'
 ].join('\n');

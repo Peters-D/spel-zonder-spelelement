@@ -1256,6 +1256,11 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     ['gever zonder kaarten', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { withoutCards: true }, count: 1 } } }],
     ['transfer zonder aantal', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' } } } }],
     ['lege lijst', { moment: 'decide', then: { win: { and: [] } } }],
+    ['min groter dan max bij tellen', { moment: 'decide', if: { count: { rank: 'A' }, min: 3, max: 1 }, then: { win: { all: true } } }],
+    ['min groter dan max bij spelers met kaarten', { moment: 'award', if: { playersWithCards: { min: 4, max: 2 } }, then: { discardPot: true } }],
+    ['te veel kaarten afleggen', { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' } }, discardTop: 53 } }],
+    ['afleggen: getal dat als 32 bits 0 wordt', { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' } }, discardTop: 2147483648 } }],
+    ['te veel kaarten geven', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 4294967297 } } }],
     ['te diep', { moment: 'decide', then: { win: { not: { not: { not: { not: { not: { not: { not: { not: { not: { all: true } } } } } } } } } } } }]
   ];
   for (const [name, logic] of bad){
@@ -1273,6 +1278,17 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   same('opeenvolgend 7-8-9 wint van een A', win(['7♠', 'A♥', '8♦', '9♣'], grp('consecutive', 3)), [0, 2, 3]);
   same('opeenvolgend: te korte reeks', win(['7♠', 'A♥', '8♦', '3♣'], grp('consecutive', 3)), null);
   same('opeenvolgend: de hoogste reeks', win(['2♠', '3♥', 'Q♦', 'K♣', '7♠'], grp('consecutive', 2)), [2, 3]);
+  // Bij een reeks tellen de verschillende waarden: twee zevens zijn geen reeks van twee.
+  same('opeenvolgend: twee gelijke kaarten zijn geen reeks', win(['7♠', '7♥', 'A♦'], grp('consecutive', 2)), null);
+  same('opeenvolgend: 7-7-8 is geen reeks van drie', win(['7♠', '7♥', '8♦', 'A♣'], grp('consecutive', 3)), null);
+  same('opeenvolgend: 7-7-8 is een reeks van twee, en alle drie doen mee', win(['7♠', '7♥', '8♦', '2♣'], grp('consecutive', 2)), [0, 1, 2]);
+  same('opeenvolgend: bij een gelijke hoogste kaart wint de langste reeks', win(['9♠', '9♥', '8♦', '7♣'], grp('consecutive', 2)), [0, 1, 2, 3]);
+  // De grenzen zelf mogen wel.
+  for (const [name, logic] of [
+    ['52 kaarten afleggen', { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' } }, discardTop: 52 } }],
+    ['52 kaarten geven', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 52 } } }],
+    ['min gelijk aan max', { moment: 'decide', if: { count: { rank: 'A' }, min: 2, max: 2 }, then: { win: { all: true } } }]
+  ]) if (errorsOf(logic).length) fail('de controle keurt af: ' + name + ': ' + errorsOf(logic).join('; '));
   same('zelfde symbool', win(['7♠', 'A♥', '8♠', '9♣'], grp('sameSuit', 2)), [0, 2]);
   same('zelfde symbool: hoogste kaart beslist tussen groepen', win(['7♠', 'A♥', '8♠', '3♥'], grp('sameSuit', 2)), [1, 3]);
   same('zelfde symbool: gelijke stand, de grootste groep', win(['K♠', 'K♥', '8♠', '3♥', '2♠'], grp('sameSuit', 2)), [0, 2, 4]);
