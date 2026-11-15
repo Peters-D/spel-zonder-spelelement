@@ -113,6 +113,11 @@
     <h3 class="cr-heading">Bouw een regel</h3>
     <div class="bld-form" id="ruleBuilderForm"></div>
     <p class="bld-sentence" id="ruleBuilderSentence" aria-live="polite"></p>
+    <div class="bld-notice" id="ruleBuilderNotice" role="status" hidden>
+      <span>In het tekstvak staat een blok dat niet uit de bouwer komt. De bouwer laat het staan.</span>
+      <button type="button" class="bld-small" id="ruleBuilderReplace">Vervang het tekstvak door de regel uit de bouwer</button>
+    </div>
+    <div class="cr-buttons"><button type="button" class="bld-small" id="ruleBuilderReset">Begin opnieuw in de bouwer</button></div>
     <h3 class="cr-heading">Regelblok (tekst)</h3>
     <label class="cr-label" for="customRuleText">Regelblok</label>
     <textarea id="customRuleText" class="cr-textarea" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>

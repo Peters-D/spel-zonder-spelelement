@@ -233,7 +233,7 @@ function rbRender(){
   title.setAttribute('autocomplete', 'off');
   title.addEventListener('input', () => { rb.title = title.value; rbChanged(false); });
   top.appendChild(title);
-  top.appendChild(rbSelect(RULE_MOMENTS.map(m => [m.id, m.label]), rb.moment, 'Moment', v => { rb = Object.assign(rbNewState(v), { title: rb.title }); }, true));
+  top.appendChild(rbSelect(RULE_MOMENTS.map(m => [m.id, m.label]), rb.moment, 'Moment', v => { rb = Object.assign(rbNewState(v), { title: rb.title, meta: rb.meta }); }, true));
   form.appendChild(top);
 
   const conds = rbMake('div', 'bld-section');
@@ -265,33 +265,57 @@ function rbChanged(structural){
   rbRefreshOutput();
 }
 
-function rbRefreshOutput(){
+// De tekst die de bouwer het laatst in het tekstvak heeft gezet. Staat er iets anders (zelf geplakt of getypt, het voorbeeld, een
+// export), dan schrijft de bouwer er niet zomaar overheen: eerst vraagt hij het (zie rbNotice).
+let rbLastWritten = null;
+
+function rbOwnTextInBox(){
+  const value = customEl('customRuleText').value;
+  return value.trim() !== '' && value !== rbLastWritten;
+}
+
+function rbNotice(show){
+  const box = bldById('ruleBuilderNotice');
+  if (box) box.hidden = !show;
+}
+
+// force: de speler heeft gezegd dat het tekstvak vervangen mag worden.
+function rbRefreshOutput(force){
   const sentence = bldById('ruleBuilderSentence');
-  const built = rbBlock(rb);
+  const built = rbBlock(rb, customRules().map(r => r.id));
+  const blocked = rbOwnTextInBox() && !force;
+  rbNotice(blocked);
   if (built.errors){
     sentence.textContent = 'Nog niet klaar: ' + built.errors[0];
+    if (blocked) return; // het eigen blok in het tekstvak blijft zoals het is
     customInvalidate();
     customShowMessages([[false, built.errors[0]]]);
     return;
   }
   sentence.textContent = built.sentence;
-  customEl('customRuleText').value = JSON.stringify(built.def, null, 2);
+  if (blocked) return;
+  const box = customEl('customRuleText');
+  box.value = JSON.stringify(built.def, null, 2);
+  rbLastWritten = box.value;
   customCheck();
-  if (built.note){
-    const list = customEl('customRuleMessages');
-    customLine(list, null, built.note);
-  }
+  const list = customEl('customRuleMessages');
+  if (built.note) customLine(list, null, built.note);
+  if (built.regenerated) customLine(list, null, 'De regel is veranderd: de uitleg en de voorbeelden zijn opnieuw gemaakt. De id blijft ' + built.def.id + '.');
 }
 
 function rbOpen(){
-  if (!rb){
-    rb = rbNewState('decide');
-    rbRender();
-    bldById('ruleBuilderSentence').textContent = 'Kies hierboven wat de regel doet; hier staat dan in gewone taal wat het spel ervan maakt.';
-  }
+  if (!rb) rbReset();
 }
 
-// Het blok uit het tekstvak in de bouwer laden.
+// Een lege bouwer. Het tekstvak blijft zoals het is.
+function rbReset(){
+  rb = rbNewState('decide');
+  rbRender();
+  rbNotice(false);
+  bldById('ruleBuilderSentence').textContent = 'Kies hierboven wat de regel doet; hier staat dan in gewone taal wat het spel ervan maakt.';
+}
+
+// Het blok uit het tekstvak in de bouwer laden. De id, de prioriteit, de uitleg en de voorbeelden van het blok blijven (zie rbMetaFrom).
 function rbLoad(){
   const parsed = parseCustomRule(customEl('customRuleText').value);
   if (parsed.errors.length){
@@ -304,14 +328,19 @@ function rbLoad(){
     return;
   }
   st.title = parsed.def.title;
+  st.meta = rbMetaFrom(parsed.def, st);
   rb = st;
   rbRender();
-  rbRefreshOutput();
+  rbRefreshOutput(true); // het tekstvak bevat dit blok zelf: het mag in de vorm van de bouwer worden gezet
 }
 
 (function wireBuilder(){
   const loadBtn = bldById('ruleBuilderLoad');
   if (loadBtn && loadBtn.addEventListener) loadBtn.addEventListener('click', rbLoad);
+  const replaceBtn = bldById('ruleBuilderReplace');
+  if (replaceBtn && replaceBtn.addEventListener) replaceBtn.addEventListener('click', () => rbRefreshOutput(true));
+  const resetBtn = bldById('ruleBuilderReset');
+  if (resetBtn && resetBtn.addEventListener) resetBtn.addEventListener('click', rbReset);
   const open = bldById('customRuleBtn');
   if (open && open.addEventListener) open.addEventListener('click', rbOpen);
 })();
