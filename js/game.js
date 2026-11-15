@@ -167,7 +167,7 @@ function finalizeRoundOver(){
   const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(end)].filter(Boolean);
   if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
-    endGame(end.winner);
+    endGame(end.winner, end.jointWinners);
     setPhase('game-over');
     return;
   }
@@ -195,10 +195,17 @@ function showEndBanner(title, sub, extraClass){
   banner.appendChild(box);
 }
 
-function endGame(winner){
-  if (winner) showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
-  else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
-  if (winner) showWinnerRuleChoice(winner); // de winnaar zet één regel om voor het volgende spel (winner-rule.js)
+// winner: de laatste speler met kaarten, of null als niemand meer kaarten heeft. jointWinners: de spelers die dan samen
+// winnen omdat ze in dezelfde ronde afvielen (zie engineJointWinners); zij kiezen samen één regel.
+function endGame(winner, jointWinners){
+  if (winner){
+    showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
+    showWinnerRuleChoice(winner); // de winnaar zet één regel om voor het volgende spel (winner-rule.js)
+  } else if (jointWinners && jointWinners.length > 1){
+    const names = formatNamesNL(jointWinners.map(p => p.name));
+    showEndBanner('★ ' + names.toUpperCase() + ' WINNEN SAMEN ★', 'Zij vielen in dezelfde ronde af: niemand heeft nog kaarten.');
+    showWinnerRuleChoice({ name: names, joint: true });
+  } else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
 }
 
 function endCycleDetected(){

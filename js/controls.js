@@ -77,7 +77,7 @@ function fastForward(){
 
   if (result.outcome === 'win'){
     const winnerObj = game.players.find(p => p.id === result.winnerId);
-    endGame(winnerObj);
+    endGame(winnerObj, (result.jointWinnerIds || []).map(id => game.players.find(p => p.id === id)));
     setPhase('game-over');
   } else if (result.outcome === 'cycle'){
     endCycleDetected();
