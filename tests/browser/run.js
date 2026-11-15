@@ -39,6 +39,8 @@ async function startGame(page, { players = 4, seed = '1000' } = {}){
   }
 }
 
+// Zelfde inhoud, los van de volgorde van de velden in een object.
+const canon = v => Array.isArray(v) ? v.map(canon) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v;
 const eq = (got, exp, what) => { if (JSON.stringify(got) !== JSON.stringify(exp)) throw new Error(what + ': verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
 const ok = (cond, what) => { if (!cond) throw new Error(what); };
 const noErrors = page => eq(page.errors, [], 'fouten in de pagina');
@@ -992,6 +994,92 @@ test('regelbouwer: een groep voorwaarden (a en (b of c))', async page => {
   await page.click('#ruleBuilderLoad');
   eq(await page.$eval('[aria-label="Voorwaarde 2: soort"]', e => e.value), 'group', 'de groep is geladen');
   eq((await bBlock(page)).logic, blk.logic, 'de beschrijving blijft gelijk na laden');
+  noErrors(page);
+});
+
+test('regelbouwer: een geladen blok blijft dezelfde regel, met de eigen uitleg en voorbeelden', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  const original = await bBlock(page);
+  await page.click('#ruleBuilderLoad');
+  eq(canon(await bBlock(page)), canon(original), 'na laden heeft het blok dezelfde inhoud');
+  ok(await page.isHidden('#ruleBuilderNotice'), 'geen melding over eigen tekst na laden');
+  // De naam wijzigen: de id, de uitleg en de voorbeelden blijven.
+  await page.fill('.bld-title', 'Reeksen');
+  let blk = await bBlock(page);
+  eq(canon([blk.id, blk.title, blk.description, blk.examples]), canon([original.id, 'Reeksen', original.description, original.examples]), 'na een andere naam');
+  // De regel zelf wijzigen: zelfde id, nieuwe uitleg en voorbeelden, met een melding.
+  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameSuit');
+  blk = await bBlock(page);
+  eq(blk.id, original.id, 'de id blijft na een wijziging van de regel');
+  ok(blk.description !== original.description && JSON.stringify(canon(blk.examples)) !== JSON.stringify(canon(original.examples)), 'uitleg en voorbeelden zijn opnieuw gemaakt');
+  ok((await crMessages(page)).some(m => m.includes('opnieuw gemaakt') && m.includes(original.id)), 'melding dat de uitleg en voorbeelden opnieuw zijn gemaakt: ' + (await crMessages(page)).join(' | '));
+  // Terug naar de oorspronkelijke regel: de eigen teksten komen terug.
+  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'consecutive');
+  blk = await bBlock(page);
+  eq(canon([blk.description, blk.examples]), canon([original.description, original.examples]), 'de eigen uitleg en voorbeelden komen terug');
+  // Toevoegen en opnieuw laden en wijzigen vervangt dezelfde regel (geen tweede).
+  await page.click('#customRuleAdd');
+  await crOpen(page);
+  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameColor');
+  await page.click('#customRuleAdd');
+  eq(await page.evaluate(() => customRules().map(r => r.id + ':' + r.logic.then.win.group.relation)), [original.id + ':sameColor'], 'één regel, de gewijzigde');
+  noErrors(page);
+});
+
+test('regelbouwer: de bouwer schrijft niet over eigen tekst in het tekstvak heen', async page => {
+  await crOpen(page);
+  const own = '{"mijn": "eigen tekst"}';
+  await page.fill('#customRuleText', own);
+  await page.fill('.bld-title', 'Iets');
+  eq(await page.inputValue('#customRuleText'), own, 'het tekstvak na een wijziging in de bouwer');
+  ok(await page.isVisible('#ruleBuilderNotice'), 'de melding staat er');
+  ok((await bSentence(page)).startsWith('Altijd winnen'), 'de zin van de bouwer werkt wel bij');
+  await page.click('text=+ voorwaarde');
+  eq(await page.inputValue('#customRuleText'), own, 'ook na meer wijzigingen blijft de eigen tekst staan');
+  // Een onvolledige regel in de bouwer raakt het eigen blok ook niet.
+  await bChip(page, 'Voorwaarde 1: waarden', 'A', false);
+  eq(await page.inputValue('#customRuleText'), own, 'de eigen tekst blijft bij een onvolledige regel');
+  await bChip(page, 'Voorwaarde 1: waarden', 'A', true);
+  // Pas na de knop wordt het tekstvak vervangen; daarna schrijft de bouwer weer gewoon.
+  await page.click('#ruleBuilderReplace');
+  eq((await bBlock(page)).id, 'custom-iets', 'na vervangen staat de regel uit de bouwer in het tekstvak');
+  ok(await page.isHidden('#ruleBuilderNotice'), 'de melding is weg');
+  await page.fill('.bld-title', 'Iets anders');
+  eq((await bBlock(page)).id, 'custom-iets-anders', 'de bouwer schrijft weer mee');
+  // Het voorbeeld en een geëxporteerd blok tellen ook als eigen tekst.
+  await page.click('#customRuleSample');
+  await page.fill('.bld-title', 'Nog iets');
+  eq((await bBlock(page)).id, 'custom-opeenvolgend', 'het voorbeeld blijft staan');
+  ok(await page.isVisible('#ruleBuilderNotice'), 'de melding staat er weer');
+  // Een leeg tekstvak mag de bouwer altijd vullen.
+  await page.fill('#customRuleText', '');
+  await page.fill('.bld-title', 'Leeg');
+  eq((await bBlock(page)).id, 'custom-leeg', 'een leeg tekstvak wordt gevuld');
+  noErrors(page);
+});
+
+test('regelbouwer: twee regels zonder naam worden twee regels, en opnieuw beginnen', async page => {
+  await crOpen(page);
+  await page.click('text=+ voorwaarde');
+  await page.click('#customRuleAdd');
+  await crOpen(page);
+  await bPick(page, 'Moment', 'award');
+  eq([(await bBlock(page)).id, (await bBlock(page)).title], ['custom-nieuwe-regel-2', 'Nieuwe regel 2'], 'de tweede regel zonder naam');
+  await page.click('#customRuleAdd');
+  eq(await page.evaluate(() => customRules().map(r => r.id + ':' + r.logic.moment)), ['custom-nieuwe-regel:decide', 'custom-nieuwe-regel-2:award'], 'twee eigen regels');
+  eq(await page.locator('#rulesList label.rule-check').count(), 8, 'twee vinkjes erbij');
+  // Opnieuw beginnen maakt de bouwer leeg, laat het tekstvak staan en vergeet een geladen blok.
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#ruleBuilderLoad');
+  await page.click('#ruleBuilderReset');
+  eq(await page.inputValue('.bld-title'), '', 'de naam is leeg');
+  eq((await bBlock(page)).id, 'custom-opeenvolgend', 'het tekstvak blijft staan');
+  ok((await bSentence(page)).startsWith('Kies hierboven'), 'de uitleg staat er weer');
+  await page.fill('#customRuleText', '');
+  await page.fill('.bld-title', 'Vers');
+  eq((await bBlock(page)).id, 'custom-vers', 'na opnieuw beginnen is het een nieuwe regel (niet de geladen id)');
   noErrors(page);
 });
 

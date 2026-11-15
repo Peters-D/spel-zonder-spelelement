@@ -70,3 +70,6 @@
 
 .bld-group{ padding:6px 8px; border-left:3px solid color-mix(in srgb, var(--ink) 35%, transparent); }
 .bld-group > .bld-row{ margin-left:4px; }
+
+.bld-notice{ display:flex; flex-wrap:wrap; gap:6px 10px; align-items:center; margin:6px 0; padding:8px 10px; font-size:13px; border:1px solid color-mix(in srgb, var(--ink) 40%, transparent); border-radius:8px; }
+.bld-notice[hidden]{ display:none; }

@@ -1836,6 +1836,48 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   eq2('een titel van 80 tekens wordt afgekapt op 60', blockOf('x'.repeat(80)).title.length, 60);
   function eq2(name, got, exp){ if (J(got) !== J(exp)) fail(name + ': verwacht ' + J(exp) + ', kreeg ' + J(got)); }
 
+  // Regels zonder naam krijgen een id die nog vrij is; een regel met een naam houdt de id van die naam (dezelfde naam is dezelfde regel).
+  const idFor = (title, taken) => R('(() => { const st = rbNewState("decide"); st.title = ' + J(title) + '; const b = rbBlock(st, ' + J(taken) + '); return [b.def.id, b.def.title]; })()');
+  eq2('zonder naam, nog niets toegevoegd', idFor('', []), ['custom-nieuwe-regel', 'Nieuwe regel']);
+  eq2('zonder naam, de eerste bestaat al', idFor('', ['custom-nieuwe-regel']), ['custom-nieuwe-regel-2', 'Nieuwe regel 2']);
+  eq2('zonder naam, twee bestaan al', idFor('  ', ['custom-nieuwe-regel', 'custom-nieuwe-regel-2', 'custom-iets']), ['custom-nieuwe-regel-3', 'Nieuwe regel 3']);
+  eq2('zonder naam, alleen de tweede bestaat', idFor('', ['custom-nieuwe-regel-2']), ['custom-nieuwe-regel', 'Nieuwe regel']);
+  eq2('met een naam die al bestaat: dezelfde regel', idFor('Rood', ['custom-rood']), ['custom-rood', 'Rood']);
+  eq2('zonder lijst van bestaande regels', R('(() => { const b = rbBlock(rbNewState("decide")); return b.def.id; })()'), 'custom-nieuwe-regel');
+  for (const [, id] of [[0, idFor('', ['custom-nieuwe-regel'])[0]]]) if (!/^custom-[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) fail('de vrije id voldoet niet aan de eisen: ' + id);
+
+  // Een geladen blok blijft dezelfde regel: id, prioriteit, uitleg en voorbeelden blijven zolang de regel zelf niet verandert.
+  const loaded = R(`(() => {
+    const def = parseCustomRule(JSON.stringify(Object.assign({}, CUSTOM_RULE_SAMPLE, { priority: 345 }))).def;
+    const st = rbFromLogic(def.logic); st.title = def.title; st.meta = rbMetaFrom(def, st);
+    const same = rbBlock(st, [def.id]);
+    st.title = 'Andere naam';
+    const renamed = rbBlock(st, [def.id]);
+    st.effect.cs.min = 4;
+    const changed = rbBlock(st, [def.id]);
+    st.effect.cs.min = 3;
+    const back = rbBlock(st, [def.id]);
+    const moved = Object.assign(rbNewState('award'), { title: st.title, meta: st.meta });
+    const other = rbBlock(moved, [def.id]);
+    const pick = b => ({ id: b.def.id, title: b.def.title, priority: b.def.priority, short: b.def.short, description: b.def.description, examples: b.def.examples, kept: b.kept, regenerated: b.regenerated });
+    return { def, same: pick(same), renamed: pick(renamed), changed: pick(changed), back: pick(back), other: pick(other), metaUntouched: JSON.stringify(st.meta.examples) === JSON.stringify(def.examples) };
+  })()`);
+  const d0 = loaded.def;
+  eq2('geladen en niets veranderd: het blok is hetzelfde', [loaded.same.id, loaded.same.title, loaded.same.priority, loaded.same.short, loaded.same.description, loaded.same.examples, loaded.same.kept, loaded.same.regenerated],
+    [d0.id, d0.title, 345, d0.short, d0.description, d0.examples, true, false]);
+  eq2('andere naam: de id blijft, de teksten ook', [loaded.renamed.id, loaded.renamed.title, loaded.renamed.description, loaded.renamed.kept], [d0.id, 'Andere naam', d0.description, true]);
+  eq2('regel veranderd: id en prioriteit blijven, uitleg en voorbeelden zijn opnieuw gemaakt', [loaded.changed.id, loaded.changed.priority, loaded.changed.kept, loaded.changed.regenerated, loaded.changed.description === d0.description, J(loaded.changed.examples) === J(d0.examples)],
+    [d0.id, 345, false, true, false, false]);
+  eq2('regel weer terug: de eigen uitleg en voorbeelden komen terug', [loaded.back.kept, loaded.back.description, loaded.back.examples], [true, d0.description, d0.examples]);
+  eq2('ander moment: nog steeds dezelfde regel (id, prioriteit)', [loaded.other.id, loaded.other.priority, loaded.other.regenerated], [d0.id, 345, true]);
+  eq2('de bewaarde voorbeelden worden niet aangetast', loaded.metaUntouched, true);
+  // De volgorde van waarden in een geladen blok mag anders zijn dan de bouwer haar schrijft: het blijft dezelfde regel.
+  const reordered = R(`(() => { const def = parseCustomRule(JSON.stringify({ id: 'custom-volgorde', title: 'Volgorde', short: 'kort', description: 'eigen uitleg', logic: { moment: 'decide', then: { win: { rank: ['Q', 'K'] } } },
+    examples: [{ cards: ['K', 'Q', '3'], winners: [0, 1], text: 'eigen voorbeeld' }] })).def;
+    const st = rbFromLogic(def.logic); st.title = def.title; st.meta = rbMetaFrom(def, st); const b = rbBlock(st, []);
+    return [b.kept, b.def.description, b.def.examples[0].text, b.def.logic.then.win.rank]; })()`);
+  eq2('andere schrijfwijze van dezelfde regel', reordered, [true, 'eigen uitleg', 'eigen voorbeeld', ['K', 'Q']]);
+
   // Elke stand levert een blok dat door de controle van laag 2 komt, met voorbeelden die het spel zelf nakijkt.
   let blocksChecked = 0;
   for (const st of states.filter((_, i) => i % 3 === 0)){
@@ -1912,7 +1954,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   // Wat eruit komt gaat door de gewone controle.
   const viaAnswer = JSON.parse(run('JSON.stringify(parseCustomRule(extractRuleJson(' + J('Hier:\n```json\n' + sampleText + '\n```') + ')).errors)'));
   if (viaAnswer.length) fail('een blok uit een antwoord komt niet door de controle: ' + J(viaAnswer));
-  for (const id of ['customWish', 'customPromptCopy', 'customPromptStatus', 'customPromptOut']) if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('id="' + id + '"')) fail('index.html mist het element met id ' + id);
+  for (const id of ['customWish', 'customPromptCopy', 'customPromptStatus', 'customPromptOut', 'ruleBuilderNotice', 'ruleBuilderReplace', 'ruleBuilderReset', 'ruleBuilderLoad', 'ruleBuilderForm', 'ruleBuilderSentence']) if (!fs.readFileSync(path.join(root, 'index.html'), 'utf8').includes('id="' + id + '"')) fail('index.html mist het element met id ' + id);
 }
 
 // ---- testgevallen ----

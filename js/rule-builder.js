@@ -7,10 +7,11 @@
 //   rbFromLogic(logic)            de stand bij een beschrijving, of null als de bouwer die niet kan tonen (dieper dan één groep,
 //                                 meer dan twee eisen aan een kaart)
 //   rbSuggestExamples(logic)      { examples, note }: voorbeelden die het spel zelf zoekt (zie hieronder)
-//   rbBlock(state)                het hele regelblok: { def, sentence, note } of { errors }
+//   rbBlock(state, taken)         het hele regelblok: { def, sentence, note, kept, regenerated } of { errors }
+//   rbMetaFrom(def, state)        onthoudt een geladen blok (id, uitleg, voorbeelden) in state.meta
 //
 // De stand:
-//   { moment, title, condMode: 'and' | 'or', conds: [voorwaarde, ...], effect }
+//   { moment, title, condMode: 'and' | 'or', conds: [voorwaarde, ...], effect, meta (optioneel, zie rbMetaFrom) }
 // Een keuze van kaarten (cs): { kind, ranks, suits, color, by, of, relation, min, not, also }
 //   kind: 'rank' | 'suit' | 'color' | 'all' | 'highest' | 'lowest' | 'group'; not (niet) en also (en ook een tweede eis) kunnen alleen bij
 //   rank, suit en color.
@@ -399,13 +400,34 @@ function rbSlug(text){
   return slug || 'nieuwe-regel';
 }
 
+// De gegevens van een blok dat in de bouwer is geladen: zo blijft het dezelfde regel (id, prioriteit) en blijven de eigen uitleg en
+// voorbeelden staan zolang de regel zelf niet verandert. logic is de beschrijving zoals de bouwer haar teruggeeft.
+function rbMetaFrom(def, st){
+  return { id: def.id, priority: def.priority, short: def.short, description: def.description,
+    examples: def.examples.map(e => JSON.parse(JSON.stringify(e))), logic: JSON.stringify(rbToLogic(st).logic) };
+}
+
 // stand -> het regelblok (zoals parseCustomRule het verwacht), de zin en een eventuele opmerking over de voorbeelden.
-function rbBlock(st){
+// taken: de id's van de eigen regels die al bestaan. Een regel zonder naam krijgt een id die nog vrij is ("Nieuwe regel 2"), zodat hij
+// geen eerdere regel zonder naam vervangt. Een regel mét naam krijgt de id van die naam: dezelfde naam is dezelfde regel.
+// st.meta (zie rbMetaFrom): het blok dat in de bouwer is geladen. De id en prioriteit blijven; de uitleg en voorbeelden blijven zolang de
+// regel niet is veranderd (kept), en worden anders opnieuw gemaakt (regenerated).
+function rbBlock(st, taken){
   const r = rbToLogic(st);
   if (r.error) return { errors: [r.error] };
   const sentence = describeRuleLogic(r.logic);
-  const title = (st.title || '').trim().slice(0, 60) || 'Nieuwe regel';
-  const ex = rbSuggestExamples(r.logic);
-  const def = { id: 'custom-' + rbSlug(title), title, short: rbTrim(sentence, 160), description: rbTrim(sentence, 1500), priority: 200, logic: r.logic, examples: ex.examples };
-  return { def, sentence, note: ex.note, found: ex.found };
+  const named = (st.title || '').trim().slice(0, 60);
+  const meta = st.meta || null;
+  let id, title;
+  if (meta){ id = meta.id; title = named || 'Nieuwe regel'; }
+  else if (named){ id = 'custom-' + rbSlug(named); title = named; }
+  else {
+    let n = 1;
+    do { id = 'custom-nieuwe-regel' + (n > 1 ? '-' + n : ''); title = 'Nieuwe regel' + (n > 1 ? ' ' + n : ''); n++; } while ((taken || []).includes(id));
+  }
+  const kept = !!meta && meta.logic === JSON.stringify(r.logic);
+  const ex = kept ? { examples: meta.examples.map(e => JSON.parse(JSON.stringify(e))), note: '', found: null } : rbSuggestExamples(r.logic);
+  const def = { id, title, short: kept ? meta.short : rbTrim(sentence, 160), description: kept ? meta.description : rbTrim(sentence, 1500),
+    priority: meta ? meta.priority : 200, logic: r.logic, examples: ex.examples };
+  return { def, sentence, note: ex.note, found: ex.found, kept, regenerated: !!meta && !kept };
 }
