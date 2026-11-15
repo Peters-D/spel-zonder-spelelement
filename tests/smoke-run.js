@@ -1634,19 +1634,33 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     if (asSingle !== blocks.singleCards.includes(b.key)) fail('kaartkeuze ' + b.key + ': de lijst met enkele kaarten klopt niet met de controle (' + asSingle + ')');
     if (describe({ moment: 'decide', then: { win: b.sample } }) === '') fail('kaartkeuze ' + b.key + ' geeft geen zin');
   }
-  // Spelers: elke keuze past precies op de plekken die de lijst noemt.
+  // Spelers: elke keuze past precies op de plekken en bij de momenten die de lijst noemt (de winnaar bestaat alleen bij award).
   const slotLogic = {
-    sharePot: p => ({ moment: 'award', then: { sharePot: [p] } }),
-    forEach: p => ({ moment: 'roundEnd', then: { forEach: p, discardTop: 1 } }),
-    anyPlayer: p => ({ moment: 'award', if: { anyPlayer: p }, then: { discardPot: true } }),
-    from: p => ({ moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: p, count: 1 } } })
+    sharePot: (p, m) => ({ moment: m, then: { sharePot: [p] } }),
+    forEach: (p, m) => ({ moment: m, then: { forEach: p, discardTop: 1 } }),
+    anyPlayer: (p, m) => ({ moment: m, if: { anyPlayer: p }, then: m === 'award' ? { discardPot: true } : { forEach: { withoutCards: true }, discardTop: 1 } }),
+    from: (p, m) => ({ moment: m, then: { forEach: { withoutCards: true }, transfer: { from: p, count: 1 } } })
   };
+  const slotMoments = blocks.playerSlots;
   for (const b of blocks.players) for (const slot of Object.keys(slotLogic)){
-    const wanted = b.slots.includes(slot), got = valid(slotLogic[slot](b.sample));
-    if (wanted !== got) fail('spelerskeuze ' + b.key + ' op plek ' + slot + ': de lijst zegt ' + wanted + ', de controle ' + got);
-    if (got && describe(slotLogic[slot](b.sample)) === '') fail('spelerskeuze ' + b.key + ' op plek ' + slot + ' geeft geen zin');
-    const listed = JSON.parse(run('JSON.stringify(rulePlayerChoices(' + J(slot) + ').map(c => c.key))')).includes(b.key);
-    if (listed !== wanted) fail('rulePlayerChoices(' + slot + ') en de lijst wijken af voor ' + b.key);
+    // Op een plek die bij dit moment niet bestaat, hoort de keuze er niet te staan.
+    const slotWanted = b.slots.includes(slot);
+    for (const moment of ['decide', 'tiebreak', 'award', 'roundEnd']){
+      const slotExists = slotMoments[slot].includes(moment);
+      if (!slotExists) continue; // bestaat de plek niet bij dit moment, dan is het blok sowieso ongeldig
+      const wanted = slotWanted && b.moments.includes(moment), got = valid(slotLogic[slot](b.sample, moment));
+      if (wanted !== got) fail('spelerskeuze ' + b.key + ' op plek ' + slot + ' bij ' + moment + ': de lijst zegt ' + wanted + ', de controle ' + got);
+      if (got && describe(slotLogic[slot](b.sample, moment)) === '') fail('spelerskeuze ' + b.key + ' op plek ' + slot + ' bij ' + moment + ' geeft geen zin');
+      const listed = JSON.parse(run('JSON.stringify(rulePlayerChoices(' + J(slot) + ', ' + J(moment) + ').map(c => c.key))')).includes(b.key);
+      if (listed !== wanted) fail('rulePlayerChoices(' + slot + ', ' + moment + ') en de lijst wijken af voor ' + b.key);
+      if (b.key === 'opened'){ // "behalve de winnaar"
+        const ex = { opened: { rank: 'Q' }, exclude: 'winner' };
+        const wantedEx = wanted && b.excludeMoments.includes(moment);
+        if (valid(slotLogic[slot](ex, moment)) !== wantedEx) fail('"behalve de winnaar" op plek ' + slot + ' bij ' + moment + ': de lijst zegt ' + wantedEx);
+      }
+    }
+    const listedAny = JSON.parse(run('JSON.stringify(rulePlayerChoices(' + J(slot) + ').map(c => c.key))')).includes(b.key);
+    if (listedAny !== slotWanted) fail('rulePlayerChoices(' + slot + ') en de lijst wijken af voor ' + b.key);
   }
   // Elke keuze heeft een naam, en de namen zijn uniek binnen hun lijst.
   for (const group of ['conditions', 'effects', 'cards', 'players']){
@@ -1656,6 +1670,171 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   }
   // Elke regel van het spel en elk voorbeeldblok krijgt een zin (de spelers lezen die straks in het venster).
   if (describe(JSON.parse(run('JSON.stringify(CUSTOM_RULE_SAMPLE.logic)'))) !== 'Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij.') fail('het voorbeeldblok krijgt een andere zin');
+}
+
+// ---- de regelbouwer (js/rule-builder.js) ----
+{
+  const fail = t => failures.push('regelbouwer: ' + t);
+  const J = v => JSON.stringify(v);
+  const R = code => JSON.parse(run('JSON.stringify(' + code + ')'));
+  const catalogBefore = J(R('RULES.map(r => r.id)'));
+
+  // 1. Alle zes regels van het spel, en het voorbeeldblok, zijn te tonen in de bouwer en komen er identiek weer uit.
+  const roundTrip = JSON.parse(run(`JSON.stringify(RULES.map(r => ({ id: r.id, logic: r.logic })).concat([{ id: 'sample', logic: CUSTOM_RULE_SAMPLE.logic }]).map(x => {
+    const st = rbFromLogic(x.logic); const back = st ? rbToLogic(st) : null;
+    return [x.id, !!st, back && back.logic ? JSON.stringify(back.logic) === JSON.stringify(x.logic) : false]; }))`));
+  for (const [id, shown, same] of roundTrip){
+    if (!shown) fail(id + ' is niet te tonen in de bouwer');
+    else if (!same) fail(id + ' komt na de bouwer niet identiek terug');
+  }
+
+  // 2. Stand -> beschrijving -> stand -> beschrijving, voor veel standen die elk soort keuze gebruiken (en de bouwer verandert de stand niet).
+  const states = JSON.parse(run(`(() => {
+    const cs = (kind, extra) => Object.assign(rbNewCards(kind), extra || {});
+    const cardKinds = [cs('rank', { ranks: ['K', 'Q'] }), cs('rank', { ranks: ['10'], not: true }), cs('suit', { suits: ['♥', '♦'] }), cs('color', { color: 'black' }), cs('all'),
+      cs('highest'), cs('highest', { by: 'suitOrder', of: 'red' }), cs('lowest', { by: 'value', of: 'black' }), cs('group', { relation: 'consecutive', min: 3 }), cs('group', { relation: 'sameSuit', min: 2 }),
+      cs('rank', { ranks: ['A'], also: cs('suit', { suits: ['♠'] }) }), cs('color', { color: 'red', not: true, also: cs('rank', { ranks: ['K'] }) })];
+    const single = cardKinds.filter(c => ['rank', 'suit', 'color'].includes(c.kind));
+    const out = [];
+    const st = (moment, conds, effect, mode) => { const s = rbNewState(moment); s.conds = conds; s.effect = effect; s.condMode = mode || 'and'; return s; };
+    const win = c => Object.assign(rbNewEffect('win'), { cs: c });
+    for (const c of cardKinds){
+      out.push(st('decide', [], win(c)));
+      out.push(st('tiebreak', [], win(c)));
+      out.push(st('decide', [Object.assign(rbNewCond('exists'), { cs: c })], win(cs('rank', { ranks: ['2'] }))));
+      for (const mode of ['min', 'max', 'exact', 'between']) out.push(st('decide', [Object.assign(rbNewCond('count'), { cs: c, mode, n: 1, m: 3, not: mode === 'max' })], win(cs('all'))));
+    }
+    for (const c of single){
+      out.push(st('award', [Object.assign(rbNewCond('winnerOpened'), { cs: c })], rbNewEffect('discardPot')));
+      out.push(st('award', [Object.assign(rbNewCond('anyPlayer'), { who: 'opened', cs: c, other: true })], rbNewEffect('discardPot')));
+      out.push(st('roundEnd', [Object.assign(rbNewCond('anyPlayer'), { who: 'opened', cs: c })], rbNewEffect('discardTop')));
+      const eff = Object.assign(rbNewEffect('discardTop'), { each: Object.assign(rbNewPlayer('opened'), { cs: c }), count: 2 });
+      out.push(st('roundEnd', [], eff));
+      const tr = Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('opened'), { cs: c }), count: 3 });
+      out.push(st('roundEnd', [], tr));
+    }
+    out.push(st('award', [Object.assign(rbNewCond('anyPlayer'), { who: 'winner' }), Object.assign(rbNewCond('battle'), { not: true })], rbNewEffect('sharePot'), 'or'));
+    out.push(st('award', [Object.assign(rbNewCond('playersWithCards'), { mode: 'between', n: 2, m: 4 })], Object.assign(rbNewEffect('sharePot'), { who: [rbNewPlayer('winner'), Object.assign(rbNewPlayer('opened'), { other: true }), rbNewPlayer('withoutCards')] })));
+    out.push(st('roundEnd', [Object.assign(rbNewCond('playersWithCards'), { mode: 'max', n: 3 })], Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('neighbor'), { side: 'right' }), count: 2 })));
+    for (const m of ['decide', 'tiebreak', 'award', 'roundEnd']) out.push(rbNewState(m));
+    out.push(st('decide', [Object.assign(rbNewCond('exists'), { cs: cs('rank', { ranks: ['A'] }) }), Object.assign(rbNewCond('count'), { cs: cs('rank', { ranks: ['2'] }), mode: 'min', n: 2 }), Object.assign(rbNewCond('exists'), { cs: cs('suit', { suits: ['♣'] }), not: true })], win(cs('highest')), 'or'));
+    return JSON.stringify(out); })()`));
+  let built = 0;
+  for (const st of states){
+    const before = J(st);
+    const r = JSON.parse(run('JSON.stringify(rbToLogic(' + before + '))'));
+    if (r.error){ fail('een stand die hoort te kloppen geeft een fout: ' + r.error + ' bij ' + before.slice(0, 200)); continue; }
+    built++;
+    const again = JSON.parse(run('(() => { const st = ' + before + '; const a = rbToLogic(st); const back = rbFromLogic(a.logic); return JSON.stringify({ same: JSON.stringify(st) === ' + J(before) + ', back: back ? rbToLogic(back) : null, sentence: describeRuleLogic(a.logic) }); })()'));
+    if (!again.same) fail('rbToLogic verandert de stand');
+    if (!again.back || J(again.back.logic) !== J(r.logic)) fail('niet identiek na terugtonen: ' + J(r.logic).slice(0, 300) + ' -> ' + J(again.back && again.back.logic).slice(0, 300));
+    if (!again.sentence) fail('geen zin voor ' + J(r.logic).slice(0, 200));
+  }
+  if (built < 60) fail('te weinig standen getest (' + built + ')');
+
+  // 2b. Vaste uitkomsten: een stand geeft precies deze beschrijving (de terugweg alleen bewijst niet dat niets verloren gaat).
+  const golden = JSON.parse(run(`(() => {
+    const cs = (kind, extra) => Object.assign(rbNewCards(kind), extra || {});
+    const st = (moment, conds, effect, mode) => { const s = rbNewState(moment); s.conds = conds; s.effect = effect; s.condMode = mode || 'and'; return s; };
+    const win = c => Object.assign(rbNewEffect('win'), { cs: c });
+    const cond = (key, extra) => Object.assign(rbNewCond(key), extra);
+    const cases = [
+      ['waarden staan op volgorde, hoogste eerst', st('decide', [], win(cs('rank', { ranks: ['Q', '2', 'A', 'K'] }))), { moment: 'decide', then: { win: { rank: ['A', 'K', 'Q', '2'] } } }],
+      ['symbolen op volgorde van het spel', st('decide', [], win(cs('suit', { suits: ['♣', '♥', '♠'] }))), { moment: 'decide', then: { win: { suit: ['♠', '♥', '♣'] } } }],
+      ['niet', st('decide', [], win(cs('rank', { ranks: ['10'], not: true }))), { moment: 'decide', then: { win: { not: { rank: '10' } } } }],
+      ['een tweede eis', st('decide', [], win(cs('suit', { suits: ['♠'], also: cs('rank', { ranks: ['K'] }) }))), { moment: 'decide', then: { win: { and: [{ suit: '♠' }, { rank: 'K' }] } } }],
+      ['een tweede eis met niet', st('decide', [], win(cs('color', { color: 'red', not: true, also: cs('rank', { ranks: ['K'] }) }))), { moment: 'decide', then: { win: { not: { and: [{ color: 'red' }, { rank: 'K' }] } } } }],
+      ['hoogste onder rood', st('decide', [], win(cs('highest', { by: 'suitOrder', of: 'red' }))), { moment: 'decide', then: { win: { highest: 'suitOrder', of: { color: 'red' } } } }],
+      ['laagste zonder beperking', st('decide', [], win(cs('lowest', { of: 'none' }))), { moment: 'decide', then: { win: { lowest: 'value' } } }],
+      ['groep', st('decide', [], win(cs('group', { relation: 'consecutive', min: 4 }))), { moment: 'decide', then: { win: { group: { relation: 'consecutive', min: 4, pick: 'highest' } } } }],
+      ['tellen: minstens', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'min', n: 2 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 2 }, then: { win: { all: true } } }],
+      ['tellen: ten hoogste', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'max', n: 1 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, max: 1 }, then: { win: { all: true } } }],
+      ['tellen: precies', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'exact', n: 2 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 2, max: 2 }, then: { win: { all: true } } }],
+      ['tellen: tussen', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'between', n: 1, m: 3 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 1, max: 3 }, then: { win: { all: true } } }],
+      ['voorwaarde niet', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }), not: true })], win(cs('all'))), { moment: 'decide', if: { not: { exists: { rank: 'A' } } }, then: { win: { all: true } } }],
+      ['twee voorwaarden met en', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('exists', { cs: cs('rank', { ranks: ['2'] }) })], win(cs('all'))), { moment: 'decide', if: { and: [{ exists: { rank: 'A' } }, { exists: { rank: '2' } }] }, then: { win: { all: true } } }],
+      ['twee voorwaarden met of', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('exists', { cs: cs('rank', { ranks: ['2'] }) })], win(cs('all')), 'or'), { moment: 'decide', if: { or: [{ exists: { rank: 'A' } }, { exists: { rank: '2' } }] }, then: { win: { all: true } } }],
+      ['de winnaar begon met', st('award', [cond('winnerOpened', { cs: cs('rank', { ranks: ['K'] }) })], rbNewEffect('discardPot')), { moment: 'award', if: { winnerOpened: { rank: 'K' } }, then: { discardPot: true } }],
+      ['een andere speler begon met', st('award', [cond('anyPlayer', { who: 'opened', cs: cs('rank', { ranks: ['Q'] }), other: true })], rbNewEffect('discardPot')), { moment: 'award', if: { anyPlayer: { opened: { rank: 'Q' }, exclude: 'winner' } }, then: { discardPot: true } }],
+      ['aantal spelers met kaarten', st('roundEnd', [cond('playersWithCards', { mode: 'between', n: 2, m: 5 })], rbNewEffect('discardTop')), { moment: 'roundEnd', if: { playersWithCards: { min: 2, max: 5 } }, then: { forEach: { opened: { rank: 'A' } }, discardTop: 1 } }],
+      ['de pot verdelen', st('award', [], Object.assign(rbNewEffect('sharePot'), { who: [rbNewPlayer('winner'), Object.assign(rbNewPlayer('opened'), { cs: cs('rank', { ranks: ['Q'] }), other: true })] })), { moment: 'award', then: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } }],
+      ['kaarten krijgen van een buur', st('roundEnd', [], Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('neighbor'), { side: 'right' }), count: 2 })), { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'right' }, count: 2 } } }],
+      ['kaarten afleggen', st('roundEnd', [], Object.assign(rbNewEffect('discardTop'), { each: Object.assign(rbNewPlayer('opened'), { cs: cs('suit', { suits: ['♥'] }) }), count: 3 })), { moment: 'roundEnd', then: { forEach: { opened: { suit: '♥' } }, discardTop: 3 } }],
+      ['de beginstand per moment', rbNewState('tiebreak'), { moment: 'tiebreak', then: { win: { highest: 'suitOrder' } } }]
+    ];
+    return JSON.stringify(cases.map(([name, state, expected]) => [name, JSON.stringify(rbToLogic(state).logic) === JSON.stringify(expected), rbToLogic(state).logic || rbToLogic(state).error])); })()`));
+  for (const [name, same, got] of golden) if (!same) fail('vaste uitkomst "' + name + '": kreeg ' + J(got));
+  if (golden.length < 20) fail('te weinig vaste uitkomsten (' + golden.length + ')');
+
+  // 3. Meldingen bij een stand die nog niet klopt.
+  const errorOf = code => R('(() => { const st = ' + code + '; return rbToLogic(st).error || null; })()');
+  const bad = [
+    ['geen waarde', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("rank"), { ranks: [] }) }) })', 'Kies minstens één waarde.'],
+    ['geen symbool', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("suit"), { suits: [] }) }) })', 'Kies minstens één symbool.'],
+    ['groep van 1', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: 1 }) }) })', 'Aantal kaarten in de groep: een getal van 2 t/m 8 verwacht.'],
+    ['groep geen getal', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: Object.assign(rbNewCards("group"), { min: NaN }) }) })', 'Aantal kaarten in de groep: een getal van 2 t/m 8 verwacht.'],
+    ['tweede aantal te klein', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("count"), { mode: "between", n: 3, m: 2 })] })', 'Het tweede aantal moet minstens zo groot zijn als het eerste.'],
+    ['aantal geen getal', 'Object.assign(rbNewState("decide"), { conds: [Object.assign(rbNewCond("count"), { n: NaN })] })', 'Het aantal: een getal van 0 t/m 52 verwacht.'],
+    ['aantal spelers te groot', 'Object.assign(rbNewState("award"), { conds: [Object.assign(rbNewCond("playersWithCards"), { n: 9 })] })', 'Het aantal: een getal van 0 t/m 8 verwacht.'],
+    ['winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { conds: [Object.assign(rbNewCond("anyPlayer"), { who: "winner" })] })', 'De winnaar bestaat alleen als de pot wordt toegekend.'],
+    ['behalve de winnaar bij roundEnd', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { each: Object.assign(rbNewPlayer("opened"), { other: true }) }) })', '"Behalve de winnaar" kan alleen als de pot wordt toegekend.'],
+    ['verdelen over niemand', 'Object.assign(rbNewState("award"), { effect: Object.assign(rbNewEffect("sharePot"), { who: [] }) })', 'Kies over welke spelers de pot wordt verdeeld.'],
+    ['0 kaarten afleggen', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("discardTop"), { count: 0 }) })', 'Het aantal kaarten: een getal van 1 t/m 52 verwacht.'],
+    ['geen kant van de buur', 'Object.assign(rbNewState("roundEnd"), { effect: Object.assign(rbNewEffect("transfer"), { from: Object.assign(rbNewPlayer("neighbor"), { side: "boven" }) }) })', 'Kies de linker- of rechterbuur.'],
+    ['geen soort kaarten', 'Object.assign(rbNewState("decide"), { effect: Object.assign(rbNewEffect("win"), { cs: { kind: "iets" } }) })', 'Kies welke kaarten bedoeld zijn.'],
+    ['geen gevolg', 'Object.assign(rbNewState("decide"), { effect: { key: "iets" } })', 'Kies wat er gebeurt.'],
+    ['andere soort bij begon met', 'Object.assign(rbNewState("award"), { conds: [Object.assign(rbNewCond("winnerOpened"), { cs: rbNewCards("highest") })] })', 'Hier past alleen een waarde, een symbool of een kleur.']
+  ];
+  for (const [name, code, expected] of bad){
+    const got = errorOf(code);
+    if (got !== expected) fail('melding bij "' + name + '": verwacht ' + J(expected) + ', kreeg ' + J(got));
+  }
+
+  // 4. Wat de bouwer niet kan tonen, geeft null (geen fout), en een kapot blok ook.
+  const unsupported = [
+    { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } },
+    { moment: 'decide', then: { win: { and: [{ rank: 'K' }, { suit: '♥' }, { color: 'red' }] } } },
+    { moment: 'decide', then: { win: { highest: 'value', of: { rank: 'K' } } } },
+    { moment: 'decide', then: { win: { or: [{ rank: 'K' }, { rank: 'Q' }] } } },
+    { moment: 'decide', then: { win: { not: { not: { rank: 'K' } } } } },
+    { moment: 'decide', then: { win: { not: { highest: 'value' } } } },
+    { moment: 'decide', then: { win: { rank: 'Z' } } }
+  ];
+  for (const u of unsupported) if (R('rbFromLogic(' + J(u) + ')') !== null) fail('de bouwer toont iets wat hij niet kan: ' + J(u).slice(0, 120));
+
+  // 5. Het blok: id en teksten, en de voorbeelden kloppen met het spel.
+  const blockOf = (title, moment) => R('(() => { const st = rbNewState(' + J(moment || 'decide') + '); st.title = ' + J(title) + '; const b = rbBlock(st); return b.def ? { id: b.def.id, title: b.def.title, short: b.def.short, descr: b.def.description, n: b.def.examples.length } : b; })()');
+  const idTests = [['Mijn Regel é!', 'custom-mijn-regel-e', 'Mijn Regel é!'], ['', 'custom-nieuwe-regel', 'Nieuwe regel'], ['   ', 'custom-nieuwe-regel', 'Nieuwe regel'], ['###', 'custom-nieuwe-regel', '###'],
+    ['Heel erg lange titel over iets dat nergens op slaat', 'custom-heel-erg-lange-titel-over-iets', 'Heel erg lange titel over iets dat nergens op slaat'], ['Ça va très bien', 'custom-ca-va-tres-bien', 'Ça va très bien'], ['  rood  ', 'custom-rood', 'rood']];
+  for (const [title, id, shownTitle] of idTests){
+    const b = blockOf(title);
+    if (b.id !== id || b.title !== shownTitle) fail('titel ' + J(title) + ': verwacht id ' + id + ' en titel ' + J(shownTitle) + ', kreeg ' + J(b));
+    if (!/^custom-[a-z0-9]+(-[a-z0-9]+)*$/.test(b.id) || b.id.length > 40) fail('id ' + b.id + ' voldoet niet aan de eisen');
+  }
+  eq2('een titel van 80 tekens wordt afgekapt op 60', blockOf('x'.repeat(80)).title.length, 60);
+  function eq2(name, got, exp){ if (J(got) !== J(exp)) fail(name + ': verwacht ' + J(exp) + ', kreeg ' + J(got)); }
+
+  // Elke stand levert een blok dat door de controle van laag 2 komt, met voorbeelden die het spel zelf nakijkt.
+  let blocksChecked = 0;
+  for (const st of states.filter((_, i) => i % 3 === 0)){
+    const r = JSON.parse(run('(() => { const b = rbBlock(' + J(st) + '); if (b.errors) return JSON.stringify({ errors: b.errors }); const p = parseCustomRule(JSON.stringify(b.def)); ' +
+      'return JSON.stringify({ parseErrors: p.errors, check: p.def ? checkCustomRuleExamples(p.def) : null, n: b.def.examples.length, found: b.found }); })()'));
+    blocksChecked++;
+    if (r.errors || r.parseErrors.length) fail('een blok uit de bouwer wordt door de controle geweigerd: ' + J(r).slice(0, 300));
+    else if (r.check.failures.length || r.n < 1 || r.n > 3) fail('voorbeelden van de bouwer kloppen niet: ' + J(r).slice(0, 300));
+  }
+  if (blocksChecked < 20) fail('te weinig blokken gecontroleerd (' + blocksChecked + ')');
+  // Deterministisch: twee keer dezelfde voorbeelden.
+  const stamp = () => J(R('rbSuggestExamples(RULES[0].logic)'));
+  if (stamp() !== stamp()) fail('de voorbeelden zijn niet elke keer hetzelfde');
+  // De voorbeelden laten zien waar de regel iets doet: bij een regel die altijd iets verandert zit er een voorbeeld met een ander resultaat zonder de regel.
+  const sug = R('rbSuggestExamples(RULES[0].logic)');
+  if (!sug.found || sug.examples.length < 2 || !sug.examples.some(e => /Met de regel: speler \d wint\. Zonder de regel: speler \d wint\./.test(e.text) || /battlen/.test(e.text))) fail('voorbeelden voor 2 verslaat Aas: ' + J(sug).slice(0, 300));
+  // Een regel die nooit iets doet krijgt een opmerking.
+  const never = R('rbSuggestExamples({ moment: "decide", if: { count: { rank: "A" }, min: 5 }, then: { win: { rank: "A" } } })');
+  if (never.found !== 0 || !/niets/.test(never.note) || never.examples.length < 1) fail('een regel die nooit iets doet: ' + J(never).slice(0, 300));
+  eq2('het zoeken van voorbeelden laat de catalogus zoals hij was', J(R('RULES.map(r => r.id)')), catalogBefore);
+  eq2('het zoeken van voorbeelden laat geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
 }
 
 // ---- testgevallen ----

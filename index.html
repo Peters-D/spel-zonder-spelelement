@@ -109,12 +109,17 @@
   <div class="rulebook-inner" id="customRuleInner">
     <button class="rulebook-close" id="customRuleClose" type="button" aria-label="Sluiten">✕</button>
     <h2 class="rulebook-title" id="customRuleTitle">Eigen regel</h2>
-    <p class="cr-text">Plak een regelblok (JSON), controleer het, speel proefspellen en voeg het toe. Een eigen regel blijft alleen staan tot je de pagina ververst: exporteer hem om hem te bewaren of te delen.</p>
+    <p class="cr-text">Bouw een regel met de keuzes hieronder, of plak een regelblok (JSON). Controleer het, speel proefspellen en voeg het toe. Een eigen regel blijft alleen staan tot je de pagina ververst: exporteer hem om hem te bewaren of te delen.</p>
+    <h3 class="cr-heading">Bouw een regel</h3>
+    <div class="bld-form" id="ruleBuilderForm"></div>
+    <p class="bld-sentence" id="ruleBuilderSentence" aria-live="polite"></p>
+    <h3 class="cr-heading">Regelblok (tekst)</h3>
     <label class="cr-label" for="customRuleText">Regelblok</label>
     <textarea id="customRuleText" class="cr-textarea" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     <div class="cr-buttons">
       <button type="button" id="customRuleSample">Voorbeeld</button>
       <button type="button" id="customRuleCheck">Controleer</button>
+      <button type="button" id="ruleBuilderLoad">Laad in de bouwer</button>
     </div>
     <ul class="cr-messages" id="customRuleMessages" aria-live="polite"></ul>
     <div class="cr-trial">
@@ -150,6 +155,7 @@
 <script src="js/cards.js"></script>
 <script src="js/rule-dsl.js"></script>
 <script src="js/rule-text.js"></script>
+<script src="js/rule-builder.js"></script>
 <script src="js/rules.js"></script>
 <script src="js/winner-rule.js"></script>
 <script src="js/engine.js"></script>
@@ -165,5 +171,6 @@
 <script src="js/rulebook.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/custom-rules-ui.js"></script>
+<script src="js/rule-builder-ui.js"></script>
 </body>
 </html>
