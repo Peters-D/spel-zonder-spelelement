@@ -185,6 +185,7 @@ function validateRuleLogic(logic){
         if (!isObj(node.transfer)) return err(path + '.transfer', '{ from, count } verwacht');
         only(node.transfer, path + '.transfer', ['from', 'count']);
         players(node.transfer.from, path + '.transfer.from', false, true);
+        if (isObj(node.transfer.from) && 'withoutCards' in node.transfer.from) err(path + '.transfer.from', 'spelers zonder kaarten kunnen geen kaarten geven');
         int(node.transfer.count, path + '.transfer.count', 1);
       } else if (key === 'discardTop') int(node.discardTop, path + '.discardTop', 1);
     }

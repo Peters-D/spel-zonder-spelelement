@@ -1245,6 +1245,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     ['winner bij roundEnd', { moment: 'roundEnd', then: { forEach: 'winner', discardTop: 1 } }],
     ['neighbor buiten from', { moment: 'roundEnd', then: { forEach: { neighbor: 'left' }, discardTop: 1 } }],
     ['count zonder grens', { moment: 'decide', if: { count: { all: true } }, then: { win: { all: true } } }],
+    ['gever zonder kaarten', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { withoutCards: true }, count: 1 } } }],
     ['transfer zonder aantal', { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' } } } }],
     ['lege lijst', { moment: 'decide', then: { win: { and: [] } } }],
     ['te diep', { moment: 'decide', then: { win: { not: { not: { not: { not: { not: { not: { not: { not: { not: { all: true } } } } } } } } } } } }]
@@ -1489,6 +1490,172 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   eq('rapport: wat misgaat wordt gemeld', [badRep.ok, badRep.notes.map(n => n.ok), badRep.notes.map(n => n.text)],
     [false, [false, false, false, false], ['Gestopt na 6 van de 10 spellen.', 'Er gingen kaarten verloren of dubbel in 1 spellen (eerste: spel 4, met de regel).', 'De regel gaf een fout in 1 spellen: boem', 'Van de voorbeelden kloppen er 2 van de 3.']]);
   eq('er blijft geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
+}
+
+// ---- regels in gewone taal (js/rule-text.js) ----
+{
+  const fail = t => failures.push('regel in gewone taal: ' + t);
+  const J = v => JSON.stringify(v);
+  const describe = logic => run('describeRuleLogic(' + J(logic) + ')');
+  // De zes regels van het spel, zoals ze in het regelboek en in de bouwer worden gelezen.
+  const sixRules = JSON.parse(run('JSON.stringify(RULES.map(r => [r.id, describeRuleLogic(r.logic)]))'));
+  const expectSix = {
+    twoBeatsAce: 'Als er een 2 ligt en er een Aas ligt, dan winnen de spelers met een 2. Zijn het er meer dan één, dan battlen zij.',
+    battleFirst: 'Altijd winnen de spelers in de hoogste groep van minstens 2 kaarten met dezelfde waarde. Zijn het er meer dan één, dan battlen zij.',
+    battleDiscard: 'Als er een battle is geweest, dan gaat de hele pot naar de aflegstapel.',
+    secondChance: 'Aan het einde van de ronde: als minstens 2 spelers kaarten hebben, dan krijgt elke speler zonder kaarten 1 kaart van de linkerbuur met kaarten.',
+    royalFamily: 'Als de winnaar de ronde begon met een Heer en er een andere speler is die de ronde begon met een Vrouw, dan wordt de pot verdeeld over de winnaar en alle andere spelers die de ronde begonnen met een Vrouw, de hoogste kaart eerst.',
+    suitBreak: 'Bij een gelijkspel wint de speler met het hoogste symbool.'
+  };
+  if (J(sixRules.map(r => r[0])) !== J(Object.keys(expectSix))) fail('de catalogus heeft andere regels dan de test kent: ' + J(sixRules.map(r => r[0])));
+  for (const [id, text] of sixRules) if (text !== expectSix[id]) fail('zin van ' + id + ': verwacht ' + J(expectSix[id]) + ', kreeg ' + J(text));
+
+  // Zinnen voor alle bouwstenen (nagelezen op Nederlands).
+  const golden = [
+    [{"moment": "decide", "then": {"win": {"rank": "2"}}}, "Altijd winnen de spelers met een 2. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"rank": ["K", "Q", "A"]}}}, "Altijd winnen de spelers met een Heer, een Vrouw of een Aas. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"rank": "10"}}}, "Altijd winnen de spelers met een 10. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"rank": "J"}}}, "Altijd winnen de spelers met een Boer. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"suit": "♥"}}}, "Altijd winnen de spelers met een kaart van harten. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"suit": ["♥", "♦"]}}}, "Altijd winnen de spelers met een kaart van harten of ruiten. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"color": "red"}}}, "Altijd winnen de spelers met een rode kaart. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"color": "black"}}}, "Altijd winnen de spelers met een zwarte kaart. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"all": true}}}, "Altijd winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"highest": "value"}}}, "Altijd winnen de spelers met de hoogste kaart. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"lowest": "value"}}}, "Altijd winnen de spelers met de laagste kaart. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"highest": "suitOrder"}}}, "Altijd winnen de spelers met het hoogste symbool. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"lowest": "suitOrder"}}}, "Altijd winnen de spelers met het laagste symbool. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"highest": "value", "of": {"color": "red"}}}}, "Altijd winnen de spelers met de hoogste kaart onder de rode kaarten. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"highest": "suitOrder", "of": {"rank": "K"}}}}, "Altijd winnen de spelers met het hoogste symbool onder de Heren. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"group": {"relation": "sameRank", "min": 2, "pick": "highest"}}}}, "Altijd winnen de spelers in de hoogste groep van minstens 2 kaarten met dezelfde waarde. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"group": {"relation": "sameSuit", "min": 3, "pick": "highest"}}}}, "Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten van hetzelfde symbool. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"group": {"relation": "sameColor", "min": 4, "pick": "highest"}}}}, "Altijd winnen de spelers in de hoogste groep van minstens 4 kaarten van dezelfde kleur. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"group": {"relation": "consecutive", "min": 3, "pick": "highest"}}}}, "Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"and": [{"color": "red"}, {"rank": "K"}]}}}, "Altijd winnen de spelers met een rode kaart die ook een Heer is. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"and": [{"suit": "♥"}, {"not": {"rank": "K"}}]}}}, "Altijd winnen de spelers met een kaart van harten die ook geen Heer is. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"or": [{"rank": "K"}, {"color": "red"}]}}}, "Altijd winnen de spelers met een Heer of een rode kaart. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"not": {"rank": ["K", "Q"]}}}}, "Altijd winnen de spelers met een kaart die geen Heer of Vrouw is. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "then": {"win": {"and": [{"suit": "♥"}, {"rank": "K"}, {"not": {"rank": "A"}}]}}}, "Altijd winnen de spelers met een kaart van harten die ook een Heer is en ook geen Aas is. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "tiebreak", "then": {"win": {"highest": "suitOrder"}}}, "Bij een gelijkspel wint de speler met het hoogste symbool."],
+    [{"moment": "tiebreak", "then": {"win": {"rank": "K"}}}, "Bij een gelijkspel wint de speler met een Heer."],
+    [{"moment": "tiebreak", "if": {"exists": {"rank": "A"}}, "then": {"win": {"lowest": "suitOrder"}}}, "Bij een gelijkspel: als er een Aas ligt, dan wint de speler met het laagste symbool."],
+    [{"moment": "decide", "if": {"exists": {"suit": "♠"}}, "then": {"win": {"all": true}}}, "Als er een kaart van schoppen ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"exists": {"group": {"relation": "sameRank", "min": 2, "pick": "highest"}}}, "then": {"win": {"all": true}}}, "Als er een groep van minstens 2 kaarten met dezelfde waarde ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"exists": {"highest": "value"}}, "then": {"win": {"all": true}}}, "Als er een kaart die de hoogste kaart is ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 2}, "then": {"win": {"all": true}}}, "Als er minstens 2 Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 1}, "then": {"win": {"all": true}}}, "Als er minstens één Aas ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "max": 1}, "then": {"win": {"all": true}}}, "Als er ten hoogste één Aas ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "max": 0}, "then": {"win": {"all": true}}}, "Als er geen Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 0, "max": 0}, "then": {"win": {"all": true}}}, "Als er geen Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 2, "max": 2}, "then": {"win": {"all": true}}}, "Als er precies 2 Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 1, "max": 1}, "then": {"win": {"all": true}}}, "Als er precies één Aas ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 1, "max": 3}, "then": {"win": {"all": true}}}, "Als er tussen 1 en 3 Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"rank": "A"}, "min": 0}, "then": {"win": {"all": true}}}, "Als er minstens 0 Azen liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"color": "red"}, "min": 3}, "then": {"win": {"all": true}}}, "Als er minstens 3 rode kaarten liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"count": {"suit": "♥"}, "max": 2}, "then": {"win": {"all": true}}}, "Als er ten hoogste 2 kaarten van harten liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"and": [{"exists": {"rank": "A"}}, {"exists": {"rank": "2"}}, {"count": {"rank": "K"}, "min": 2}]}, "then": {"win": {"all": true}}}, "Als er een Aas ligt, er een 2 ligt en er minstens 2 Heren liggen, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"or": [{"exists": {"rank": "A"}}, {"and": [{"exists": {"rank": "2"}}, {"exists": {"rank": "3"}}]}]}, "then": {"win": {"all": true}}}, "Als er een Aas ligt of (er een 2 ligt en er een 3 ligt), dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"not": {"exists": {"rank": "A"}}}, "then": {"win": {"all": true}}}, "Als het niet zo is dat er een Aas ligt, dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "decide", "if": {"not": {"or": [{"exists": {"rank": "A"}}, {"exists": {"rank": "2"}}]}}, "then": {"win": {"all": true}}}, "Als het niet zo is dat (er een Aas ligt of er een 2 ligt), dan winnen alle spelers. Zijn het er meer dan één, dan battlen zij."],
+    [{"moment": "award", "if": {"battle": true}, "then": {"discardPot": true}}, "Als er een battle is geweest, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"winnerOpened": {"rank": "A"}}, "then": {"discardPot": true}}, "Als de winnaar de ronde begon met een Aas, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"winnerOpened": {"color": "red"}}, "then": {"discardPot": true}}, "Als de winnaar de ronde begon met een rode kaart, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"winnerOpened": {"and": [{"rank": "K"}, {"suit": "♠"}]}}, "then": {"discardPot": true}}, "Als de winnaar de ronde begon met een Heer die ook een kaart van schoppen is, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"anyPlayer": {"opened": {"rank": "Q"}}}, "then": {"discardPot": true}}, "Als er een speler is die de ronde begon met een Vrouw, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"anyPlayer": {"opened": {"rank": "Q"}, "exclude": "winner"}}, "then": {"discardPot": true}}, "Als er een andere speler is die de ronde begon met een Vrouw, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"anyPlayer": {"withoutCards": true}}, "then": {"discardPot": true}}, "Als er een speler zonder kaarten is, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"anyPlayer": "winner"}, "then": {"discardPot": true}}, "Als er een winnaar is, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"min": 2}}, "then": {"discardPot": true}}, "Als minstens 2 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"min": 1}}, "then": {"discardPot": true}}, "Als minstens één speler kaarten heeft, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"max": 2}}, "then": {"discardPot": true}}, "Als ten hoogste 2 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"max": 0}}, "then": {"discardPot": true}}, "Als geen enkele speler kaarten heeft, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"min": 3, "max": 3}}, "then": {"discardPot": true}}, "Als precies 3 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"min": 2, "max": 4}}, "then": {"discardPot": true}}, "Als tussen 2 en 4 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"playersWithCards": {"min": 1, "max": 1}}, "then": {"discardPot": true}}, "Als precies één speler kaarten heeft, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"not": {"battle": true}}, "then": {"discardPot": true}}, "Als het niet zo is dat er een battle is geweest, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "if": {"and": [{"battle": true}, {"winnerOpened": {"rank": "K"}}]}, "then": {"discardPot": true}}, "Als er een battle is geweest en de winnaar de ronde begon met een Heer, dan gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "then": {"discardPot": true}}, "Altijd gaat de hele pot naar de aflegstapel."],
+    [{"moment": "award", "then": {"sharePot": ["winner"]}}, "Altijd wordt de pot verdeeld over de winnaar, de hoogste kaart eerst."],
+    [{"moment": "award", "then": {"sharePot": ["winner", {"opened": {"rank": "Q"}, "exclude": "winner"}]}}, "Altijd wordt de pot verdeeld over de winnaar en alle andere spelers die de ronde begonnen met een Vrouw, de hoogste kaart eerst."],
+    [{"moment": "award", "then": {"sharePot": [{"opened": {"rank": "K"}}, {"opened": {"rank": "Q"}}, {"withoutCards": true}]}}, "Altijd wordt de pot verdeeld over alle spelers die de ronde begonnen met een Heer, alle spelers die de ronde begonnen met een Vrouw en alle spelers zonder kaarten, de hoogste kaart eerst."],
+    [{"moment": "award", "then": {"sharePot": [{"withoutCards": true}]}}, "Altijd wordt de pot verdeeld over alle spelers zonder kaarten, de hoogste kaart eerst."],
+    [{"moment": "roundEnd", "then": {"forEach": {"withoutCards": true}, "transfer": {"from": {"neighbor": "right"}, "count": 2}}}, "Aan het einde van de ronde krijgt elke speler zonder kaarten 2 kaarten van de rechterbuur met kaarten."],
+    [{"moment": "roundEnd", "then": {"forEach": {"withoutCards": true}, "transfer": {"from": {"opened": {"rank": "A"}}, "count": 1}}}, "Aan het einde van de ronde krijgt elke speler zonder kaarten 1 kaart van de eerste speler die de ronde begon met een Aas."],
+    [{"moment": "roundEnd", "then": {"forEach": {"opened": {"rank": "K"}}, "discardTop": 1}}, "Aan het einde van de ronde legt elke speler die de ronde begon met een Heer zijn bovenste kaart af."],
+    [{"moment": "roundEnd", "then": {"forEach": {"opened": {"rank": ["K", "Q"]}}, "discardTop": 3}}, "Aan het einde van de ronde legt elke speler die de ronde begon met een Heer of een Vrouw zijn bovenste 3 kaarten af."],
+    [{"moment": "roundEnd", "then": {"forEach": {"withoutCards": true}, "discardTop": 1}}, "Aan het einde van de ronde legt elke speler zonder kaarten zijn bovenste kaart af."],
+    [{"moment": "roundEnd", "if": {"anyPlayer": {"opened": {"rank": "A"}}}, "then": {"forEach": {"withoutCards": true}, "discardTop": 1}}, "Aan het einde van de ronde: als er een speler is die de ronde begon met een Aas, dan legt elke speler zonder kaarten zijn bovenste kaart af."],
+    [{"moment": "roundEnd", "if": {"playersWithCards": {"max": 1}}, "then": {"forEach": {"withoutCards": true}, "discardTop": 1}}, "Aan het einde van de ronde: als ten hoogste één speler kaarten heeft, dan legt elke speler zonder kaarten zijn bovenste kaart af."]
+  ];
+  for (const [logic, text] of golden){
+    const got = describe(logic);
+    if (got !== text) fail('zin voor ' + J(logic) + ': verwacht ' + J(text) + ', kreeg ' + J(got));
+  }
+  // Geen zin voor een beschrijving die niet klopt.
+  for (const bad of [null, 'x', {}, { moment: 'decide', then: { win: { rank: 'Z' } } }, { moment: 'award', then: { win: { all: true } } }, { moment: 'decide', then: { win: { all: true } }, code: 1 }])
+    if (describe(bad) !== '') fail('een beschrijving die niet klopt krijgt toch een zin: ' + J(bad));
+  // Elke zin begint met een hoofdletter en eindigt op een punt; geen dubbele spaties.
+  for (const [logic] of golden){
+    const t = describe(logic);
+    if (!/^[A-Z]/.test(t) || !/\.$/.test(t) || /  /.test(t)) fail('zin ziet er niet uit als een zin: ' + J(t));
+  }
+
+  // De lijst met bouwstenen komt precies overeen met de controle: een bouwsteen die bij een moment wordt aangeboden, wordt door de controle
+  // geaccepteerd, en een die er niet bij hoort, geweigerd.
+  const valid = logic => JSON.parse(run('JSON.stringify(validateRuleLogic(' + J(logic) + '))')).length === 0;
+  const blocks = JSON.parse(run('JSON.stringify(RULE_BLOCKS)'));
+  const sample = (key, group, moment) => JSON.parse(run('JSON.stringify(ruleBlockSample(RULE_BLOCKS.' + group + '.find(b => b.key === ' + J(key) + '), ' + J(moment) + '))'));
+  const effectFor = { decide: { win: { all: true } }, tiebreak: { win: { all: true } }, award: { discardPot: true }, roundEnd: { forEach: { withoutCards: true }, discardTop: 1 } };
+  for (const moment of ['decide', 'tiebreak', 'award', 'roundEnd']){
+    for (const b of blocks.conditions){
+      const logic = { moment, if: sample(b.key, 'conditions', moment), then: effectFor[moment] };
+      const wanted = b.moments.includes(moment), got = valid(logic);
+      if (wanted !== got) fail('voorwaarde ' + b.key + ' bij ' + moment + ': de lijst zegt ' + wanted + ', de controle ' + got);
+      if (got && describe(logic) === '') fail('voorwaarde ' + b.key + ' bij ' + moment + ' geeft geen zin');
+    }
+    for (const b of blocks.effects){
+      const logic = { moment, then: sample(b.key, 'effects', moment) };
+      const wanted = b.moments.includes(moment), got = valid(logic);
+      if (wanted !== got) fail('gevolg ' + b.key + ' bij ' + moment + ': de lijst zegt ' + wanted + ', de controle ' + got);
+      if (got && describe(logic) === '') fail('gevolg ' + b.key + ' bij ' + moment + ' geeft geen zin');
+    }
+    const choices = JSON.parse(run('JSON.stringify(ruleChoicesFor(' + J(moment) + '))'));
+    if (J(choices.conditions.map(c => c.key)) !== J(blocks.conditions.filter(b => b.moments.includes(moment)).map(b => b.key))) fail('ruleChoicesFor(' + moment + ') geeft andere voorwaarden dan de lijst');
+    if (J(choices.effects.map(c => c.key)) !== J(blocks.effects.filter(b => b.moments.includes(moment)).map(b => b.key))) fail('ruleChoicesFor(' + moment + ') geeft andere gevolgen dan de lijst');
+    if (!choices.moment || !choices.moment.label || choices.cards.length !== blocks.cards.length) fail('ruleChoicesFor(' + moment + ') mist het moment of de kaarten');
+    if (J(choices.singleCards.map(c => c.key)) !== J(blocks.singleCards)) fail('ruleChoicesFor(' + moment + ') geeft andere enkele kaarten dan de lijst');
+  }
+  if (run('ruleChoicesFor("bestaat-niet").moment') !== null) fail('ruleChoicesFor van een onbekend moment hoort geen moment te geven');
+  // Kaarten: elke keuze past bij "deze spelers winnen"; alleen de enkele soorten passen bij "begon met een kaart".
+  for (const b of blocks.cards){
+    const inWin = valid({ moment: 'decide', then: { win: b.sample } });
+    if (!inWin) fail('kaartkeuze ' + b.key + ' wordt bij winnen geweigerd');
+    const asSingle = valid({ moment: 'award', if: { winnerOpened: b.sample }, then: { discardPot: true } });
+    if (asSingle !== blocks.singleCards.includes(b.key)) fail('kaartkeuze ' + b.key + ': de lijst met enkele kaarten klopt niet met de controle (' + asSingle + ')');
+    if (describe({ moment: 'decide', then: { win: b.sample } }) === '') fail('kaartkeuze ' + b.key + ' geeft geen zin');
+  }
+  // Spelers: elke keuze past precies op de plekken die de lijst noemt.
+  const slotLogic = {
+    sharePot: p => ({ moment: 'award', then: { sharePot: [p] } }),
+    forEach: p => ({ moment: 'roundEnd', then: { forEach: p, discardTop: 1 } }),
+    anyPlayer: p => ({ moment: 'award', if: { anyPlayer: p }, then: { discardPot: true } }),
+    from: p => ({ moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: p, count: 1 } } })
+  };
+  for (const b of blocks.players) for (const slot of Object.keys(slotLogic)){
+    const wanted = b.slots.includes(slot), got = valid(slotLogic[slot](b.sample));
+    if (wanted !== got) fail('spelerskeuze ' + b.key + ' op plek ' + slot + ': de lijst zegt ' + wanted + ', de controle ' + got);
+    if (got && describe(slotLogic[slot](b.sample)) === '') fail('spelerskeuze ' + b.key + ' op plek ' + slot + ' geeft geen zin');
+    const listed = JSON.parse(run('JSON.stringify(rulePlayerChoices(' + J(slot) + ').map(c => c.key))')).includes(b.key);
+    if (listed !== wanted) fail('rulePlayerChoices(' + slot + ') en de lijst wijken af voor ' + b.key);
+  }
+  // Elke keuze heeft een naam, en de namen zijn uniek binnen hun lijst.
+  for (const group of ['conditions', 'effects', 'cards', 'players']){
+    const labels = blocks[group].map(b => b.label);
+    if (labels.some(l => typeof l !== 'string' || l.trim() === '') || new Set(labels).size !== labels.length) fail('de namen in ' + group + ' ontbreken of zijn niet uniek');
+    if (new Set(blocks[group].map(b => b.key)).size !== blocks[group].length) fail('dubbele sleutel in ' + group);
+  }
+  // Elke regel van het spel en elk voorbeeldblok krijgt een zin (de spelers lezen die straks in het venster).
+  if (describe(JSON.parse(run('JSON.stringify(CUSTOM_RULE_SAMPLE.logic)'))) !== 'Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij.') fail('het voorbeeldblok krijgt een andere zin');
 }
 
 // ---- testgevallen ----
