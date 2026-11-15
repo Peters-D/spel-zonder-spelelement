@@ -1732,6 +1732,40 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   }
   if (built < 60) fail('te weinig standen getest (' + built + ')');
 
+  // 2b. Vaste uitkomsten: een stand geeft precies deze beschrijving (de terugweg alleen bewijst niet dat niets verloren gaat).
+  const golden = JSON.parse(run(`(() => {
+    const cs = (kind, extra) => Object.assign(rbNewCards(kind), extra || {});
+    const st = (moment, conds, effect, mode) => { const s = rbNewState(moment); s.conds = conds; s.effect = effect; s.condMode = mode || 'and'; return s; };
+    const win = c => Object.assign(rbNewEffect('win'), { cs: c });
+    const cond = (key, extra) => Object.assign(rbNewCond(key), extra);
+    const cases = [
+      ['waarden staan op volgorde, hoogste eerst', st('decide', [], win(cs('rank', { ranks: ['Q', '2', 'A', 'K'] }))), { moment: 'decide', then: { win: { rank: ['A', 'K', 'Q', '2'] } } }],
+      ['symbolen op volgorde van het spel', st('decide', [], win(cs('suit', { suits: ['♣', '♥', '♠'] }))), { moment: 'decide', then: { win: { suit: ['♠', '♥', '♣'] } } }],
+      ['niet', st('decide', [], win(cs('rank', { ranks: ['10'], not: true }))), { moment: 'decide', then: { win: { not: { rank: '10' } } } }],
+      ['een tweede eis', st('decide', [], win(cs('suit', { suits: ['♠'], also: cs('rank', { ranks: ['K'] }) }))), { moment: 'decide', then: { win: { and: [{ suit: '♠' }, { rank: 'K' }] } } }],
+      ['een tweede eis met niet', st('decide', [], win(cs('color', { color: 'red', not: true, also: cs('rank', { ranks: ['K'] }) }))), { moment: 'decide', then: { win: { not: { and: [{ color: 'red' }, { rank: 'K' }] } } } }],
+      ['hoogste onder rood', st('decide', [], win(cs('highest', { by: 'suitOrder', of: 'red' }))), { moment: 'decide', then: { win: { highest: 'suitOrder', of: { color: 'red' } } } }],
+      ['laagste zonder beperking', st('decide', [], win(cs('lowest', { of: 'none' }))), { moment: 'decide', then: { win: { lowest: 'value' } } }],
+      ['groep', st('decide', [], win(cs('group', { relation: 'consecutive', min: 4 }))), { moment: 'decide', then: { win: { group: { relation: 'consecutive', min: 4, pick: 'highest' } } } }],
+      ['tellen: minstens', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'min', n: 2 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 2 }, then: { win: { all: true } } }],
+      ['tellen: ten hoogste', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'max', n: 1 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, max: 1 }, then: { win: { all: true } } }],
+      ['tellen: precies', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'exact', n: 2 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 2, max: 2 }, then: { win: { all: true } } }],
+      ['tellen: tussen', st('decide', [cond('count', { cs: cs('rank', { ranks: ['A'] }), mode: 'between', n: 1, m: 3 })], win(cs('all'))), { moment: 'decide', if: { count: { rank: 'A' }, min: 1, max: 3 }, then: { win: { all: true } } }],
+      ['voorwaarde niet', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }), not: true })], win(cs('all'))), { moment: 'decide', if: { not: { exists: { rank: 'A' } } }, then: { win: { all: true } } }],
+      ['twee voorwaarden met en', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('exists', { cs: cs('rank', { ranks: ['2'] }) })], win(cs('all'))), { moment: 'decide', if: { and: [{ exists: { rank: 'A' } }, { exists: { rank: '2' } }] }, then: { win: { all: true } } }],
+      ['twee voorwaarden met of', st('decide', [cond('exists', { cs: cs('rank', { ranks: ['A'] }) }), cond('exists', { cs: cs('rank', { ranks: ['2'] }) })], win(cs('all')), 'or'), { moment: 'decide', if: { or: [{ exists: { rank: 'A' } }, { exists: { rank: '2' } }] }, then: { win: { all: true } } }],
+      ['de winnaar begon met', st('award', [cond('winnerOpened', { cs: cs('rank', { ranks: ['K'] }) })], rbNewEffect('discardPot')), { moment: 'award', if: { winnerOpened: { rank: 'K' } }, then: { discardPot: true } }],
+      ['een andere speler begon met', st('award', [cond('anyPlayer', { who: 'opened', cs: cs('rank', { ranks: ['Q'] }), other: true })], rbNewEffect('discardPot')), { moment: 'award', if: { anyPlayer: { opened: { rank: 'Q' }, exclude: 'winner' } }, then: { discardPot: true } }],
+      ['aantal spelers met kaarten', st('roundEnd', [cond('playersWithCards', { mode: 'between', n: 2, m: 5 })], rbNewEffect('discardTop')), { moment: 'roundEnd', if: { playersWithCards: { min: 2, max: 5 } }, then: { forEach: { opened: { rank: 'A' } }, discardTop: 1 } }],
+      ['de pot verdelen', st('award', [], Object.assign(rbNewEffect('sharePot'), { who: [rbNewPlayer('winner'), Object.assign(rbNewPlayer('opened'), { cs: cs('rank', { ranks: ['Q'] }), other: true })] })), { moment: 'award', then: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } }],
+      ['kaarten krijgen van een buur', st('roundEnd', [], Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('neighbor'), { side: 'right' }), count: 2 })), { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'right' }, count: 2 } } }],
+      ['kaarten afleggen', st('roundEnd', [], Object.assign(rbNewEffect('discardTop'), { each: Object.assign(rbNewPlayer('opened'), { cs: cs('suit', { suits: ['♥'] }) }), count: 3 })), { moment: 'roundEnd', then: { forEach: { opened: { suit: '♥' } }, discardTop: 3 } }],
+      ['de beginstand per moment', rbNewState('tiebreak'), { moment: 'tiebreak', then: { win: { highest: 'suitOrder' } } }]
+    ];
+    return JSON.stringify(cases.map(([name, state, expected]) => [name, JSON.stringify(rbToLogic(state).logic) === JSON.stringify(expected), rbToLogic(state).logic || rbToLogic(state).error])); })()`));
+  for (const [name, same, got] of golden) if (!same) fail('vaste uitkomst "' + name + '": kreeg ' + J(got));
+  if (golden.length < 20) fail('te weinig vaste uitkomsten (' + golden.length + ')');
+
   // 3. Meldingen bij een stand die nog niet klopt.
   const errorOf = code => R('(() => { const st = ' + code + '; return rbToLogic(st).error || null; })()');
   const bad = [
