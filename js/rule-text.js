@@ -4,7 +4,7 @@
 //   describeRuleLogic(logic)       de beschrijving als zin(nen), of '' als de beschrijving niet klopt
 //   RULE_MOMENTS, RULE_BLOCKS      de moment en bouwstenen met hun Nederlandse naam
 //   ruleChoicesFor(moment)         wat er bij dat moment gekozen kan worden: voorwaarden, gevolgen, kaarten
-//   rulePlayerChoices(slot)        welke keuzes van spelers er op een plek passen
+//   rulePlayerChoices(slot, moment) welke keuzes van spelers er op een plek (en bij een moment) passen
 //
 // De tests controleren dat de lijst met bouwstenen precies overeenkomt met wat de controle (validateRuleLogic) toelaat, en dat
 // elke bouwsteen een zin geeft. Komt er een bouwsteen bij in js/rule-dsl.js, dan moet hij hier ook bij (de test faalt anders niet
@@ -215,11 +215,14 @@ const RULE_BLOCKS = {
   // Keuzes van spelers en de plekken waar ze passen: sharePot (pot verdelen), forEach (wie het overkomt), anyPlayer (voorwaarde),
   // from (van wie kaarten komen).
   players: [
-    { key: 'winner', label: 'de winnaar', sample: 'winner', slots: ['sharePot', 'anyPlayer'] },
-    { key: 'opened', label: 'spelers die de ronde met een bepaalde kaart begonnen', sample: { opened: { rank: 'Q' } }, slots: ['sharePot', 'forEach', 'anyPlayer', 'from'] },
-    { key: 'withoutCards', label: 'spelers zonder kaarten', sample: { withoutCards: true }, slots: ['sharePot', 'forEach', 'anyPlayer'] },
-    { key: 'neighbor', label: 'de linker- of rechterbuur met kaarten', sample: { neighbor: 'left' }, slots: ['from'] }
-  ]
+    { key: 'winner', label: 'de winnaar', sample: 'winner', slots: ['sharePot', 'anyPlayer'], moments: ['award'] },
+    // excludeMoments: waar "behalve de winnaar" (exclude: 'winner') kan; de winnaar bestaat alleen bij award
+    { key: 'opened', label: 'spelers die de ronde met een bepaalde kaart begonnen', sample: { opened: { rank: 'Q' } }, slots: ['sharePot', 'forEach', 'anyPlayer', 'from'], moments: RT_ALL, excludeMoments: ['award'] },
+    { key: 'withoutCards', label: 'spelers zonder kaarten', sample: { withoutCards: true }, slots: ['sharePot', 'forEach', 'anyPlayer'], moments: RT_ALL },
+    { key: 'neighbor', label: 'de linker- of rechterbuur met kaarten', sample: { neighbor: 'left' }, slots: ['from'], moments: RT_ALL }
+  ],
+  // Bij welk moment elke plek voor spelers bestaat.
+  playerSlots: { sharePot: ['award'], forEach: ['roundEnd'], anyPlayer: ['award', 'roundEnd'], from: ['roundEnd'] }
 };
 
 function ruleBlockSample(block, moment){
@@ -238,7 +241,8 @@ function ruleChoicesFor(moment){
   };
 }
 
-// De keuzes van spelers die op een plek passen (sharePot, forEach, anyPlayer of from).
-function rulePlayerChoices(slot){
-  return RULE_BLOCKS.players.filter(b => b.slots.includes(slot)).map(b => ({ key: b.key, label: b.label }));
+// De keuzes van spelers die op een plek passen (sharePot, forEach, anyPlayer of from). Met een moment erbij alleen de keuzes die bij dat
+// moment horen ("de winnaar" bestaat alleen bij award).
+function rulePlayerChoices(slot, moment){
+  return RULE_BLOCKS.players.filter(b => b.slots.includes(slot) && (!moment || b.moments.includes(moment))).map(b => ({ key: b.key, label: b.label }));
 }

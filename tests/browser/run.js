@@ -785,6 +785,185 @@ test('eigen regels: het venster leest de regel terug in gewone taal', async page
   noErrors(page);
 });
 
+// ---- De regelbouwer ----
+const bSentence = page => text(page, '#ruleBuilderSentence');
+const bPick = (page, label, value) => page.selectOption('[aria-label="' + label + '"]', value);
+const bBlock = page => page.evaluate(() => JSON.parse(document.getElementById('customRuleText').value));
+// Zet een waarde (rank-chip) aan of uit in een groep chips.
+const bChip = (page, group, name, on) => page.locator('[aria-label="' + group + '"] label', { hasText: new RegExp('^' + name + '$') }).locator('input').setChecked(on);
+
+test('regelbouwer: de bouwer staat in het venster en maakt een blok bij elke keuze', async page => {
+  await crOpen(page);
+  ok(await page.isVisible('#ruleBuilderForm'), 'het formulier staat in het venster');
+  eq(await page.$$eval('[aria-label="Moment"] option', o => o.map(x => x.textContent)),
+    ['Bij het bepalen van de winnaar', 'Bij een gelijkspel', 'Als de pot wordt toegekend', 'Aan het einde van de ronde'], 'momenten');
+  ok((await bSentence(page)).startsWith('Kies hierboven'), 'uitleg voordat er iets is gekozen');
+  eq(await page.inputValue('#customRuleText'), '', 'het tekstvak blijft leeg tot je iets kiest');
+  await page.fill('.bld-title', 'Aas en twee');
+  eq((await bBlock(page)).id, 'custom-aas-en-twee', 'id uit de naam');
+  eq(await bSentence(page), 'Altijd winnen de spelers met een Aas. Zijn het er meer dan één, dan battlen zij.', 'zin bij de beginstand');
+  const msgs = await crMessages(page);
+  ok(msgs[0] === '✓ Het blok klopt.' && msgs[1].startsWith('✓ De voorbeelden kloppen'), 'het blok wordt meteen gecontroleerd: ' + msgs.join(' | '));
+  ok(!(await page.isDisabled('#customRuleTrialBtn')) && !(await page.isDisabled('#customRuleAdd')), 'knoppen na een goed blok');
+  noErrors(page);
+});
+
+test('regelbouwer: waarden en symbolen kiezen, en voorwaarden samenstellen', async page => {
+  await crOpen(page);
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 1: soort kaarten', 'rank');
+  await bChip(page, 'Voorwaarde 1: waarden', 'K', true);
+  await bChip(page, 'Voorwaarde 1: waarden', 'A', false);
+  await bPick(page, 'Gevolg: soort kaarten', 'suit');
+  await bChip(page, 'Gevolg: symbolen', '♥', false);
+  eq(await bSentence(page), 'Nog niet klaar: Kies minstens één symbool.', 'melding bij een lege keuze');
+  ok(await page.isDisabled('#customRuleAdd'), 'toevoegen kan niet zonder complete regel');
+  await bChip(page, 'Gevolg: symbolen', '♥', true);
+  await bChip(page, 'Gevolg: symbolen', '♦', true);
+  eq(await bSentence(page), 'Als er een Heer ligt, dan winnen de spelers met een kaart van harten of ruiten. Zijn het er meer dan één, dan battlen zij.', 'zin met een voorwaarde en twee symbolen');
+  // Een tweede voorwaarde, samengevoegd met "of", en "niet".
+  await page.click('text=+ voorwaarde');
+  await page.locator('.bld-row').nth(1).locator('label', { hasText: /^niet$/ }).locator('input').check();
+  await page.selectOption('[aria-label="Hoe de voorwaarden samengaan"]', 'or');
+  eq(await bSentence(page), 'Als er een Heer ligt of het niet zo is dat er een Aas ligt, dan winnen de spelers met een kaart van harten of ruiten. Zijn het er meer dan één, dan battlen zij.', 'de voorwaarden zijn met "of" verbonden en de tweede is ontkend');
+  const block = await bBlock(page);
+  eq(Object.keys(block.logic.if), ['or'], 'de beschrijving heeft een "or"');
+  noErrors(page);
+});
+
+test('regelbouwer: het moment bepaalt wat er te kiezen valt', async page => {
+  await crOpen(page);
+  const effects = () => page.$$eval('[aria-label="Gevolg: soort"] option', o => o.map(x => x.value));
+  eq(await effects(), ['win'], 'gevolgen bij het bepalen van de winnaar');
+  await bPick(page, 'Moment', 'award');
+  eq(await effects(), ['discardPot', 'sharePot'], 'gevolgen bij het toekennen van de pot');
+  eq(await bSentence(page), 'Altijd gaat de hele pot naar de aflegstapel.', 'zin na wisselen van moment');
+  await page.click('text=+ voorwaarde');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: soort"] option', o => o.map(x => x.value)), ['battle', 'winnerOpened', 'anyPlayer', 'playersWithCards'], 'voorwaarden bij award');
+  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers"] option', o => o.map(x => x.value)), ['winner', 'opened', 'withoutCards'], 'spelers bij award, met de winnaar');
+  await bPick(page, 'Moment', 'roundEnd');
+  eq(await page.$$eval('[aria-label="Gevolg: soort"] option', o => o.map(x => x.value)), ['transfer', 'discardTop'], 'gevolgen aan het einde van de ronde');
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers"] option', o => o.map(x => x.value)), ['opened', 'withoutCards'], 'spelers aan het einde van de ronde, zonder de winnaar');
+  await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+  eq(await page.locator('text=behalve de winnaar').count(), 0, 'behalve de winnaar bestaat alleen bij award');
+  await bPick(page, 'Moment', 'award');
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
+  await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+  eq(await page.locator('text=behalve de winnaar').count(), 1, 'bij award staat behalve de winnaar er wel');
+  // De keuzes bij "er is een speler die ..." worden echt onthouden (ze lagen eerst in een kopie).
+  await page.locator('label', { hasText: 'behalve de winnaar' }).locator('input').check();
+  await bChip(page, 'Voorwaarde 1: waarden', 'A', false);
+  await bChip(page, 'Voorwaarde 1: waarden', 'Q', true);
+  eq(await bSentence(page), 'Als er een andere speler is die de ronde begon met een Vrouw, dan gaat de hele pot naar de aflegstapel.', 'zin na het kiezen van spelers');
+  eq((await bBlock(page)).logic.if, { anyPlayer: { opened: { rank: 'Q' }, exclude: 'winner' } }, 'beschrijving na het kiezen van spelers');
+  noErrors(page);
+});
+
+test('regelbouwer: de zes regels van het spel komen uit de bouwer als dezelfde regel', async page => {
+  // Alle zes laden in de bouwer en weer eruit; de beschrijving blijft precies hetzelfde.
+  const same = await page.evaluate(() => RULES.map(r => { rb = rbFromLogic(r.logic); return [r.id, rb !== null && JSON.stringify(rbToLogic(rb).logic) === JSON.stringify(r.logic)]; }));
+  eq(same.filter(x => !x[1]), [], 'regels die niet identiek terugkomen');
+  noErrors(page);
+});
+
+test('regelbouwer: een bestaand blok in de bouwer laden', async page => {
+  await crOpen(page);
+  await page.click('#customRuleSample');
+  await page.click('#ruleBuilderLoad');
+  eq(await page.inputValue('.bld-title'), 'Opeenvolgende kaarten', 'naam uit het blok');
+  eq(await page.$eval('[aria-label="Gevolg: soort kaarten"]', e => e.value), 'group', 'de keuze van kaarten is geladen');
+  eq(await bSentence(page), 'Altijd winnen de spelers in de hoogste groep van minstens 3 kaarten met opeenvolgende waarden. Zijn het er meer dan één, dan battlen zij.', 'zin');
+  // Aanpassen in de bouwer werkt het blok bij.
+  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameSuit');
+  eq((await bBlock(page)).logic.then.win.group.relation, 'sameSuit', 'het blok volgt de bouwer');
+  // Een blok dat de bouwer niet kan tonen geeft een melding en laat het tekstvak staan.
+  const odd = await crSample(page);
+  odd.logic = { moment: 'decide', if: { and: [{ or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }, { exists: { rank: '2' } }] }, then: { win: { rank: '2' } } };
+  odd.examples = [{ cards: ['A♠', '2♥'], winners: [1], text: 'x' }];
+  await page.fill('#customRuleText', JSON.stringify(odd));
+  await page.click('#ruleBuilderLoad');
+  ok((await crMessages(page))[0].includes('kan dit blok niet tonen'), 'melding: ' + (await crMessages(page))[0]);
+  eq((await bBlock(page)).logic.moment, 'decide', 'tekstvak blijft zoals het was');
+  // Een kapot blok geeft de meldingen van de controle.
+  await page.fill('#customRuleText', '{ kapot');
+  await page.click('#ruleBuilderLoad');
+  ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij kapotte JSON');
+  noErrors(page);
+});
+
+test('regelbouwer: van bouwen tot meespelen, met proefspellen', async page => {
+  await crOpen(page);
+  await page.fill('.bld-title', 'Rood gaat voor');
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 1: soort kaarten', 'color');
+  await bPick(page, 'Gevolg: soort kaarten', 'highest');
+  await bPick(page, 'Gevolg: onder welke kaarten', 'red');
+  eq(await bSentence(page), 'Als er een rode kaart ligt, dan winnen de spelers met de hoogste kaart onder de rode kaarten. Zijn het er meer dan één, dan battlen zij.', 'zin');
+  const examples = (await bBlock(page)).examples;
+  ok(examples.length >= 2 && examples.length <= 3, 'het spel zoekt voorbeelden: ' + examples.length);
+  ok(examples.some(e => /Zonder de regel: speler \d wint/.test(e.text) || /battlen/.test(e.text)), 'de voorbeelden vergelijken met en zonder de regel');
+  await page.selectOption('#customTrialGames', '50');
+  await page.click('#customRuleTrialBtn');
+  await page.waitForSelector('#customRuleReport table', { timeout: 60000 });
+  await page.click('#customRuleAdd');
+  ok(await page.isChecked('#custom-rood-gaat-voorInput'), 'het vinkje staat aan');
+  await startGame(page, { players: 4, seed: 'b1' });
+  eq(await page.evaluate(() => JSON.stringify(findWinningPlayers(['K♠', '9♥', '3♦'].map((c, i) => ({ id: i, faceCard: parseExampleCard(c) })), game.rules).map(p => p.id))), '[1]', 'de rode 9 wint van de zwarte Heer');
+  for (let i = 0; i < 30; i++) await page.click('#playBtn');
+  ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet');
+  noErrors(page);
+});
+
+test('regelbouwer: de focus blijft bij het veld dat je wijzigt', async page => {
+  await crOpen(page);
+  await page.click('text=+ voorwaarde');
+  await page.focus('[aria-label="Voorwaarde 1: soort kaarten"]');
+  await bPick(page, 'Voorwaarde 1: soort kaarten', 'suit');
+  eq(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Voorwaarde 1: soort kaarten', 'focus na wisselen van soort');
+  await page.focus('[aria-label="Moment"]');
+  await bPick(page, 'Moment', 'tiebreak');
+  eq(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), 'Moment', 'focus na wisselen van moment');
+  await page.keyboard.press('Tab');
+  ok(await page.evaluate(() => !!document.activeElement.closest('#ruleBuilderForm')), 'Tab gaat verder in de bouwer');
+  noErrors(page);
+});
+
+test('regelbouwer: teksten uit de naam blijven tekst', async page => {
+  const evil = '<img src=x onerror="window.__pwned=1">';
+  await crOpen(page);
+  await page.fill('.bld-title', evil);
+  const block = await bBlock(page);
+  eq(block.title, evil.slice(0, 60), 'de naam blijft zoals getypt');
+  eq(block.id, 'custom-img-src-x-onerror-window-pwned', 'de id bevat alleen veilige tekens');
+  await page.click('#customRuleAdd');
+  ok((await page.textContent('#custom-img-src-x-onerror-window-pwnedInput >> xpath=..')).length > 0, 'het vinkje bestaat');
+  eq(await page.locator('img[src="x"]').count(), 0, 'er is geen img-element ontstaan');
+  eq(await page.evaluate(() => window.__pwned), undefined, 'er is niets uitgevoerd');
+  noErrors(page);
+});
+
+test('regelbouwer: de bouwer past op smalle schermen', async () => {
+  const page = await open({ width: 320, height: 700 });
+  try {
+    await crOpen(page);
+    await page.click('text=+ voorwaarde');
+    await bPick(page, 'Moment', 'award');
+    await page.click('text=+ voorwaarde');
+    await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
+    await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+    await bPick(page, 'Gevolg: soort', 'sharePot');
+    await page.click('text=+ spelers erbij');
+    eq(await hScroll(page), 0, 'horizontaal scrollen');
+    const inner = await page.evaluate(() => { const i = document.getElementById('customRuleInner'); return { scroll: i.scrollWidth - i.clientWidth }; });
+    ok(inner.scroll <= 1, 'het venster scrolt zijwaarts: ' + JSON.stringify(inner));
+    noErrors(page);
+  } finally { await page.ctx.close(); }
+});
+
 // ---- Smalle schermen ----
 for (const width of [320, 360, 420, 768]){
   test('geen horizontaal scrollen bij ' + width + ' px (start en spel met 8 spelers)', async () => {

@@ -39,3 +39,30 @@
 .cr-time{ font-size:12px; opacity:0.7; margin:4px 0 0; }
 .cr-heading{ font-family:'Special Elite', monospace; font-weight:400; font-size:12px; letter-spacing:0.12em; text-transform:uppercase; margin:20px 0 6px; }
 .rule-custom{ font-style:italic; }
+
+/* De regelbouwer in het venster. */
+.bld-form{ font-size:13px; }
+.bld-top{ display:flex; flex-wrap:wrap; gap:8px; margin:0 0 8px; }
+.bld-top .bld-title{ flex:1 1 150px; min-width:0; }
+.bld-form input[type="text"], .bld-form input[type="number"], .bld-form select{
+  font-family:'Inter', sans-serif; font-size:13px; padding:5px 6px; border-radius:6px;
+  background: color-mix(in srgb, var(--ink) 6%, var(--paper)); color: var(--ink);
+  border:1px solid color-mix(in srgb, var(--ink) 30%, transparent); box-sizing:border-box; max-width:100%; min-width:0;
+}
+.bld-form .bld-number{ width:4.5em; }
+.bld-section{ margin:10px 0; padding:8px 10px; border:1px dashed color-mix(in srgb, var(--ink) 30%, transparent); border-radius:8px; }
+.bld-sub{ font-family:'Special Elite', monospace; font-weight:400; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 6px; }
+.bld-row{ margin:6px 0; display:flex; flex-direction:column; gap:6px; align-items:stretch; min-width:0; }
+.bld-head, .bld-cards, .bld-player, .bld-range, .bld-also, .bld-line{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; }
+.bld-also{ padding-left:10px; border-left:2px solid color-mix(in srgb, var(--ink) 30%, transparent); }
+.bld-chips{ display:flex; flex-wrap:wrap; gap:4px; }
+.bld-check{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+.bld-chip{ border:1px solid color-mix(in srgb, var(--ink) 30%, transparent); border-radius:6px; padding:2px 6px; }
+.bld-chip.red-suit{ color: var(--red-suit); }
+.bld-word{ opacity:0.75; }
+.bld-small{
+  background: transparent; color: var(--ink); border:1px solid color-mix(in srgb, var(--ink) 40%, transparent);
+  border-radius:6px; padding:4px 8px; font-family:'Inter', sans-serif; font-size:12px; cursor:pointer;
+}
+.bld-form button:focus-visible, .bld-form input:focus-visible, .bld-form select:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
+.bld-sentence{ margin:8px 0; font-size:13px; line-height:1.45; font-weight:600; }
