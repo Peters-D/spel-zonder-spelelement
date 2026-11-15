@@ -32,7 +32,7 @@ function rtJoin(items, word){
 const rtUpper = t => t.charAt(0).toUpperCase() + t.slice(1);
 
 // Een keuze van kaarten als zinsdelen:
-//   single: de kaart in een zin met "er ligt" ("een 2", "de hoogste kaart")
+//   single: de kaart als zinsdeel ("een 2", "de hoogste kaart"); in een bijzin staat het werkwoord erna ("er een 2 ligt")
 //   plural: de kaarten als onderwerp, met een meervoudig werkwoord ("kaarten met een 2")
 //   verbSingular: true als het onderwerp één kaart is ("de hoogste kaart wint")
 function rtCards(node){
@@ -102,31 +102,30 @@ function rtPlayer(node, forEach){
     : 'de ' + other + 'spelers die de ronde begonnen met ' + c.single;
 }
 
-// Een aantal voor een zin met "er": "er liggen minstens 2 Azen", "er ligt ten hoogste één Aas", "er liggen geen Azen".
-// sing/plural: het naamwoord bij 1 en bij meer.
-function rtCountLine(node, sing, plural){
+// Een aantal in een bijzin, met het werkwoord achteraan: "er minstens twee Azen liggen", "geen enkele speler kaarten heeft".
+// o: pre (begin), sing/plural (het naamwoord bij 1 en bij meer), vs/vp (werkwoord bij 1 en bij meer), none (de zin bij 0).
+// Staat er een getal boven de 8 in, dan staan alle getallen als cijfer, zodat woorden en cijfers niet door elkaar staan.
+function rtAmount(node, o){
   const lo = node.min, hi = node.max;
-  const n = v => (v === 1 ? 'één' : RT_NUMBER[v] || String(v));
-  const verbFor = v => (v === 1 ? 'ligt' : 'liggen');
+  const digits = [lo, hi].some(v => v !== undefined && v > 8);
+  const n = v => (digits ? String(v) : v === 0 ? 'nul' : v === 1 ? 'één' : RT_NUMBER[v]);
+  const unit = v => (v === 1 ? o.sing : o.plural), verb = v => (v === 1 ? o.vs : o.vp);
+  if (hi === 0 && (lo === undefined || lo === 0)) return o.none;
   if (lo !== undefined && hi !== undefined){
-    if (lo === hi){
-      if (lo === 0) return 'er geen ' + plural + ' liggen';
-      return 'er ' + n(lo) + ' ' + (lo === 1 ? sing : plural) + ' ' + verbFor(lo);
-    }
-    return 'er tussen ' + n(lo) + ' en ' + n(hi) + ' ' + plural + ' liggen';
+    if (lo === hi) return o.pre + 'precies ' + n(lo) + ' ' + unit(lo) + ' ' + verb(lo);
+    return o.pre + 'tussen ' + n(lo) + ' en ' + n(hi) + ' ' + o.plural + ' ' + o.vp;
   }
-  if (lo !== undefined) return 'er minstens ' + n(lo) + ' ' + (lo === 1 ? sing : plural) + ' ' + verbFor(lo);
-  if (hi === 0) return 'er geen ' + plural + ' liggen';
-  return 'er ten hoogste ' + n(hi) + ' ' + (hi === 1 ? sing : plural) + ' ' + verbFor(hi);
+  if (lo !== undefined) return o.pre + 'minstens ' + n(lo) + ' ' + unit(lo) + ' ' + verb(lo);
+  return o.pre + 'ten hoogste ' + n(hi) + ' ' + unit(hi) + ' ' + verb(hi);
 }
 
-// Een voorwaarde als bijzin: "er ligt een 2", "er liggen minstens 2 Azen".
+// Een voorwaarde als bijzin, met het werkwoord achteraan (hij staat na "Als"): "er een 2 ligt", "er minstens twee Azen liggen".
 function rtCondition(node){
   const wrap = n => ('and' in n || 'or' in n) ? '(' + rtCondition(n) + ')' : rtCondition(n);
   if ('exists' in node){ const c = rtCards(node.exists); return 'er ' + (c.cond || c.single) + ' ligt'; }
   if ('count' in node){
     const c = rtCards(node.count);
-    return rtCountLine(node, c.bare, c.barePlural);
+    return rtAmount(node, { pre: 'er ', sing: c.bare, plural: c.barePlural, vs: 'ligt', vp: 'liggen', none: 'er geen ' + c.barePlural + ' liggen' });
   }
   if ('battle' in node) return 'er een battle is geweest';
   if ('winnerOpened' in node) return 'de winnaar de ronde met ' + rtCards(node.winnerOpened).single + ' begon';
@@ -136,18 +135,8 @@ function rtCondition(node){
     if ('withoutCards' in p) return 'er een speler zonder kaarten is';
     return 'er een ' + (p.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(p.opened).single + ' begon';
   }
-  if ('playersWithCards' in node){
-    const r = node.playersWithCards;
-    if (r.max === 0 && (r.min === undefined || r.min === 0)) return 'geen enkele speler heeft kaarten';
-    const lo = r.min, hi = r.max;
-    const n = v => (v === 1 ? 'één' : RT_NUMBER[v] || String(v));
-    if (lo !== undefined && hi !== undefined){
-      if (lo === hi) return 'precies ' + n(lo) + ' ' + (lo === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
-      return 'tussen ' + n(lo) + ' en ' + n(hi) + ' spelers hebben kaarten';
-    }
-    if (lo !== undefined) return 'minstens ' + n(lo) + ' ' + (lo === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
-    return 'ten hoogste ' + n(hi) + ' ' + (hi === 1 ? 'speler kaarten heeft' : 'spelers kaarten hebben');
-  }
+  if ('playersWithCards' in node)
+    return rtAmount(node.playersWithCards, { pre: '', sing: 'speler kaarten', plural: 'spelers kaarten', vs: 'heeft', vp: 'hebben', none: 'geen enkele speler kaarten heeft' });
   if ('not' in node) return 'het niet zo is dat ' + wrap(node.not);
   if ('and' in node) return rtJoin(node.and.map(wrap), 'en');
   return rtJoin(node.or.map(wrap), 'of');
@@ -164,7 +153,6 @@ function rtEffect(node){
   if ('transfer' in node){
     const t = node.transfer, n = t.count === 1 ? '1 kaart' : t.count + ' kaarten';
     const from = 'neighbor' in t.from ? rtPlayer(t.from, false)
-      : 'withoutCards' in t.from ? 'de eerste speler zonder kaarten'
       : 'de eerste speler die de ronde begon met ' + rtCards(t.from.opened).single;
     return {s:rtPlayer(node.forEach, true), v:'krijgt', r:n + ' van ' + from};
   }
@@ -179,14 +167,14 @@ function describeRuleLogic(logic){
   const cond = 'if' in logic ? rtCondition(logic.if) : null;
   if ('win' in then){
     const x = rtCards(then.win), verb = x.verbSingular ? 'wint' : 'winnen';
-    if (m === 'tiebreak') return 'Bij een gelijkspel' + (cond ? ', als ' + cond + ', dan' : '') + ' wint ' + x.single + '.';
+    if (m === 'tiebreak') return 'Bij een gelijkspel' + (cond ? ', als ' + cond + ', dan' : '') + (x.verbSingular ? ' wint ' + x.single : ' winnen ' + x.plural) + '.';
     const s = cond ? 'Als ' + cond + ', dan ' + verb + ' ' + x.plural + '.' : rtUpper(x.plural) + ' ' + verb + '.';
     return s + ' Bij gelijk spel: BATTLE!';
   }
   const e = rtEffect(then);
   if (m === 'roundEnd') return cond
     ? 'Aan het einde van de ronde, als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
-    : 'Aan het einde van de ronde ' + e.s + ' ' + e.v + ' ' + e.r + '.';
+    : 'Aan het einde van de ronde ' + e.v + ' ' + e.s + ' ' + e.r + '.';
   return cond
     ? 'Als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
     : rtUpper(e.s) + ' ' + e.v + ' ' + e.r + '.';
@@ -213,7 +201,7 @@ const RULE_BLOCKS = {
   conditions: [
     { key: 'exists', label: 'er ligt een bepaalde kaart', moments: ['decide', 'tiebreak'], sample: { exists: { rank: 'A' } } },
     { key: 'count', label: 'er liggen een bepaald aantal kaarten van een soort', moments: ['decide', 'tiebreak'], sample: { count: { rank: 'A' }, min: 2 } },
-    { key: 'battle', label: 'er een battle is geweest', moments: ['award'], sample: { battle: true } },
+    { key: 'battle', label: 'er is een battle geweest', moments: ['award'], sample: { battle: true } },
     { key: 'winnerOpened', label: 'de winnaar begon met een bepaalde kaart', moments: ['award'], sample: { winnerOpened: { rank: 'K' } } },
     { key: 'anyPlayer', label: 'er is een speler die …', moments: ['award', 'roundEnd'], sample: { anyPlayer: { withoutCards: true } } },
     { key: 'playersWithCards', label: 'een bepaald aantal spelers heeft kaarten', moments: ['award', 'roundEnd'], sample: { playersWithCards: { min: 2 } } },
