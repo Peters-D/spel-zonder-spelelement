@@ -55,10 +55,16 @@ function rtCards(node){
   if ('all' in node) return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' };
   if ('highest' in node || 'lowest' in node){
     const high = 'highest' in node, kind = high ? node.highest : node.lowest, word = high ? 'hoogste' : 'laagste';
-    const color = node.of && node.of.color ? (node.of.color === 'red' ? 'rode ' : 'zwarte ') : '';
-    const what = kind === 'value' ? (color ? 'de ' + word + ' ' + color + 'kaart' : 'de ' + word + ' kaart')
-      : (color ? 'de ' + color.trim() + ' kaart met het ' + word + ' symbool' : 'de kaart met het ' + word + ' symbool');
-    return { single: what, plural: what, bare: what, barePlural: what, verbSingular: true };
+    // Een keuze uit een deel van de kaarten ("onder de Heren"); alleen een kleur wordt een bijvoeglijk naamwoord ("de hoogste rode kaart").
+    const of = node.of, colorOnly = of && 'color' in of && Object.keys(of).length === 1;
+    const color = colorOnly ? (of.color === 'red' ? 'rode ' : 'zwarte ') : '';
+    let what = kind === 'value' ? 'de ' + word + ' ' + color + 'kaart'
+      : (colorOnly ? 'de ' + color.trim() + ' kaart met het ' + word + ' symbool' : 'de kaart met het ' + word + ' symbool');
+    if (of && !colorOnly) what += ' onder de ' + rtCards(of).barePlural;
+    const be = kind === 'value' ? ['is', 'zijn'] : ['heeft', 'hebben'];
+    // single/plural: als onderwerp ("de hoogste kaart wint"); cond/bare/barePlural: in een voorwaarde ("er een kaart die de hoogste kaart is ligt")
+    return { single: what, plural: what, cond: 'een kaart die ' + what + ' ' + be[0], bare: 'kaart die ' + what + ' ' + be[0],
+      barePlural: 'kaarten die ' + what + ' ' + be[1], verbSingular: true };
   }
   if ('group' in node){
     const g = node.group, rel = RT_RELATION[g.relation];
@@ -67,18 +73,23 @@ function rtCards(node){
   }
   if ('not' in node){
     const x = rtCards(node.not);
-    return { single: 'een kaart die niet ' + x.single.replace(/^een /, ''), plural: 'kaarten die niet ' + x.single.replace(/^een /, '') + ' zijn', bare: 'kaart', barePlural: 'kaarten' };
+    const many = 'kaarten die geen ' + x.bare + ' zijn';
+    return { single: 'een kaart die geen ' + x.bare + ' is', plural: many, bare: 'kaart die geen ' + x.bare + ' is', barePlural: many };
   }
   if ('or' in node){
     const xs = node.or.map(rtCards);
-    return { single: rtJoin(xs.map(x => x.single), 'of'), plural: rtJoin(xs.map(x => x.plural), 'of'), bare: 'kaart', barePlural: 'kaarten' };
+    const many = rtJoin(xs.map(x => x.barePlural), 'of');
+    return { single: rtJoin(xs.map(x => x.single), 'of'), plural: many, bare: rtJoin(xs.map(x => x.bare), 'of'), barePlural: many };
   }
-  // and: de kaarten die aan alle eisen tegelijk voldoen
+  // and: de kaarten die aan alle eisen tegelijk voldoen: "kaart van harten die ook een Heer is en ook geen Aas is"
   const xs = node.and.map(rtCards);
-  return { single: 'een kaart die aan alle eisen voldoet', plural: 'kaarten die aan alle eisen voldoen: ' + rtJoin(xs.map(x => x.plural), 'en'), bare: 'kaart', barePlural: 'kaarten' };
+  const [a, ...rest] = xs, restNodes = node.and.slice(1);
+  const one = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).bare : o.single) + ' is');
+  const many = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).barePlural : o.barePlural) + ' zijn');
+  const bare = a.bare + ' die ook ' + one.join(' en ook ');
+  const plural = a.barePlural + ' die ook ' + many.join(' en ook ');
+  return { single: 'een ' + bare, plural, bare, barePlural: plural };
 }
-
-const rtWin = (x, verb) => (x.verbSingular ? verb + 't' : verb + 'en');
 
 // Een keuze van spelers, als zinsdeel. forEach: "elke speler ..."; anders "de spelers ...".
 function rtPlayer(node, forEach){
@@ -112,7 +123,7 @@ function rtCountLine(node, sing, plural){
 // Een voorwaarde als bijzin: "er ligt een 2", "er liggen minstens 2 Azen".
 function rtCondition(node){
   const wrap = n => ('and' in n || 'or' in n) ? '(' + rtCondition(n) + ')' : rtCondition(n);
-  if ('exists' in node) return 'er ' + rtCards(node.exists).single + ' ligt';
+  if ('exists' in node){ const c = rtCards(node.exists); return 'er ' + (c.cond || c.single) + ' ligt'; }
   if ('count' in node){
     const c = rtCards(node.count);
     return rtCountLine(node, c.bare, c.barePlural);
