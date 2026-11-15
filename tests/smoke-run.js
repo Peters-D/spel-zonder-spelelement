@@ -1301,6 +1301,167 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   if (!/Regelbeschrijving klopt niet/.test(loadError) || !/onbekende waarde/.test(loadError)) fail('een kapotte beschrijving geeft geen duidelijke melding: ' + JSON.stringify(loadError));
 }
 
+// ---- eigen regels (js/custom-rules.js) ----
+{
+  const fail = t => failures.push('eigen regels: ' + t);
+  const J = v => JSON.stringify(v);
+  const canon = v => Array.isArray(v) ? v.map(canon) : (v && typeof v === 'object') ? Object.fromEntries(Object.keys(v).sort().map(k => [k, canon(v[k])])) : v; // de volgorde van de velden doet er niet toe
+  const eq = (name, got, exp) => { if (J(canon(got)) !== J(canon(exp))) fail(name + ': verwacht ' + J(exp) + ', kreeg ' + J(got)); };
+  const catalogState = () => JSON.parse(run('JSON.stringify({ rules: RULES.map(r => r.id), defaults: DEFAULT_RULES, priority: RULES_BY_PRIORITY.map(r => r.id) })'));
+  const before = catalogState();
+  const sample = JSON.parse(run('JSON.stringify(CUSTOM_RULE_SAMPLE)'));
+  const parse = text => JSON.parse(run('JSON.stringify(parseCustomRule(' + J(text) + '))'));
+  const parseObj = obj => parse(J(obj));
+  const mut = f => { const o = JSON.parse(J(sample)); f(o); return o; };
+
+  // 1. Het voorbeeldblok klopt, en de voorbeelden worden nagespeeld.
+  const ok1 = parseObj(sample);
+  eq('het voorbeeldblok wordt geaccepteerd', ok1.errors, []);
+  eq('de gecontroleerde regel is een kopie van het blok', ok1.def, sample);
+  const chk = JSON.parse(run('JSON.stringify(checkCustomRuleExamples(parseCustomRule(' + J(J(sample)) + ').def))'));
+  eq('de voorbeelden van het voorbeeldblok kloppen', chk, { total: 2, passed: 2, failures: [] });
+  eq('het nakijken laat de catalogus zoals hij was', catalogState(), before);
+  // Een voorbeeld dat niet klopt wordt gevonden.
+  const wrong = parseObj(mut(o => { o.examples[0].winners = [3]; })).def;
+  const chkWrong = JSON.parse(run('JSON.stringify(checkCustomRuleExamples(' + J(wrong) + '))'));
+  if (chkWrong.passed !== 1 || chkWrong.failures.length !== 1 || !/voorbeeld 1/.test(chkWrong.failures[0])) fail('een fout voorbeeld wordt niet gevonden: ' + J(chkWrong));
+
+  // 2. Toevoegen en weghalen: de regel doet mee, en daarna is alles weer zoals het was.
+  const game = (rules, n, seed) => run('(() => { const g = dealGame(Array.from({ length: ' + n + ' }, (_, i) => "S" + i), ' + J(rules) + ', ' + J(seed) + '); const t = simulateFullTrace(g.players, 600, g.rules); return t.outcome + "|" + t.rounds + "|" + stateSignature(t.finalPlayers, t.finalDiscard); })()');
+  const baseline = [[3, 'e1'], [4, 'e2'], [6, 'e3']].map(([n, seed]) => game({}, n, seed));
+  const table = rules => JSON.parse(run('JSON.stringify(__fw(["7♠", "8♥", "9♦", "A♣"], ' + J(rules) + '))'));
+  run('addCustomRule(parseCustomRule(' + J(J(sample)) + ').def)');
+  const added = catalogState();
+  if (!added.rules.includes('custom-opeenvolgend') || added.defaults['custom-opeenvolgend'] !== false || added.priority[added.priority.length - 1] !== 'custom-opeenvolgend')
+    fail('na toevoegen staat de regel niet (uit, als laatste) in de catalogus: ' + J(added));
+  eq('de regel is herkenbaar als eigen regel', JSON.parse(run('JSON.stringify(customRules().map(r => r.id))')), ['custom-opeenvolgend']);
+  eq('uit: de hoogste kaart wint', table({ 'custom-opeenvolgend': false }), [3]);
+  eq('aan: de reeks 7-8-9 beslist', table({ 'custom-opeenvolgend': true }), [0, 1, 2]);
+  eq('nieuwe spelstand kent de regel (uit)', JSON.parse(run('JSON.stringify(createGameState([{ id: 0, name: "a", deck: [] }, { id: 1, name: "b", deck: [] }], {}).rules["custom-opeenvolgend"])')), false);
+  eq('een eigen regel die uit staat verandert geen spel', [[3, 'e1'], [4, 'e2'], [6, 'e3']].map(([n, seed]) => game({}, n, seed)), baseline);
+  const playedOn = game({ 'custom-opeenvolgend': true }, 4, 'e2');
+  if (playedOn === baseline[1]) fail('met de regel aan verloopt een spel hetzelfde als zonder (ongeloofwaardig)');
+  // Opnieuw toevoegen vervangt, het vervangt nooit een regel van het spel.
+  run('addCustomRule(Object.assign({}, parseCustomRule(' + J(J(mut(o => { o.title = 'Tweede versie'; }))) + ').def))');
+  eq('dezelfde id vervangt de eerdere regel', JSON.parse(run('JSON.stringify(RULES.filter(r => r.id === "custom-opeenvolgend").map(r => r.title))')), ['Tweede versie']);
+  const builtin = run('(() => { try { addCustomRule(Object.assign({}, parseCustomRule(' + J(J(sample)) + ').def, { id: "twoBeatsAce" })); return "toegevoegd"; } catch (e){ return e.message; } })()');
+  if (!/kan niet worden vervangen/.test(builtin)) fail('een regel van het spel kan worden vervangen: ' + builtin);
+  eq('weghalen', run('removeCustomRule("custom-opeenvolgend")'), true);
+  eq('weghalen van iets wat er niet is', run('removeCustomRule("custom-opeenvolgend")'), false);
+  eq('weghalen van een regel van het spel mag niet', run('removeCustomRule("twoBeatsAce")'), false);
+  eq('na weghalen is de catalogus weer zoals hij was', catalogState(), before);
+  eq('na weghalen verlopen de spellen weer zoals eerst', [[3, 'e1'], [4, 'e2'], [6, 'e3']].map(([n, seed]) => game({}, n, seed)), baseline);
+
+  // 3. Wat niet mag: elk van deze blokken wordt geweigerd.
+  const bad = [
+    ['leeg', ''], ['geen JSON', '{ dit is geen json'], ['een lijst', '[1, 2]'], ['een getal', '5'],
+    ['te groot', J(mut(o => { o.description = 'x'.repeat(21000); }))],
+    ['onbekend veld', mut(o => { o.code = 'alert(1)'; })],
+    ['__proto__ als veld', '{"__proto__": {"polluted": true}, "id": "custom-x"}'],
+    ['constructor als veld', J(mut(o => { o.constructor = { prototype: {} }; }))],
+    ['id zonder prefix', mut(o => { o.id = 'twoBeatsAce'; })],
+    ['id in kleine letters zonder prefix', mut(o => { o.id = 'mijn-regel'; })],
+    ['id alleen de prefix', mut(o => { o.id = 'custom-'; })],
+    ['id met dubbele streep', mut(o => { o.id = 'custom--regel'; })],
+    ['id eindigt op een streep', mut(o => { o.id = 'custom-regel-'; })],
+    ['id met hoofdletters', mut(o => { o.id = 'custom-Mijn'; })],
+    ['id met spatie', mut(o => { o.id = 'custom-mijn regel'; })],
+    ['id met punt', mut(o => { o.id = 'custom-a.b'; })],
+    ['id __proto__', mut(o => { o.id = 'custom-__proto__'; })],
+    ['id te lang', mut(o => { o.id = 'custom-' + 'a'.repeat(40); })],
+    ['id ontbreekt', mut(o => { delete o.id; })],
+    ['titel leeg', mut(o => { o.title = '  '; })],
+    ['titel geen tekst', mut(o => { o.title = 5; })],
+    ['titel te lang', mut(o => { o.title = 'x'.repeat(61); })],
+    ['stuurteken in titel', mut(o => { o.title = 'a\u0007b'; })],
+    ['uitleg te lang', mut(o => { o.description = 'x'.repeat(1501); })],
+    ['prioriteit te laag', mut(o => { o.priority = 60; })],
+    ['prioriteit te hoog', mut(o => { o.priority = 1000; })],
+    ['prioriteit geen geheel getal', mut(o => { o.priority = 200.5; })],
+    ['prioriteit tekst', mut(o => { o.priority = '200'; })],
+    ['logic ontbreekt', mut(o => { delete o.logic; })],
+    ['logic onbekend onderdeel', mut(o => { o.logic.code = 'x'; })],
+    ['logic onbekende waarde', mut(o => { o.logic.then.win = { rank: 'Z' }; })],
+    ['logic te diep', mut(o => { let n = { all: true }; for (let i = 0; i < 12; i++) n = { not: n }; o.logic.then.win = n; })],
+    ['geen voorbeelden', mut(o => { o.examples = []; })],
+    ['te veel voorbeelden', mut(o => { o.examples = Array.from({ length: 13 }, () => o.examples[0]); })],
+    ['voorbeeld onbekende kaart', mut(o => { o.examples[0].cards[0] = '1♠'; })],
+    ['voorbeeld winnaar buiten de tafel', mut(o => { o.examples[0].winners = [9]; })],
+    ['voorbeeld winnaars dubbel', mut(o => { o.examples[0].winners = [0, 0]; })],
+    ['voorbeeld zonder tekst', mut(o => { delete o.examples[0].text; })],
+    ['voorbeeld met onbekend veld', mut(o => { o.examples[0].html = '<b>'; })],
+    ['voorbeeld met onbekende regel', mut(o => { o.examples[0].with = ['bestaat-niet']; })],
+    ['voorbeeld met te veel spelers', mut(o => { o.examples[0].cards = ['2', '3', '4', '5', '6', '7', '8', '9', '10']; o.examples[0].winners = [0]; })],
+    ['stapels bij het moment decide', mut(o => { o.examples = [{ decks: [['K'], ['Q']], after: [['K', 'Q'], []], discarded: 0, text: 'x' }]; })],
+    ['open kaarten bij het moment roundEnd', mut(o => { o.logic = { moment: 'roundEnd', then: { forEach: { withoutCards: true }, discardTop: 1 } }; })]
+  ];
+  for (const [name, input] of bad){
+    const r = typeof input === 'string' ? parse(input) : parseObj(input);
+    if (r.def !== null || r.errors.length === 0) fail('wordt toch geaccepteerd: ' + name);
+  }
+  // Een kwaadwillig blok verandert niets aan de pagina: de vervuiling via __proto__ is niet gelukt.
+  eq('geen vervuiling van Object.prototype', run('({}).polluted === undefined'), true);
+
+  // 4. Teksten blijven precies zoals ze zijn ingevoerd (ze gaan later alleen als gewone tekst in de pagina).
+  const html = '<img src=x onerror=1> & "quotes"';
+  const rh = parseObj(mut(o => { o.title = html; o.short = html; o.description = html + '\nTweede regel'; }));
+  eq('HTML in teksten blijft tekst', [rh.def && rh.def.title, rh.def && rh.def.short, rh.def && rh.def.description], [html, html, html + '\nTweede regel']);
+  // Delen: exporteren en weer inlezen geeft hetzelfde.
+  const exported = run('exportCustomRule(' + J(sample) + ')');
+  eq('exporteren en inlezen', parse(exported).def, sample);
+
+  // 5. Een regel zonder beslissing (moment roundEnd) met een voorbeeld met stapels.
+  const revival = { id: 'custom-terugkeer', title: 'Terugkeer', short: 'Wie geen kaarten heeft, krijgt er één van de linkerbuur', description: 'Wie aan het einde van de ronde geen kaarten heeft, krijgt de bovenste kaart van de linkerbuur met kaarten.',
+    logic: { moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
+    examples: [{ decks: [['K', '4'], ['3'], ['9', '5']], after: [['4', 'K', '3', '9'], ['5'], []], discarded: 0, text: 'Speler 2 heeft na de ronde geen kaarten en krijgt de 5 van zijn linkerbuur.' }] };
+  const pr = parseObj(revival);
+  eq('een regel met moment roundEnd wordt geaccepteerd', [pr.errors, pr.def && pr.def.priority, pr.def && pr.def.examples.length], [[], 200, 1]);
+  eq('de stapels in het voorbeeld kloppen', JSON.parse(run('JSON.stringify(checkCustomRuleExamples(' + J(pr.def) + '))')), { total: 1, passed: 1, failures: [] });
+  const badAfter = parseObj(Object.assign({}, revival, { examples: [Object.assign({}, revival.examples[0], { after: [['4', 'K', '3', '9'], [], ['5']] })] })).def;
+  eq('klopt het voorbeeld niet, dan wordt dat gemeld', JSON.parse(run('JSON.stringify(checkCustomRuleExamples(' + J(badAfter) + ').passed)')), 0);
+  const withDiscard = parseObj(Object.assign({}, revival, { id: 'custom-afleggen', logic: { moment: 'roundEnd', then: { forEach: { opened: { rank: 'A' } }, discardTop: 1 } },
+    examples: [{ decks: [['A', '4'], ['K', '3']], after: [[], ['3', 'A', 'K']], discarded: 1, text: 'x' }] }));
+  eq('een regel die afgelegd kaarten gebruikt toont de aflegstapel', withDiscard.errors, []);
+  run('addCustomRule(' + J(withDiscard.def) + ')');
+  eq('usesDiscard volgt uit de beschrijving', run('RULES.find(r => r.id === "custom-afleggen").usesDiscard'), true);
+  run('removeCustomRule("custom-afleggen")');
+
+  // 6. Proefspellen.
+  const trial = (def, opts, extra) => run('(() => { const t = createCustomTrial(' + J(def) + ', ' + J(opts) + '); try { t.step(1e9); ' + (extra || '') + ' return JSON.stringify(t.report()); } finally { t.dispose(); } })()');
+  const rep = JSON.parse(trial(sample, { games: 12, players: [3, 4] }));
+  eq('aantal gespeelde proefspellen', rep.played, 12);
+  eq('elk proefspel heeft een uitkomst, met en zonder de regel', [rep.with.win + rep.with.cycle + rep.with.unknown, rep.without.win + rep.without.cycle + rep.without.unknown], [12, 12]);
+  eq('er gaat geen kaart verloren of dubbel', [rep.conservationFailures, rep.errors, rep.examples.failures, rep.ok], [[], [], [], true]);
+  eq('na de proef is de catalogus zoals hij was', catalogState(), before);
+  // "zonder" is hetzelfde als een gewoon spel op dezelfde deling.
+  const direct = JSON.parse(run('(() => { const o = { win: 0, cycle: 0, unknown: 0 }; for (let i = 0; i < 12; i++){ const g = dealGame(Array.from({ length: [3, 4][i % 2] }, (_, k) => "S" + k), {}, "trial-" + i); o[simulateFullTrace(g.players, SIM_ROUND_CAP, g.rules).outcome]++; } return JSON.stringify(o); })()'));
+  eq('de kant zonder regel is een gewoon spel', { win: rep.without.win, cycle: rep.without.cycle, unknown: rep.without.unknown }, direct);
+  if (rep.with.win === rep.without.win && rep.with.cycle === rep.without.cycle && rep.with.unknown === rep.without.unknown && rep.avgWinRounds.with === rep.avgWinRounds.without) fail('met en zonder de regel geven precies hetzelfde: de regel doet niets in de proef');
+  // Andere regels die aan staan tellen mee aan beide kanten.
+  const rep2 = JSON.parse(trial(sample, { games: 6, players: [4], base: { battleFirst: true } }));
+  eq('met een andere regel aan blijven de proefspellen kloppen', [rep2.played, rep2.ok], [6, true]);
+  // De grenzen van het aantal proefspellen.
+  const gamesFor = g => JSON.parse(run('(() => { const t = createCustomTrial(' + J(sample) + ', { games: ' + J(g) + ' }); try { return t.report().games; } finally { t.dispose(); } })()'));
+  eq('te veel proefspellen', gamesFor(5000), 1000);
+  eq('geen of negatieve proefspellen', [gamesFor(0), gamesFor(-5)], [1, 1]);
+  eq('geen getal: de standaard', gamesFor('veel'), 200);
+  // Stap voor stap: met een klok die per aanroep tien milliseconden verder gaat, past er bij een budget van 25 ms telkens een paar spellen in.
+  const stepped = JSON.parse(run(`(() => { let clock = 0; const t = createCustomTrial(${J(sample)}, { games: 10, players: [3], now: () => (clock += 10) });
+    try { const seen = []; let guard = 0; while (!t.step(25) && guard++ < 100) seen.push(Math.round(t.progress() * 100)); return JSON.stringify({ seen, done: t.done, played: t.report().played }); } finally { t.dispose(); } })()`));
+  if (stepped.seen.length < 2 || !stepped.done || stepped.played !== 10 || stepped.seen.some((v, i) => i > 0 && v <= stepped.seen[i - 1])) fail('stap voor stap loopt niet goed: ' + J(stepped));
+  eq('de catalogus is na de stappen weer zoals hij was', catalogState(), before);
+
+  // 7. De proef vindt een regel die kaarten kwijtraakt, en een regel die een fout geeft.
+  const broken = JSON.parse(run(`(() => { const t = createCustomTrial(${J(sample)}, { games: 6, players: [3] });
+    try { RULES.find(r => r.id === 'custom-opeenvolgend').onRoundEnd = ctx => { ctx.state.players[0].deck.pop(); }; t.step(1e9); return JSON.stringify(t.report()); } finally { t.dispose(); } })()`));
+  if (broken.conservationFailures.length === 0 || broken.ok) fail('een regel die kaarten kwijtraakt wordt niet gevonden: ' + J(broken.conservationFailures));
+  const thrower = JSON.parse(run(`(() => { const t = createCustomTrial(${J(sample)}, { games: 4, players: [3] });
+    try { RULES.find(r => r.id === 'custom-opeenvolgend').onRoundEnd = () => { throw new Error('boem'); }; t.step(1e9); return JSON.stringify(t.report()); } finally { t.dispose(); } })()`));
+  if (thrower.errors.length === 0 || !/boem/.test(thrower.errors[0].message) || thrower.ok || thrower.played !== 4) fail('een regel die een fout geeft wordt niet gemeld: ' + J(thrower.errors));
+  eq('de catalogus is na een kapotte proef weer zoals hij was', catalogState(), before);
+  eq('er blijft geen eigen regel achter', run('RULES.every(r => !r.custom)'), true);
+}
+
 // ---- testgevallen ----
 const cases = [];
 for (const n of [2, 3, 4, 6, 8]) for (const seed of ['1', '2', '3', '4', '5', '6']) for (const rules of Object.keys(RULE_SETS)) cases.push({ n, seed, rules });

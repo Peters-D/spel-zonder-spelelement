@@ -264,6 +264,15 @@ function suitOrderOf(rules){
 // Regels in de volgorde waarin ze worden toegepast.
 const RULES_BY_PRIORITY = RULES.slice().sort((a, b) => a.priority - b.priority);
 
+// Houdt DEFAULT_RULES en RULES_BY_PRIORITY gelijk aan RULES, na het toevoegen of weghalen van een regel (zie js/custom-rules.js).
+// Beide lijsten worden ter plekke bijgewerkt, zodat wie ze al in handen heeft de nieuwe stand ziet.
+function rulesRefresh(){
+  for (const id of Object.keys(DEFAULT_RULES)) if (!RULES.some(r => r.id === id)) delete DEFAULT_RULES[id];
+  for (const r of RULES) if (!(r.id in DEFAULT_RULES)) DEFAULT_RULES[r.id] = r.default;
+  RULES_BY_PRIORITY.length = 0;
+  RULES_BY_PRIORITY.push(...RULES.slice().sort((a, b) => a.priority - b.priority));
+}
+
 // Bepaalt wie van de spelers in inPlay de ronde (voorlopig) wint. Geeft { winners, rule } terug:
 // rule is de regel die besliste, of null als de hoogste kaart wint. Meer dan één winnaar
 // betekent gelijkspel → battle.
