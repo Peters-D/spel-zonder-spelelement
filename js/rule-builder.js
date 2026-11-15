@@ -4,7 +4,8 @@
 //
 //   rbNewState(moment)            een lege stand voor een moment, met een gevolg dat klopt
 //   rbToLogic(state)              { logic } of { error } (een melding in gewone taal)
-//   rbFromLogic(logic)            de stand bij een beschrijving, of null als de bouwer die niet kan tonen
+//   rbFromLogic(logic)            de stand bij een beschrijving, of null als de bouwer die niet kan tonen (dieper dan één groep,
+//                                 meer dan twee eisen aan een kaart)
 //   rbSuggestExamples(logic)      { examples, note }: voorbeelden die het spel zelf zoekt (zie hieronder)
 //   rbBlock(state)                het hele regelblok: { def, sentence, note } of { errors }
 //
@@ -13,7 +14,8 @@
 // Een keuze van kaarten (cs): { kind, ranks, suits, color, by, of, relation, min, not, also }
 //   kind: 'rank' | 'suit' | 'color' | 'all' | 'highest' | 'lowest' | 'group'; not (niet) en also (en ook een tweede eis) kunnen alleen bij
 //   rank, suit en color.
-// Een voorwaarde: { key, not, ... } (key: exists, count, battle, winnerOpened, anyPlayer, playersWithCards)
+// Een voorwaarde: { key, not, ... } (key: exists, count, battle, winnerOpened, anyPlayer, playersWithCards), of een groep
+// voorwaarden { key: 'group', not, mode: 'and' | 'or', conds: [...] } (één niveau diep): daarmee maak je "a en (b of c)".
 // Een gevolg: { key, ... } (key: win, discardPot, sharePot, transfer, discardTop)
 //
 // De voorbeelden: het spel zoekt zelf een paar willekeurige tafels (of verdelingen) waarop de regel iets anders doet dan het gewone spel, en
@@ -107,8 +109,15 @@ function rbRange(c, max){
   throw RB_ERR('Kies minstens, ten hoogste, precies of tussen.');
 }
 
-function rbCond(c, moment){
+function rbCond(c, moment, nested){
   let node;
+  if (c.key === 'group'){ // een groep voorwaarden binnen de lijst: (a of b), één niveau diep
+    if (nested) throw RB_ERR('Een groep binnen een groep kan de bouwer niet maken.');
+    const items = (c.conds || []).map(x => rbCond(x, moment, true));
+    if (items.length === 0) throw RB_ERR('Voeg een voorwaarde toe aan de groep.');
+    node = items.length === 1 ? items[0] : { [c.mode === 'and' ? 'and' : 'or']: items };
+    return c.not ? { not: node } : node;
+  }
   if (c.key === 'exists') node = { exists: rbCards(c.cs, false) };
   else if (c.key === 'count') node = Object.assign({ count: rbCards(c.cs, false) }, rbRange(c, 52));
   else if (c.key === 'battle') node = { battle: true };
@@ -139,6 +148,7 @@ function rbNewCond(key){
   if (key === 'count') Object.assign(c, { mode: 'min', n: 2, m: 3 });
   if (key === 'anyPlayer') Object.assign(c, { who: 'withoutCards', cs: rbNewCards('rank'), other: false });
   if (key === 'playersWithCards') Object.assign(c, { mode: 'min', n: 2, m: 3 });
+  if (key === 'group') Object.assign(c, { mode: 'or', conds: [] });
   return c;
 }
 
@@ -234,10 +244,17 @@ function rbRangeFrom(node, out){
   else { out.mode = 'max'; out.n = node.max; }
 }
 
-function rbCondFrom(node){
+function rbCondFrom(node, nested){
   let not = false;
   if ('not' in node){ not = true; node = node.not; }
   let c;
+  if ('and' in node || 'or' in node){ // een groep, één niveau diep
+    if (nested) return null;
+    const mode = 'and' in node ? 'and' : 'or';
+    const conds = node[mode].map(x => rbCondFrom(x, true));
+    if (conds.some(x => !x)) return null;
+    return { key: 'group', not, mode, conds };
+  }
   if ('exists' in node){ c = rbNewCond('exists'); c.cs = rbCardsFrom(node.exists); if (!c.cs) return null; }
   else if ('count' in node){ c = rbNewCond('count'); c.cs = rbCardsFrom(node.count); if (!c.cs) return null; rbRangeFrom(node, c); }
   else if ('battle' in node) c = rbNewCond('battle');
@@ -248,7 +265,7 @@ function rbCondFrom(node){
     if (!p || p.kind === 'neighbor') return null;
     c.who = p.kind; c.cs = p.cs; c.other = p.other;
   } else if ('playersWithCards' in node){ c = rbNewCond('playersWithCards'); rbRangeFrom(node.playersWithCards, c); }
-  else return null; // en/of/niet binnen een voorwaarde: de bouwer toont alleen een lijst van voorwaarden
+  else return null; // dubbele "niet": dat toont de bouwer niet
   c.not = not;
   return c;
 }

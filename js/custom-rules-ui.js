@@ -148,7 +148,11 @@ function customCheck(){
   customCancelRun();
   customClearReport();
   customDef = null;
-  const parsed = parseCustomRule(customEl('customRuleText').value);
+  // Een antwoord van een taalmodel heeft vaak tekst of een codeblok om het regelblok heen: alleen het blok blijft staan.
+  const box = customEl('customRuleText');
+  const cleaned = extractRuleJson(box.value);
+  if (cleaned !== box.value) box.value = cleaned;
+  const parsed = parseCustomRule(box.value);
   if (parsed.errors.length){
     customShowMessages(parsed.errors.map(e => [false, e]));
     customUpdateButtons();
@@ -293,6 +297,20 @@ function customTrapFocus(e){
   else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
 }
 
+// De instructie voor een taalmodel: in het vak eronder gezet (zodat je ziet wat je deelt) en, als de browser het toelaat, gekopieerd.
+function customCopyPrompt(){
+  const text = buildRulePrompt(customEl('customWish').value);
+  const out = customEl('customPromptOut'), status = customEl('customPromptStatus');
+  out.value = text;
+  out.hidden = false;
+  const manual = () => { status.textContent = 'Kopiëren lukte niet vanzelf: selecteer de tekst hieronder en kopieer hem zelf.'; out.focus(); out.select(); };
+  const done = () => { status.textContent = 'Gekopieerd. Plak de instructie in een gesprek met Claude en plak het antwoord in het tekstvak "Regelblok".'; };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, manual);
+    else manual();
+  } catch (e){ manual(); }
+}
+
 (function wire(){
   const on = (id, type, fn) => { const el = customEl(id); if (el && el.addEventListener) el.addEventListener(type, fn); };
   on('customRuleBtn', 'click', () => openCustomRuleDialog(customEl('customRuleBtn')));
@@ -303,6 +321,7 @@ function customTrapFocus(e){
   on('customRuleTrialBtn', 'click', customTrialToggle);
   on('customRuleAdd', 'click', customAdd);
   on('customRuleText', 'input', customInvalidate);
+  on('customPromptCopy', 'click', customCopyPrompt);
   if (document.addEventListener) document.addEventListener('keydown', e => {
     const box = customEl('customRule');
     if (!box || !box.classList.contains('show')) return;
