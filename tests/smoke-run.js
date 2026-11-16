@@ -2384,6 +2384,37 @@ let liveChecked = 0;
   banner.innerHTML = '';
 }
 
+// ---- de rondelimiet van de simulatie (simulation.js) ----
+{
+  const fail = t => failures.push('rondelimiet: ' + t);
+  // Zoekt een deling met de gevraagde uitkomst en speelt haar opnieuw met de limiet precies op, net onder en net boven het einde.
+  const probe = (outcome, n, rules, prefix) => JSON.parse(run(`(() => { for (let s = 0; s < 400; s++){
+      const st = dealGame(Array.from({ length: ${n} }, (_, i) => 'S' + i), ${JSON.stringify(rules)}, ${JSON.stringify(prefix)} + s);
+      const full = simulateFullTrace(st.players, SIM_ROUND_CAP, st.rules);
+      if (full.outcome !== ${JSON.stringify(outcome)} || full.rounds < 2) continue;
+      const at = simulateFullTrace(st.players, full.rounds, st.rules), under = simulateFullTrace(st.players, full.rounds - 1, st.rules), over = simulateFullTrace(st.players, full.rounds + 5, st.rules);
+      return JSON.stringify({ rounds: full.rounds, at: [at.outcome, at.rounds, at.winnerId], under: [under.outcome, under.rounds], over: [over.outcome, over.rounds, over.winnerId], winner: full.winnerId,
+        sameEnd: JSON.stringify(at.finalPlayers) === JSON.stringify(full.finalPlayers), traceAt: at.trace.length, traceFull: full.trace.length });
+    } return 'null'; })()`));
+  const win = probe('win', 4, { secondChance: true }, 'lim');
+  if (!win) fail('geen testspel met een winnaar gevonden');
+  else {
+    if (JSON.stringify(win.at) !== JSON.stringify(['win', win.rounds, win.winner])) fail('een spel dat precies in de laatste toegestane ronde eindigt hoort een winnaar te hebben: ' + JSON.stringify(win));
+    if (JSON.stringify(win.under) !== JSON.stringify(['unknown', win.rounds - 1])) fail('één ronde te weinig hoort "onbekend" te zijn, met het aantal gespeelde rondes: ' + JSON.stringify(win));
+    if (JSON.stringify(win.over) !== JSON.stringify(['win', win.rounds, win.winner])) fail('een ruimere limiet verandert de uitkomst niet: ' + JSON.stringify(win));
+    if (!win.sameEnd || win.traceAt !== win.traceFull) fail('de eindstand en het verloop horen gelijk te zijn aan die met de ruime limiet: ' + JSON.stringify(win));
+  }
+  const cyc = probe('cycle', 2, {}, 'cyc');
+  if (!cyc) fail('geen testspel met een cyclus gevonden');
+  else {
+    if (cyc.at[0] !== 'cycle' || cyc.at[1] !== cyc.rounds) fail('een cyclus die precies op de limiet sluit hoort als cyclus gemeld te worden: ' + JSON.stringify(cyc));
+    if (JSON.stringify(cyc.under) !== JSON.stringify(['unknown', cyc.rounds - 1])) fail('één ronde te weinig hoort "onbekend" te zijn: ' + JSON.stringify(cyc));
+  }
+  // Limiet 0: er wordt niets gespeeld.
+  const zero = JSON.parse(run(`(() => { const st = dealGame(['a', 'b'], {}, 'nul'); const r = simulateFullTrace(st.players, 0, st.rules); return JSON.stringify([r.outcome, r.rounds, r.trace.length]); })()`));
+  if (JSON.stringify(zero) !== JSON.stringify(['unknown', 0, 0])) fail('met limiet 0 wordt er niets gespeeld: ' + JSON.stringify(zero));
+}
+
 // ---- doorspoelen en de statistieken (controls.js, stats.js) ----
 {
   const fail = t => failures.push('doorspoelen: ' + t);
@@ -2396,8 +2427,10 @@ let liveChecked = 0;
   run('globalThis.__draws = 0; globalThis.__origDraw = renderStatsPanel; renderStatsPanel = () => { __draws++; };');
   try {
     const snap0 = run('JSON.stringify(statsSnapshot())');
+    run('roundPot = [game.players[0].deck[0]]; roundSidelined = [1];'); // alsof er net een ronde zichtbaar is gespeeld
     run('fastForward()');
     if (run('phase') !== 'round-over') fail('het testspel (4 spelers, seed 1000) hoort niet binnen 3000 rondes te eindigen, fase: ' + run('phase'));
+    if (run('roundPot.length + roundSidelined.length') !== 0) fail('na doorspoelen horen er geen kaarten van de laatste zichtbare ronde meer klaar te staan om weg te schuiven');
     if (run('__draws') !== 1) fail('doorspoelen hoort het statistiekenpaneel één keer te tekenen, niet na elke ronde (' + run('__draws') + ' keer)');
     const fresh = state();
     // Dezelfde cijfers als wanneer elke ronde apart wordt geteld (zoals het spel zelf doet): terug naar de stand van vóór het doorspoelen en dan de oude manier.

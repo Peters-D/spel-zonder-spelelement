@@ -71,6 +71,10 @@ function fastForward(){
     game.players[i].faceCard = null;
   });
   game.pot = [];
+  // De kaarten van de laatste zichtbare ronde liggen niet meer op tafel: zonder dit zou "Ruim tafel op" ze na het doorspoelen
+  // nog laten wegschuiven (animate.js), terwijl ze al rondes geleden zijn verdeeld.
+  roundPot = [];
+  roundSidelined = [];
   game.discard = result.finalDiscard;
   game.moved = result.finalMoved;
   displayPot = 0;
