@@ -221,7 +221,7 @@ function endGame(winner, jointWinners){
 }
 
 function endCycleDetected(){
-  showEndBanner('⚠ CYCLUS GEDETECTEERD ★', 'Deze spelstand kwam al eerder voor — het spel zou nooit eindigen. Onbeslist.', 'end-banner-warning');
+  showEndBanner('⚠ DIT SPEL EINDIGT NIET ⚠', 'Deze stand kwam al eerder voor, dus het spel zou eeuwig doorgaan. Niemand wint.', 'end-banner-warning');
   if (typeof stopAutoPlay === 'function' && autoPlayActive) stopAutoPlay();
 }
 

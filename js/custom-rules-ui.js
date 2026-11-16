@@ -24,19 +24,19 @@ function customReportSummary(report){
   const rows = [
     ['Gespeelde spellen', String(n), String(n)],
     ['Eindigen met een winnaar', wo[0], wi[0]],
-    ['Lopen vast in een cyclus', wo[1], wi[1]],
-    ['Niet beslist na ' + SIM_ROUND_CAP + ' rondes', wo[2], wi[2]],
-    ['Gemiddelde lengte (spellen met een winnaar)', avg(report.avgWinRounds.without), avg(report.avgWinRounds.with)]
+    ['Eindigen nooit (dezelfde stand komt terug)', wo[1], wi[1]],
+    ['Nog bezig na ' + SIM_ROUND_CAP + ' rondes', wo[2], wi[2]],
+    ['Gemiddeld aantal rondes (spellen met een winnaar)', avg(report.avgWinRounds.without), avg(report.avgWinRounds.with)]
   ];
   const notes = [];
   if (n < report.games) notes.push({ ok: false, text: 'Gestopt na ' + n + ' van de ' + report.games + ' spellen.' });
   const lost = report.conservationFailures.length;
-  notes.push(lost ? { ok: false, text: 'Er gingen kaarten verloren of dubbel in ' + lost + ' spellen (eerste: spel ' + report.conservationFailures[0].game + ', ' + report.conservationFailures[0].side + ' de regel).' }
-    : { ok: true, text: 'In alle spellen bleven het 52 verschillende kaarten.' });
+  notes.push(lost ? { ok: false, text: 'In ' + lost + ' spellen raakten kaarten zoek of kwamen ze dubbel voor (eerste: spel ' + report.conservationFailures[0].game + ', ' + report.conservationFailures[0].side + ' de regel).' }
+    : { ok: true, text: 'In alle spellen bleven er 52 verschillende kaarten.' });
   notes.push(report.errors.length ? { ok: false, text: 'De regel gaf een fout in ' + report.errors.length + ' spellen: ' + report.errors[0].message }
     : { ok: true, text: 'De regel gaf geen fouten.' });
   const ex = report.examples;
-  notes.push(ex.failures.length ? { ok: false, text: 'Van de voorbeelden kloppen er ' + ex.passed + ' van de ' + ex.total + '.' }
+  notes.push(ex.failures.length ? { ok: false, text: 'Maar ' + ex.passed + ' van de ' + ex.total + ' voorbeelden ' + (ex.passed === 1 ? 'klopt' : 'kloppen') + '.' }
     : { ok: true, text: 'De voorbeelden kloppen: ' + ex.passed + ' van de ' + ex.total + '.' });
   return { rows, notes, ok: report.ok && n === report.games };
 }
@@ -90,7 +90,7 @@ function customRenderReport(report){
   box.appendChild(list);
   const time = document.createElement('p');
   time.className = 'cr-time';
-  time.textContent = 'Rekentijd: ' + (report.ms / 1000).toFixed(1) + ' seconde.';
+  time.textContent = 'Het rekenen duurde ' + (report.ms / 1000).toFixed(1).replace('.', ',') + ' seconden.';
   box.appendChild(time);
 }
 
@@ -101,7 +101,7 @@ function customRenderAdded(){
   if (rules.length === 0){
     const li = document.createElement('li');
     li.className = 'cr-info';
-    li.textContent = 'Nog geen eigen regels toegevoegd.';
+    li.textContent = 'Je hebt nog geen eigen regels toegevoegd.';
     list.appendChild(li);
     return;
   }
@@ -162,12 +162,12 @@ function customCheck(){
   const lines = [];
   if (ex.failures.length){
     ex.failures.forEach(f => lines.push([false, f]));
-    lines.push([false, 'Van de voorbeelden kloppen er ' + ex.passed + ' van de ' + ex.total + '. Pas het blok of de voorbeelden aan.']);
+    lines.push([false, 'Maar ' + ex.passed + ' van de ' + ex.total + ' voorbeelden ' + (ex.passed === 1 ? 'klopt' : 'kloppen') + '. Pas de regel of de voorbeelden aan.']);
   } else {
-    lines.push([true, 'Het blok klopt.']);
+    lines.push([true, 'De regel klopt.']);
     lines.push([true, 'De voorbeelden kloppen: ' + ex.passed + ' van de ' + ex.total + '.']);
-    lines.push([null, 'Zo leest het spel je regel: ' + describeRuleLogic(parsed.def.logic)]); // controleer of dit is wat je bedoelde
-    if (customRules().some(r => r.id === parsed.def.id)) lines.push([null, 'Er is al een eigen regel met deze id: toevoegen vervangt die.']);
+    lines.push([null, 'Dit doet je regel: ' + describeRuleLogic(parsed.def.logic)]); // controleer of dit is wat je bedoelde
+    if (customRules().some(r => r.id === parsed.def.id)) lines.push([null, 'Je hebt al een eigen regel met deze id. Voeg je deze toe, dan vervangt hij de oude.']);
     customDef = parsed.def;
   }
   customShowMessages(lines);
@@ -177,7 +177,7 @@ function customCheck(){
 function customSample(){
   customInvalidate();
   customEl('customRuleText').value = JSON.stringify(CUSTOM_RULE_SAMPLE, null, 2);
-  customShowMessages([[null, 'Dit is een voorbeeld. Druk op "Controleer".']]);
+  customShowMessages([[null, 'Dit is een voorbeeld. Druk op "Controleer de regel".']]);
 }
 
 function customTrialOptions(){
@@ -257,7 +257,7 @@ function customRemove(rule){
   removeCustomRule(rule.id);
   refreshRuleOptions();
   customRenderAdded();
-  customStatus('Eigen regel verwijderd: ' + rule.title + '.');
+  customStatus('Eigen regel weggehaald: ' + rule.title + '.');
 }
 
 function customExport(rule){
@@ -304,7 +304,7 @@ function customCopyPrompt(){
   out.value = text;
   out.hidden = false;
   const manual = () => { status.textContent = 'Kopiëren lukte niet vanzelf: selecteer de tekst hieronder en kopieer hem zelf.'; out.focus(); out.select(); };
-  const done = () => { status.textContent = 'Gekopieerd. Plak de instructie in een gesprek met Claude en plak het antwoord in het tekstvak "Regelblok".'; };
+  const done = () => { status.textContent = 'Gekopieerd. Plak de instructie in een gesprek met Claude en plak het antwoord in het tekstvak onder "De regel als tekst".'; };
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, manual);
     else manual();

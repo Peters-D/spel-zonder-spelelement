@@ -29,10 +29,10 @@
   <div class="setup" id="setup">
     <h2>Aantal spelers</h2>
     <div class="count-grid" id="countGrid"></div>
-    <h2>Namen (optioneel)</h2>
+    <h2>Namen (mag je leeg laten)</h2>
     <div class="names-list" id="namesList"></div>
-    <h2>Seed (optioneel, voor testen)</h2>
-    <input type="text" id="seedInput" value="1000" autocomplete="off" placeholder="bijv. test123 — leeg = willekeurig" style="width:100%;background:var(--olive-dark);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:9px 12px;font-family:'Inter',sans-serif;font-size:13.5px;outline:none;margin-bottom:18px;box-sizing:border-box;">
+    <h2>Seed (hetzelfde woord geeft hetzelfde spel)</h2>
+    <input type="text" id="seedInput" value="1000" autocomplete="off" placeholder="bijv. test123 (leeg = elke keer een ander spel)" style="width:100%;background:var(--olive-dark);border:1px solid var(--line);color:var(--paper);border-radius:8px;padding:9px 12px;font-family:'Inter',sans-serif;font-size:13.5px;outline:none;margin-bottom:18px;box-sizing:border-box;">
     <h2>Extra regels</h2>
     <div id="rulesList"></div>
     <button type="button" class="custom-rule-btn" id="customRuleBtn" aria-haspopup="dialog">➕ Eigen regel</button>
@@ -41,11 +41,11 @@
     <button class="rulebook-btn" id="rulebookBtnSetup">📖 Spelregels</button>
 
     <div class="cycle-warning hidden" id="cycleWarning">
-      <div class="cycle-warning-title">⚠ Cyclus gedetecteerd</div>
-      <div class="cycle-warning-text" id="cycleWarningText">Deze indeling lijkt vast te lopen zonder winnaar.</div>
+      <div class="cycle-warning-title">⚠ Dit spel eindigt niet</div>
+      <div class="cycle-warning-text" id="cycleWarningText">Met deze deling komt er waarschijnlijk nooit een winnaar.</div>
       <div class="cycle-warning-actions">
         <button id="cycleProceedBtn">Toch doorspelen</button>
-        <button id="cycleNewSeedBtn">Nieuwe seed proberen</button>
+        <button id="cycleNewSeedBtn">Andere deling proberen</button>
       </div>
     </div>
   </div>
@@ -71,11 +71,11 @@
     </div>
     <div id="endBanner"></div>
     <div class="autoplay-row">
-      <button class="autoplay-btn" id="autoPlayBtn">▶ Auto-play</button>
+      <button class="autoplay-btn" id="autoPlayBtn">▶ Speel vanzelf</button>
       <input type="range" id="speedSlider" class="speed-slider" min="100" max="2000" step="100" value="800">
-      <span class="speed-label" id="speedLabel">800 ms</span>
+      <span class="speed-label" id="speedLabel">0,8 s per stap</span>
       <button class="autoplay-btn" id="undoBtn" title="Een ronde terug (tot tien rondes)" aria-label="Stap terug">↩️</button>
-      <button class="autoplay-btn" id="fastForwardBtn" title="Spring direct naar de winnaar">⏩</button>
+      <button class="autoplay-btn" id="fastForwardBtn" title="Speel in één keer door tot het einde" aria-label="Speel door tot het einde">⏩</button>
     </div>
     <label class="anim-toggle"><input type="checkbox" id="animToggle" autocomplete="off"><span>Animaties</span></label>
     <button class="play-btn" id="playBtn">Speel ronde</button>
@@ -85,7 +85,7 @@
     <!-- ===== STATS MODULE START — verwijder dit blok om de statistiekenfunctie te verwijderen ===== -->
     <button class="stats-toggle-btn" id="statsToggleBtn">📊 Statistieken</button>
     <div class="stats-panel hidden" id="statsPanel">
-      <h2 class="stats-heading">Kaarten per speler — verloop</h2>
+      <h2 class="stats-heading">Kaarten per speler, ronde na ronde</h2>
       <div class="stats-chart-wrap">
         <canvas id="statsChart" width="600" height="150"></canvas>
       </div>
@@ -109,48 +109,48 @@
   <div class="rulebook-inner" id="customRuleInner">
     <button class="rulebook-close" id="customRuleClose" type="button" aria-label="Sluiten">✕</button>
     <h2 class="rulebook-title" id="customRuleTitle">Eigen regel</h2>
-    <p class="cr-text">Bouw een regel met de keuzes hieronder, of plak een regelblok (JSON). Controleer het, speel proefspellen en voeg het toe. Een eigen regel blijft alleen staan tot je de pagina ververst: exporteer hem om hem te bewaren of te delen.</p>
-    <h3 class="cr-heading">Bouw een regel</h3>
+    <p class="cr-text">Maak hier je eigen regel. Klik hem hieronder in elkaar, kijk of hij doet wat je bedoelt en voeg hem toe. Let op: een eigen regel verdwijnt als je de pagina ververst. Wil je hem bewaren of delen, exporteer hem dan.</p>
+    <h3 class="cr-heading">Bouw je regel</h3>
     <div class="bld-form" id="ruleBuilderForm"></div>
     <p class="bld-sentence" id="ruleBuilderSentence" aria-live="polite"></p>
     <div class="bld-notice" id="ruleBuilderNotice" role="status" hidden>
-      <span>In het tekstvak staat een blok dat niet uit de bouwer komt. De bouwer laat het staan.</span>
-      <button type="button" class="bld-small" id="ruleBuilderReplace">Vervang het tekstvak door de regel uit de bouwer</button>
+      <span>In het tekstvak hieronder staat een regel die je niet hier hebt gebouwd. Die blijft staan.</span>
+      <button type="button" class="bld-small" id="ruleBuilderReplace">Zet de regel uit de bouwer in het tekstvak</button>
     </div>
-    <div class="cr-buttons"><button type="button" class="bld-small" id="ruleBuilderReset">Begin opnieuw in de bouwer</button></div>
-    <h3 class="cr-heading">Regelblok (tekst)</h3>
-    <label class="cr-label" for="customRuleText">Regelblok</label>
+    <div class="cr-buttons"><button type="button" class="bld-small" id="ruleBuilderReset">Begin opnieuw</button></div>
+    <h3 class="cr-heading">De regel als tekst</h3>
+    <label class="cr-label" for="customRuleText">Je regel als tekst. Je kunt hier ook een regel plakken die je van iemand hebt gekregen.</label>
     <textarea id="customRuleText" class="cr-textarea" rows="12" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
     <div class="cr-buttons">
-      <button type="button" id="customRuleSample">Voorbeeld</button>
-      <button type="button" id="customRuleCheck">Controleer</button>
-      <button type="button" id="ruleBuilderLoad">Laad in de bouwer</button>
+      <button type="button" id="customRuleSample">Toon een voorbeeld</button>
+      <button type="button" id="customRuleCheck">Controleer de regel</button>
+      <button type="button" id="ruleBuilderLoad">Open in de bouwer</button>
     </div>
     <ul class="cr-messages" id="customRuleMessages" aria-live="polite"></ul>
     <div class="cr-trial">
-      <label class="cr-inline" for="customTrialGames">Proefspellen
+      <label class="cr-inline" for="customTrialGames">Aantal proefspellen
         <select id="customTrialGames" autocomplete="off">
           <option value="50">50</option><option value="100">100</option><option value="200" selected>200</option><option value="500">500</option><option value="1000">1000</option>
         </select>
       </label>
-      <label class="cr-inline"><input type="checkbox" id="customTrialBase" autocomplete="off"> met de regels die nu zijn aangevinkt</label>
+      <label class="cr-inline"><input type="checkbox" id="customTrialBase" autocomplete="off"> samen met de regels die nu aan staan</label>
     </div>
     <div class="cr-buttons">
       <button type="button" id="customRuleTrialBtn" disabled>Speel proefspellen</button>
-      <button type="button" id="customRuleAdd" disabled>Voeg toe</button>
+      <button type="button" id="customRuleAdd" disabled>Voeg de regel toe</button>
     </div>
     <progress class="cr-progress" id="customRuleProgress" max="1" value="0" hidden></progress>
     <div class="cr-report" id="customRuleReport" aria-live="polite"></div>
     <h3 class="cr-heading">Laat Claude de regel schrijven</h3>
-    <p class="cr-text">Het spel maakt zelf geen verbinding. Beschrijf je regel, kopieer de instructie, plak die in een gesprek met Claude (of een ander taalmodel) en plak het antwoord hierboven in het tekstvak.</p>
+    <p class="cr-text">Je kunt een regel ook laten schrijven door Claude (of een andere AI-assistent). Het spel maakt zelf geen verbinding met internet, dus dat gaat zo: beschrijf hieronder je regel, kopieer de instructie en plak die in een gesprek met Claude. Plak het antwoord daarna hierboven in het tekstvak.</p>
     <label class="cr-label" for="customWish">Wat moet de regel doen?</label>
     <textarea id="customWish" class="cr-textarea cr-wish" rows="2" maxlength="600" autocomplete="off" placeholder="Bijvoorbeeld: twee Vrouwen winnen samen van een Heer"></textarea>
     <div class="cr-buttons">
-      <button type="button" id="customPromptCopy">Kopieer instructie</button>
+      <button type="button" id="customPromptCopy">Kopieer de instructie</button>
     </div>
     <p class="cr-text" id="customPromptStatus" aria-live="polite"></p>
     <textarea id="customPromptOut" class="cr-textarea" rows="6" readonly hidden aria-label="De instructie voor Claude"></textarea>
-    <h3 class="cr-heading">Toegevoegde regels</h3>
+    <h3 class="cr-heading">Jouw eigen regels</h3>
     <ul class="cr-added" id="customRuleAdded"></ul>
   </div>
 </div>

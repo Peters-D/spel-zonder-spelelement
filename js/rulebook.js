@@ -14,7 +14,7 @@ function rbBuildExample(ex, allRules){
   const box = rbEl('div', 'rb-example');
   if (ex.with && ex.with.length > 0){
     const titles = ex.with.map(id => (allRules.find(r => r.id === id) || { title: id }).title);
-    box.appendChild(rbEl('div', 'rb-with', 'Met erbij: ' + titles.join(', ')));
+    box.appendChild(rbEl('div', 'rb-with', 'Deze regels staan ook aan: ' + titles.join(', ')));
   }
   if (isScenarioExample(ex)){
     rbBuildScenario(ex, box);
@@ -96,10 +96,10 @@ function buildRulebook(rules, base, active){
   // Alleen regels die kunnen beslissen wie een ronde wint doen mee aan de botsingen.
   const ordered = rules.filter(r => typeof r.decide === 'function' || typeof r.breakTie === 'function').sort((a, b) => a.priority - b.priority);
   const order = rbEl('section', 'rb-section rb-order');
-  order.appendChild(rbEl('h3', 'rb-heading', 'Volgorde bij botsingen'));
+  order.appendChild(rbEl('h3', 'rb-heading', 'Welke regel gaat voor?'));
   order.appendChild(rbEl('p', 'rb-text',
-    'Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die iets te zeggen heeft. ' +
-    'Heeft geen enkele regel iets te zeggen, dan wint de hoogste kaart. ' +
+    'Staan er meer extra regels aan, dan beslist de eerste regel in deze lijst die van toepassing is. ' +
+    'Is geen enkele regel van toepassing, dan wint de hoogste kaart. ' +
     'Blijft er daarna een gelijkspel over en staat "Bij gelijkspel beslist het symbool" aan, dan beslist het symbool.'));
   const list = rbEl('ol', 'rb-order-list');
   for (const rule of ordered){

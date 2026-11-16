@@ -59,7 +59,7 @@ test('stap terug tijdens auto-play stopt het auto-play en klopt met de kaarten',
   await page.waitForFunction(() => !document.getElementById('undoBtn').disabled);
   await page.waitForTimeout(400); // een paar rondes laten lopen
   await page.click('#undoBtn');
-  eq(await text(page, '#autoPlayBtn'), '▶ Auto-play', 'knop na stap terug');
+  eq(await text(page, '#autoPlayBtn'), '▶ Speel vanzelf', 'knop na stap terug');
   await page.waitForTimeout(500); // als het auto-play doorliep, zou de stand nu veranderd zijn
   const a = await page.evaluate(() => stateSignature(game.players, game.discard));
   await page.waitForTimeout(500);
@@ -131,7 +131,7 @@ test('Enter en Spatie op de knoppen in het spel', async page => {
   await page.keyboard.press('Enter');
   eq(await text(page, '#autoPlayBtn'), '⏸ Pauzeer', 'Enter op auto-play');
   await page.keyboard.press('Space');
-  eq(await text(page, '#autoPlayBtn'), '▶ Auto-play', 'Spatie op auto-play');
+  eq(await text(page, '#autoPlayBtn'), '▶ Speel vanzelf', 'Spatie op auto-play');
   noErrors(page);
 });
 
@@ -576,7 +576,7 @@ test('eigen regels: voorbeeld, controleren en wijzigen', async page => {
   eq(JSON.parse(text).id, 'custom-opeenvolgend', 'het voorbeeld staat in het tekstvak');
   ok(await page.isDisabled('#customRuleAdd'), 'toevoegen kan pas na controleren');
   await page.click('#customRuleCheck');
-  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Zo leest het spel je regel: De kaarten van de hoogste groep van minstens 3 kaarten met opeenvolgende waarden winnen. Bij gelijk spel: BATTLE!'], 'meldingen');
+  eq(await crMessages(page), ['✓ De regel klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Dit doet je regel: De kaarten van de hoogste groep van minstens 3 kaarten met opeenvolgende waarden winnen. Bij gelijk spel: BATTLE!'], 'meldingen');
   ok(!(await page.isDisabled('#customRuleTrialBtn')) && !(await page.isDisabled('#customRuleAdd')), 'knoppen na een goede controle');
   await page.fill('#customRuleText', text + ' ');
   ok(await page.isDisabled('#customRuleTrialBtn') && await page.isDisabled('#customRuleAdd'), 'wijzigen haalt de goedkeuring weg');
@@ -588,7 +588,7 @@ test('eigen regels: fouten staan er in gewone taal, en het blok wordt niet toege
   await crOpen(page);
   await page.fill('#customRuleText', '{ geen json');
   await page.click('#customRuleCheck');
-  ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij kapotte JSON: ' + (await crMessages(page))[0]);
+  ok((await crMessages(page))[0].startsWith('✗ Het spel kan deze tekst niet lezen'), 'melding bij kapotte JSON: ' + (await crMessages(page))[0]);
   const sample = await crSample(page);
   sample.code = 'alert(1)'; sample.id = 'mijn-regel'; sample.logic.then.win = { rank: 'Z' };
   await crFill(page, sample);
@@ -619,7 +619,7 @@ test('eigen regels: proefspellen met voortgang en rapport', async page => {
   ok(await page.isHidden('#customRuleProgress'), 'voortgangsbalk weg na de proef');
   ok(!(await page.isDisabled('#customRuleAdd')), 'toevoegen kan weer');
   const rows = await page.$$eval('#customRuleReport .cr-table tr', trs => trs.map(tr => [...tr.children].map(c => c.textContent)));
-  eq(rows.map(r => r[0]), ['', 'Gespeelde spellen', 'Eindigen met een winnaar', 'Lopen vast in een cyclus', 'Niet beslist na 3000 rondes', 'Gemiddelde lengte (spellen met een winnaar)'], 'rijen van het rapport');
+  eq(rows.map(r => r[0]), ['', 'Gespeelde spellen', 'Eindigen met een winnaar', 'Eindigen nooit (dezelfde stand komt terug)', 'Nog bezig na 3000 rondes', 'Gemiddeld aantal rondes (spellen met een winnaar)'], 'rijen van het rapport');
   eq(rows[1], ['Gespeelde spellen', '50', '50'], 'aantal spellen');
   const notes = await page.$$eval('#customRuleReport .cr-messages li', x => x.map(e => e.textContent));
   eq(notes.map(n => n[0]), ['✓', '✓', '✓'], 'alles in orde');
@@ -715,7 +715,7 @@ test('eigen regels: dezelfde id vervangt, exporteren en weghalen werken', async 
   second.title = 'Tweede versie'; second.short = 'Tweede korte tekst';
   await crOpen(page);
   await crFill(page, second);
-  ok((await crMessages(page)).some(m => m.includes('toevoegen vervangt die')), 'melding dat er al een regel met deze id is');
+  ok((await crMessages(page)).some(m => m.includes('dan vervangt hij de oude')), 'melding dat er al een regel met deze id is');
   await page.click('#customRuleAdd');
   eq(await page.locator('#rulesList label.rule-check').count(), 7, 'nog steeds één vinkje erbij');
   ok((await page.textContent('#custom-opeenvolgendInput >> xpath=..')).includes('Tweede versie'), 'het vinkje toont de naam van de nieuwste versie');
@@ -723,11 +723,11 @@ test('eigen regels: dezelfde id vervangt, exporteren en weghalen werken', async 
   eq(await page.$$eval('#customRuleAdded li span', x => x.map(e => e.textContent)), ['Tweede versie (custom-opeenvolgend)'], 'lijst met toegevoegde regels');
   await page.click('#customRuleAdded button:has-text("Exporteer")');
   eq(await page.evaluate(() => JSON.parse(document.getElementById('customRuleText').value).title), 'Tweede versie', 'export zet het blok in het tekstvak');
-  eq(await crMessages(page), ['✓ Het blok klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Zo leest het spel je regel: De kaarten van de hoogste groep van minstens 3 kaarten met opeenvolgende waarden winnen. Bij gelijk spel: BATTLE!', 'ℹ Er is al een eigen regel met deze id: toevoegen vervangt die.'], 'export wordt meteen gecontroleerd');
+  eq(await crMessages(page), ['✓ De regel klopt.', '✓ De voorbeelden kloppen: 2 van de 2.', 'ℹ Dit doet je regel: De kaarten van de hoogste groep van minstens 3 kaarten met opeenvolgende waarden winnen. Bij gelijk spel: BATTLE!', 'ℹ Je hebt al een eigen regel met deze id. Voeg je deze toe, dan vervangt hij de oude.'], 'export wordt meteen gecontroleerd');
   await page.click('#customRuleAdded button:has-text("Haal weg")');
   eq(await page.locator('#custom-opeenvolgendInput').count(), 0, 'vinkje is weg');
   eq(await page.locator('#rulesList label.rule-check').count(), 6, 'zes vinkjes over');
-  ok((await text(page, '#customRuleStatus')).includes('verwijderd'), 'melding na weghalen');
+  ok((await text(page, '#customRuleStatus')).includes('weggehaald'), 'melding na weghalen');
   ok(await crNoCustom(page), 'regel is weg uit het spel');
   noErrors(page);
 });
@@ -779,7 +779,7 @@ test('eigen regels: het venster leest de regel terug in gewone taal', async page
     examples: [{ cards: ['K♠', '9♥', '3♦'], winners: [1], text: 'x' }] }));
   await crFill(page, rood);
   const msgs = await crMessages(page);
-  eq(msgs[2], 'ℹ Zo leest het spel je regel: Als er een rode kaart ligt, dan wint de hoogste rode kaart. Bij gelijk spel: BATTLE!', 'zin bij een regel met een voorwaarde');
+  eq(msgs[2], 'ℹ Dit doet je regel: Als er een rode kaart ligt, dan wint de hoogste rode kaart. Bij gelijk spel: BATTLE!', 'zin bij een regel met een voorwaarde');
   // Bij een blok dat niet klopt is er geen zin.
   rood.logic.then.win = { rank: 'Z' };
   await crFill(page, rood);
@@ -798,14 +798,14 @@ test('regelbouwer: de bouwer staat in het venster en maakt een blok bij elke keu
   await crOpen(page);
   ok(await page.isVisible('#ruleBuilderForm'), 'het formulier staat in het venster');
   eq(await page.$$eval('[aria-label="Wanneer?"] option', o => o.map(x => x.textContent)),
-    ['Bij het bepalen van de winnaar', 'Bij een gelijkspel', 'Als de pot wordt toegekend', 'Aan het einde van de ronde'], 'momenten');
-  ok((await bSentence(page)).startsWith('Kies hierboven'), 'uitleg voordat er iets is gekozen');
+    ['Als de kaarten open liggen: wie wint de ronde?', 'Als spelers gelijk eindigen: wie van hen wint?', 'Als de winnaar de pot krijgt', 'Aan het einde van de ronde'], 'momenten');
+  ok((await bSentence(page)).startsWith('Hier komt in gewone taal'), 'uitleg voordat er iets is gekozen');
   eq(await page.inputValue('#customRuleText'), '', 'het tekstvak blijft leeg tot je iets kiest');
   await page.fill('.bld-title', 'Aas en twee');
   eq((await bBlock(page)).id, 'custom-aas-en-twee', 'id uit de naam');
   eq(await bSentence(page), 'Kaarten met een Aas winnen. Bij gelijk spel: BATTLE!', 'zin bij de beginstand');
   const msgs = await crMessages(page);
-  ok(msgs[0] === '✓ Het blok klopt.' && msgs[1].startsWith('✓ De voorbeelden kloppen'), 'het blok wordt meteen gecontroleerd: ' + msgs.join(' | '));
+  ok(msgs[0] === '✓ De regel klopt.' && msgs[1].startsWith('✓ De voorbeelden kloppen'), 'het blok wordt meteen gecontroleerd: ' + msgs.join(' | '));
   ok(!(await page.isDisabled('#customRuleTrialBtn')) && !(await page.isDisabled('#customRuleAdd')), 'knoppen na een goed blok');
   noErrors(page);
 });
@@ -825,9 +825,9 @@ test('regelbouwer: waarden en symbolen kiezen, en voorwaarden samenstellen', asy
   eq(await bSentence(page), 'Als er een Heer ligt, dan winnen kaarten van harten of ruiten. Bij gelijk spel: BATTLE!', 'zin met een voorwaarde en twee symbolen');
   // Een tweede voorwaarde, samengevoegd met "of", en "niet".
   await page.click('text=+ voorwaarde');
-  await page.locator('.bld-row').nth(1).locator('label', { hasText: /^niet$/ }).locator('input').check();
-  await page.selectOption('[aria-label="Hoe de voorwaarden samengaan"]', 'or');
-  eq(await bSentence(page), 'Als er een Heer ligt of het niet zo is dat er een Aas ligt, dan winnen kaarten van harten of ruiten. Bij gelijk spel: BATTLE!', 'de voorwaarden zijn met "of" verbonden en de tweede is ontkend');
+  await page.locator('.bld-row').nth(1).locator('label', { hasText: /^juist niet$/ }).locator('input').check();
+  await page.selectOption('[aria-label="Moeten alle voorwaarden kloppen?"]', 'or');
+  eq(await bSentence(page), 'Als er een Heer ligt of er geen Aas ligt, dan winnen kaarten van harten of ruiten. Bij gelijk spel: BATTLE!', 'de voorwaarden zijn met "of" verbonden en de tweede is ontkend');
   const block = await bBlock(page);
   eq(Object.keys(block.logic.if), ['or'], 'de beschrijving heeft een "or"');
   noErrors(page);
@@ -841,20 +841,20 @@ test('regelbouwer: het moment bepaalt wat er te kiezen valt', async page => {
   eq(await effects(), ['discardPot', 'sharePot'], 'gevolgen bij het toekennen van de pot');
   eq(await bSentence(page), 'De hele pot gaat naar de aflegstapel.', 'zin na wisselen van moment');
   await page.click('text=+ voorwaarde');
-  eq(await page.$$eval('[aria-label="Voorwaarde 1: soort"] option', o => o.map(x => x.value)), ['battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'group'], 'voorwaarden bij award (en een groep)');
-  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
-  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers"] option', o => o.map(x => x.value)), ['winner', 'opened', 'withoutCards'], 'spelers bij award, met de winnaar');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: wat moet er kloppen?"] option', o => o.map(x => x.value)), ['battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'group'], 'voorwaarden bij award (en een groep)');
+  await bPick(page, 'Voorwaarde 1: wat moet er kloppen?', 'anyPlayer');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers?"] option', o => o.map(x => x.value)), ['winner', 'opened', 'withoutCards'], 'spelers bij award, met de winnaar');
   await bPick(page, 'Wanneer?', 'roundEnd');
   eq(await page.$$eval('[aria-label="Wat gebeurt er?"] option', o => o.map(x => x.value)), ['transfer', 'discardTop'], 'gevolgen aan het einde van de ronde');
   await page.click('text=+ voorwaarde');
-  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
-  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers"] option', o => o.map(x => x.value)), ['opened', 'withoutCards'], 'spelers aan het einde van de ronde, zonder de winnaar');
-  await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+  await bPick(page, 'Voorwaarde 1: wat moet er kloppen?', 'anyPlayer');
+  eq(await page.$$eval('[aria-label="Voorwaarde 1: welke spelers?"] option', o => o.map(x => x.value)), ['opened', 'withoutCards'], 'spelers aan het einde van de ronde, zonder de winnaar');
+  await bPick(page, 'Voorwaarde 1: welke spelers?', 'opened');
   eq(await page.locator('text=behalve de winnaar').count(), 0, 'behalve de winnaar bestaat alleen bij award');
   await bPick(page, 'Wanneer?', 'award');
   await page.click('text=+ voorwaarde');
-  await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
-  await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+  await bPick(page, 'Voorwaarde 1: wat moet er kloppen?', 'anyPlayer');
+  await bPick(page, 'Voorwaarde 1: welke spelers?', 'opened');
   eq(await page.locator('text=behalve de winnaar').count(), 1, 'bij award staat behalve de winnaar er wel');
   // De keuzes bij "er is een speler die ..." worden echt onthouden (ze lagen eerst in een kopie).
   await page.locator('label', { hasText: 'behalve de winnaar' }).locator('input').check();
@@ -880,7 +880,7 @@ test('regelbouwer: een bestaand blok in de bouwer laden', async page => {
   eq(await page.$eval('[aria-label="Gevolg: welke kaarten?"]', e => e.value), 'group', 'de keuze van kaarten is geladen');
   eq(await bSentence(page), 'De kaarten van de hoogste groep van minstens 3 kaarten met opeenvolgende waarden winnen. Bij gelijk spel: BATTLE!', 'zin');
   // Aanpassen in de bouwer werkt het blok bij.
-  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameSuit');
+  await bPick(page, 'Gevolg: hoe horen ze bij elkaar?', 'sameSuit');
   eq((await bBlock(page)).logic.then.win.group.relation, 'sameSuit', 'het blok volgt de bouwer');
   // Een blok dat de bouwer niet kan tonen geeft een melding en laat het tekstvak staan.
   const odd = await crSample(page);
@@ -888,12 +888,12 @@ test('regelbouwer: een bestaand blok in de bouwer laden', async page => {
   odd.examples = [{ cards: ['A♠', '2♥'], winners: [1], text: 'x' }];
   await page.fill('#customRuleText', JSON.stringify(odd));
   await page.click('#ruleBuilderLoad');
-  ok((await crMessages(page))[0].includes('kan dit blok niet tonen'), 'melding: ' + (await crMessages(page))[0]);
+  ok((await crMessages(page))[0].includes('kan deze regel niet laten zien'), 'melding: ' + (await crMessages(page))[0]);
   eq((await bBlock(page)).logic.moment, 'decide', 'tekstvak blijft zoals het was');
   // Een kapot blok geeft de meldingen van de controle.
   await page.fill('#customRuleText', '{ kapot');
   await page.click('#ruleBuilderLoad');
-  ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij kapotte JSON');
+  ok((await crMessages(page))[0].startsWith('✗ Het spel kan deze tekst niet lezen'), 'melding bij kapotte JSON');
   noErrors(page);
 });
 
@@ -903,7 +903,7 @@ test('regelbouwer: van bouwen tot meespelen, met proefspellen', async page => {
   await page.click('text=+ voorwaarde');
   await bPick(page, 'Voorwaarde 1: welke kaarten?', 'color');
   await bPick(page, 'Gevolg: welke kaarten?', 'highest');
-  await bPick(page, 'Gevolg: onder welke kaarten', 'red');
+  await bPick(page, 'Gevolg: van welke kaarten?', 'red');
   eq(await bSentence(page), 'Als er een rode kaart ligt, dan wint de hoogste rode kaart. Bij gelijk spel: BATTLE!', 'zin');
   const examples = (await bBlock(page)).examples;
   ok(examples.length >= 2 && examples.length <= 3, 'het spel zoekt voorbeelden: ' + examples.length);
@@ -955,8 +955,8 @@ test('regelbouwer: de bouwer past op smalle schermen', async () => {
     await page.click('text=+ voorwaarde');
     await bPick(page, 'Wanneer?', 'award');
     await page.click('text=+ voorwaarde');
-    await bPick(page, 'Voorwaarde 1: soort', 'anyPlayer');
-    await bPick(page, 'Voorwaarde 1: welke spelers', 'opened');
+    await bPick(page, 'Voorwaarde 1: wat moet er kloppen?', 'anyPlayer');
+    await bPick(page, 'Voorwaarde 1: welke spelers?', 'opened');
     await bPick(page, 'Wat gebeurt er?', 'sharePot');
     await page.click('text=+ spelers erbij');
     eq(await hScroll(page), 0, 'horizontaal scrollen');
@@ -972,13 +972,13 @@ test('regelbouwer: een groep voorwaarden (a en (b of c))', async page => {
   await bChip(page, 'Voorwaarde 1: waarden', 'A', false);
   await bChip(page, 'Voorwaarde 1: waarden', '2', true);
   await page.click('text=+ voorwaarde');
-  await bPick(page, 'Voorwaarde 2: soort', 'group');
-  eq(await page.$$eval('[aria-label="Voorwaarde 2.1: soort"] option', o => o.map(x => x.value)), ['exists', 'count'], 'in een groep kan geen groep');
+  await bPick(page, 'Voorwaarde 2: wat moet er kloppen?', 'group');
+  eq(await page.$$eval('[aria-label="Voorwaarde 2.1: wat moet er kloppen?"] option', o => o.map(x => x.value)), ['exists', 'count'], 'in een groep kan geen groep');
   await bChip(page, 'Voorwaarde 2.2: waarden', 'A', false);
   await bChip(page, 'Voorwaarde 2.2: waarden', 'K', true);
   eq(await bSentence(page), 'Als er een 2 ligt en (er een Aas ligt of er een Heer ligt), dan winnen kaarten met een Aas. Bij gelijk spel: BATTLE!', 'zin met een groep');
   eq((await bBlock(page)).logic.if, { and: [{ exists: { rank: '2' } }, { or: [{ exists: { rank: 'A' } }, { exists: { rank: 'K' } }] }] }, 'beschrijving met een groep');
-  await bPick(page, 'Voorwaarde 2: hoe de groep samengaat', 'and');
+  await bPick(page, 'Voorwaarde 2: moeten ze allemaal kloppen?', 'and');
   await page.click('[aria-label="Voorwaarde 2: voorwaarde toevoegen aan de groep"]');
   eq((await bBlock(page)).logic.if.and[1].and.length, 3, 'derde voorwaarde in de groep');
   await page.click('[aria-label="Voorwaarde 2.3 weghalen"]');
@@ -992,7 +992,7 @@ test('regelbouwer: een groep voorwaarden (a en (b of c))', async page => {
   blk.examples = [{ cards: ['2♠', 'A♥'], winners: [0], text: 'x' }];
   await page.fill('#customRuleText', JSON.stringify(blk));
   await page.click('#ruleBuilderLoad');
-  eq(await page.$eval('[aria-label="Voorwaarde 2: soort"]', e => e.value), 'group', 'de groep is geladen');
+  eq(await page.$eval('[aria-label="Voorwaarde 2: wat moet er kloppen?"]', e => e.value), 'group', 'de groep is geladen');
   eq((await bBlock(page)).logic, blk.logic, 'de beschrijving blijft gelijk na laden');
   noErrors(page);
 });
@@ -1009,19 +1009,19 @@ test('regelbouwer: een geladen blok blijft dezelfde regel, met de eigen uitleg e
   let blk = await bBlock(page);
   eq(canon([blk.id, blk.title, blk.description, blk.examples]), canon([original.id, 'Reeksen', original.description, original.examples]), 'na een andere naam');
   // De regel zelf wijzigen: zelfde id, nieuwe uitleg en voorbeelden, met een melding.
-  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameSuit');
+  await bPick(page, 'Gevolg: hoe horen ze bij elkaar?', 'sameSuit');
   blk = await bBlock(page);
   eq(blk.id, original.id, 'de id blijft na een wijziging van de regel');
   ok(blk.description !== original.description && JSON.stringify(canon(blk.examples)) !== JSON.stringify(canon(original.examples)), 'uitleg en voorbeelden zijn opnieuw gemaakt');
   ok((await crMessages(page)).some(m => m.includes('opnieuw gemaakt') && m.includes(original.id)), 'melding dat de uitleg en voorbeelden opnieuw zijn gemaakt: ' + (await crMessages(page)).join(' | '));
   // Terug naar de oorspronkelijke regel: de eigen teksten komen terug.
-  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'consecutive');
+  await bPick(page, 'Gevolg: hoe horen ze bij elkaar?', 'consecutive');
   blk = await bBlock(page);
   eq(canon([blk.description, blk.examples]), canon([original.description, original.examples]), 'de eigen uitleg en voorbeelden komen terug');
   // Toevoegen en opnieuw laden en wijzigen vervangt dezelfde regel (geen tweede).
   await page.click('#customRuleAdd');
   await crOpen(page);
-  await bPick(page, 'Gevolg: kaarten die bij elkaar horen', 'sameColor');
+  await bPick(page, 'Gevolg: hoe horen ze bij elkaar?', 'sameColor');
   await page.click('#customRuleAdd');
   eq(await page.evaluate(() => customRules().map(r => r.id + ':' + r.logic.then.win.group.relation)), [original.id + ':sameColor'], 'één regel, de gewijzigde');
   noErrors(page);
@@ -1076,7 +1076,7 @@ test('regelbouwer: twee regels zonder naam worden twee regels, en opnieuw beginn
   await page.click('#ruleBuilderReset');
   eq(await page.inputValue('.bld-title'), '', 'de naam is leeg');
   eq((await bBlock(page)).id, 'custom-opeenvolgend', 'het tekstvak blijft staan');
-  ok((await bSentence(page)).startsWith('Kies hierboven'), 'de uitleg staat er weer');
+  ok((await bSentence(page)).startsWith('Hier komt in gewone taal'), 'de uitleg staat er weer');
   await page.fill('#customRuleText', '');
   await page.fill('.bld-title', 'Vers');
   eq((await bBlock(page)).id, 'custom-vers', 'na opnieuw beginnen is het een nieuwe regel (niet de geladen id)');
@@ -1100,12 +1100,12 @@ test('instructie voor Claude: kopiëren, en een antwoord met tekst eromheen plak
     const sample = await crSample(page);
     await page.fill('#customRuleText', 'Hier is je regel:\n\n```json\n' + JSON.stringify(sample, null, 2) + '\n```\n\nVeel plezier!');
     await page.click('#customRuleCheck');
-    eq((await crMessages(page))[0], '✓ Het blok klopt.', 'het blok uit het antwoord klopt');
+    eq((await crMessages(page))[0], '✓ De regel klopt.', 'het blok uit het antwoord klopt');
     eq(await bBlock(page), sample, 'alleen het blok blijft in het tekstvak staan');
     // Een antwoord zonder blok (het model legt uit dat het niet kan) geeft een gewone melding en blijft staan.
     await page.fill('#customRuleText', 'Dit kan niet met de bouwstenen: er is geen geheugen over rondes.');
     await page.click('#customRuleCheck');
-    ok((await crMessages(page))[0].startsWith('✗ Dit is geen geldige JSON'), 'melding bij een antwoord zonder blok');
+    ok((await crMessages(page))[0].startsWith('✗ Het spel kan deze tekst niet lezen'), 'melding bij een antwoord zonder blok');
     eq(await page.inputValue('#customRuleText'), 'Dit kan niet met de bouwstenen: er is geen geheugen over rondes.', 'het antwoord blijft staan');
     noErrors(page);
   } finally { await page.ctx.close(); }

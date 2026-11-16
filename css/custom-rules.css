@@ -55,6 +55,8 @@
 .bld-sub{ font-family:'Special Elite', monospace; font-weight:400; font-size:12px; letter-spacing:0.08em; text-transform:uppercase; margin:0 0 6px; }
 .bld-row{ margin:6px 0; display:flex; flex-direction:column; gap:6px; align-items:stretch; min-width:0; }
 .bld-head, .bld-cards, .bld-player, .bld-range, .bld-also, .bld-line{ display:flex; flex-wrap:wrap; gap:6px 8px; align-items:center; }
+/* Lange keuzeteksten mogen een rij niet breder maken dan het venster: de keuzelijst krimpt mee. */
+.bld-head, .bld-cards, .bld-player, .bld-range, .bld-also, .bld-line{ min-width:0; max-width:100%; box-sizing:border-box; }
 .bld-also{ padding-left:10px; border-left:2px solid color-mix(in srgb, var(--ink) 30%, transparent); }
 .bld-chips{ display:flex; flex-wrap:wrap; gap:4px; }
 .bld-check{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; }

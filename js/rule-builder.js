@@ -36,13 +36,13 @@ function rbNewCards(kind){
 }
 
 const rbInt = (v, min, max, what) => {
-  if (!Number.isInteger(v) || v < min || v > max) throw RB_ERR(what + ': een getal van ' + min + ' t/m ' + max + ' verwacht.');
+  if (!Number.isInteger(v) || v < min || v > max) throw RB_ERR(what + ': vul een getal in van ' + min + ' t/m ' + max + '.');
   return v;
 };
 
 // Een keuze van kaarten -> beschrijving. singleOnly: alleen een soort kaart (waarde, symbool of kleur), zoals bij "begon met".
 function rbCards(cs, singleOnly){
-  if (!cs || typeof cs !== 'object') throw RB_ERR('Kies welke kaarten bedoeld zijn.');
+  if (!cs || typeof cs !== 'object') throw RB_ERR('Kies welke kaarten je bedoelt.');
   if (singleOnly && !RB_SINGLE.includes(cs.kind)) throw RB_ERR('Hier past alleen een waarde, een symbool of een kleur.');
   let node;
   if (cs.kind === 'rank'){
@@ -59,13 +59,13 @@ function rbCards(cs, singleOnly){
   } else if (cs.kind === 'all'){
     node = { all: true };
   } else if (cs.kind === 'highest' || cs.kind === 'lowest'){
-    if (!['value', 'suitOrder'].includes(cs.by)) throw RB_ERR('Kies of de hoogste op waarde of op symbool gaat.');
+    if (!['value', 'suitOrder'].includes(cs.by)) throw RB_ERR('Kies of het om de waarde of om het symbool gaat.');
     node = { [cs.kind]: cs.by };
     if (cs.of === 'red' || cs.of === 'black') node.of = { color: cs.of };
   } else if (cs.kind === 'group'){
     if (!['sameRank', 'sameSuit', 'sameColor', 'consecutive'].includes(cs.relation)) throw RB_ERR('Kies welke kaarten bij elkaar horen.');
     node = { group: { relation: cs.relation, min: rbInt(cs.min, 2, 8, 'Aantal kaarten in de groep'), pick: 'highest' } };
-  } else throw RB_ERR('Kies welke kaarten bedoeld zijn.');
+  } else throw RB_ERR('Kies welke kaarten je bedoelt.');
   if (RB_SINGLE.includes(cs.kind)){
     if (cs.also) node = { and: [node, rbCards(cs.also, true)] };
     if (cs.not) node = { not: node };
@@ -75,9 +75,9 @@ function rbCards(cs, singleOnly){
 
 // De spelers bij award en roundEnd.
 function rbPlayer(p, moment){
-  if (!p || typeof p !== 'object') throw RB_ERR('Kies welke spelers bedoeld zijn.');
+  if (!p || typeof p !== 'object') throw RB_ERR('Kies welke spelers je bedoelt.');
   if (p.kind === 'winner'){
-    if (moment !== 'award') throw RB_ERR('De winnaar bestaat alleen als de pot wordt toegekend.');
+    if (moment !== 'award') throw RB_ERR('"De winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".');
     return 'winner';
   }
   if (p.kind === 'withoutCards') return { withoutCards: true };
@@ -88,12 +88,12 @@ function rbPlayer(p, moment){
   if (p.kind === 'opened'){
     const node = { opened: rbCards(p.cs, true) };
     if (p.other){
-      if (moment !== 'award') throw RB_ERR('"Behalve de winnaar" kan alleen als de pot wordt toegekend.');
+      if (moment !== 'award') throw RB_ERR('"Behalve de winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".');
       node.exclude = 'winner';
     }
     return node;
   }
-  throw RB_ERR('Kies welke spelers bedoeld zijn.');
+  throw RB_ERR('Kies welke spelers je bedoelt.');
 }
 
 // min/max uit een keuze (minstens, ten hoogste, precies, tussen).
@@ -387,8 +387,8 @@ function rbSuggestExamples(logic){
       return out;
     });
     const note = picks.diff.length === 0
-      ? 'De regel deed op de geprobeerde situaties niets; de voorbeelden laten dat zien. Voeg zelf een voorbeeld toe als je een situatie weet waarin hij wél iets doet.'
-      : picks.same.length === 0 ? 'De regel deed op elke geprobeerde situatie iets; er is geen voorbeeld waar hij niets doet.' : '';
+      ? 'In de situaties die het spel uitprobeerde deed de regel niets; de voorbeelden laten dat zien. Weet je een situatie waarin hij wél iets doet, voeg die dan zelf als voorbeeld toe.'
+      : picks.same.length === 0 ? 'In elke situatie die het spel uitprobeerde deed de regel iets; er is dus geen voorbeeld waarin hij niets doet.' : '';
     return { examples, note, found: picks.diff.length };
   } finally { preview.restore(); }
 }
