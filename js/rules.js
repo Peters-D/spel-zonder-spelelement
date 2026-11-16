@@ -155,7 +155,7 @@ const RULES = [
       'Eindigen twee of meer spelers gelijk, dan wint de speler met het hoogste symbool en is er geen battle. ' +
       'Dat geldt ook voor gelijke kaarten bij "Gelijke kaarten gaan voor" en voor meerdere 2\'s bij "2 verslaat Aas". ' +
       'Omdat er geen battle meer komt, doet "Battle ruimt de pot op" dan niets. Is van een kaart het symbool niet bekend, dan battlen de spelers zoals gewoonlijk. ' +
-      'Spellen duren hiermee meestal veel langer en eindigen vaker in een cyclus.',
+      'Spellen duren hiermee meestal veel langer en eindigen vaker nooit.',
     default: false,
     examples: [
       { cards: ['K♥', 'K♠', '3'], winners: [1], text: 'Twee Heren: ♠ staat hoger dan ♥, dus de ♠ wint en er is geen battle.' },
