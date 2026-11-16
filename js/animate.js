@@ -7,38 +7,19 @@
 //   - animaties uit = precies het gedrag zonder dit bestand;
 //   - een volgende stap (klik, auto-play, stap terug, doorspoelen) haalt lopende kopieën weg: niemand hoeft te wachten.
 //
-// Aan of uit: de schakelaar "Animaties" bij de bediening. De keuze wordt onthouden in de browser. Zonder eerdere keuze staan
-// ze aan, behalve als het apparaat om minder beweging vraagt (prefers-reduced-motion). Bij auto-play sneller dan
-// ANIM_MIN_STEP ms per stap worden ze overgeslagen, anders loopt het beeld achter.
+// De animaties staan altijd aan, er is geen schakelaar. Eén uitzondering: vraagt het apparaat om minder beweging
+// (prefers-reduced-motion), dan blijven ze uit. Bij auto-play sneller dan ANIM_MIN_STEP ms per stap worden ze overgeslagen,
+// anders loopt het beeld achter.
 
 const ANIM_STORAGE_KEY = 'spelzonderspelelement.animaties';
 const ANIM_DURATION = 350;   // ms per beweging
 const ANIM_MIN_STEP = 300;   // auto-play sneller dan dit: geen animaties
 const ANIM_SUPPORTED = typeof Element !== 'undefined' && typeof Element.prototype.animate === 'function';
 
-let animOn = false;
 const animRunning = []; // kopieën die nu onderweg zijn
 
-function animStored(){
-  try { return localStorage.getItem(ANIM_STORAGE_KEY); } catch (e){ return null; }
-}
-function animSave(on){
-  try { localStorage.setItem(ANIM_STORAGE_KEY, on ? 'aan' : 'uit'); } catch (e){ /* niet erg: de keuze geldt dan tot verversen */ }
-}
-
-// De stand zonder eerdere keuze: aan, tenzij het apparaat om minder beweging vraagt.
-function animDefault(){
-  const reduce = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  return !reduce;
-}
-
-function animSet(on){
-  animOn = !!on;
-  const toggle = document.getElementById('animToggle');
-  if (toggle) toggle.checked = animOn;
-  if (document.body && document.body.classList) document.body.classList.toggle('anim-on', animOn);
-  if (!animOn) animFinishAll();
-}
+// Aan, tenzij het apparaat om minder beweging vraagt.
+const animOn = !(typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
 // Lopen er nu animaties mee? Niet als ze uit staan, de browser ze niet kan, of auto-play te snel gaat.
 function animActive(){
@@ -217,10 +198,8 @@ function animFlyTransfers(transfers){
   }
 }
 
-// De schakelaar.
+// Een eerdere versie bewaarde de keuze van de schakelaar in de browser; die is er niet meer en wordt gewist.
 (function(){
-  const stored = animStored();
-  animSet(stored === 'aan' ? true : stored === 'uit' ? false : animDefault());
-  const toggle = document.getElementById('animToggle');
-  if (toggle && toggle.addEventListener) toggle.addEventListener('change', () => { animSet(toggle.checked); animSave(animOn); });
+  if (document.body && document.body.classList) document.body.classList.toggle('anim-on', animOn);
+  try { localStorage.removeItem(ANIM_STORAGE_KEY); } catch (e){ /* geen opslag: er is niets te wissen */ }
 })();

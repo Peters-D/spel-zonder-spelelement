@@ -352,7 +352,7 @@ async function playUntil(page, wanted, max = 400){
 
 test('animaties: bij het opruimen schuiven de open kaarten naar de winnaar en verdwijnen daarna', async page => {
   await startGame(page);
-  ok(await page.isChecked('#animToggle'), 'animaties horen standaard aan te staan');
+  eq(await page.locator('#animToggle').count(), 0, 'er hoort geen schakelaar voor animaties meer te zijn');
   ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
   const pot = await page.evaluate(() => roundPot.length);
   ok(pot >= 2, 'de pot van de ronde is niet bijgehouden (' + pot + ')');
@@ -406,26 +406,24 @@ test('animaties: bij een battle schuiven kaarten naar de pot', async page => {
   noErrors(page);
 });
 
-test('animaties: uitzetten werkt direct en blijft bewaard na verversen', async page => {
-  await startGame(page);
-  await page.uncheck('#animToggle');
-  ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
-  await page.click('#playBtn');
-  eq(await ghosts(page), 0, 'kaarten onderweg met animaties uit');
-  await page.reload();
-  ok(!(await page.isChecked('#animToggle')), 'de keuze "uit" is niet bewaard');
-  await startGame(page);
-  await page.check('#animToggle');
-  await page.reload();
-  ok(await page.isChecked('#animToggle'), 'de keuze "aan" is niet bewaard');
-  noErrors(page);
+test('animaties: een oude keuze "uit" uit een eerdere versie telt niet meer en wordt gewist', async () => {
+  const page = await open({ width: 420, height: 900 });
+  try {
+    await page.addInitScript(() => { try { localStorage.setItem('spelzonderspelelement.animaties', 'uit'); } catch (e) {} });
+    await page.reload();
+    await startGame(page);
+    ok(await page.evaluate(() => localStorage.getItem('spelzonderspelelement.animaties')) === null, 'de oude keuze hoort gewist te zijn');
+    ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
+    await page.click('#playBtn');
+    ok(await ghosts(page) > 0, 'ondanks de oude keuze "uit" horen de kaarten te schuiven');
+    noErrors(page);
+  } finally { await page.ctx.close(); }
 });
 
-test('animaties: standaard uit als het apparaat om minder beweging vraagt', async () => {
+test('animaties: blijven uit als het apparaat om minder beweging vraagt', async () => {
   const page = await open({ width: 420, height: 900 }, { reducedMotion: 'reduce' });
   try {
     await startGame(page);
-    ok(!(await page.isChecked('#animToggle')), 'animaties staan aan ondanks "minder beweging"');
     ok(await playUntil(page, 'round-over'), 'geen ronde afgerond');
     await page.click('#playBtn');
     eq(await ghosts(page), 0, 'kaarten onderweg');
