@@ -66,8 +66,15 @@ function layBattleCards(){
   }
   const ev = engineLayBattleCards(game);
   if (ev.type === 'battle-revealed'){
+    if (ev.leftover){ // iedereen in de battle ligt eruit: de overige spelers doen weer mee met hun open kaart
+      const back = ev.leftover.map(p => p.id);
+      roundSidelined = roundSidelined.filter(id => !back.includes(id));
+    }
     renderGrid(false);
-    setDispatch('Bekijk de battle-kaarten en bepaal de winnaar.', true);
+    setDispatch(ev.leftover
+      ? 'Niemand in de battle heeft nog een kaart: ze liggen eruit. ' + formatNamesNL(ev.leftover.map(p => p.name)) +
+        (ev.leftover.length > 1 ? ' dingen' : ' dingt') + ' met de open kaart mee naar de pot. Bepaal de winnaar.'
+      : 'Bekijk de battle-kaarten en bepaal de winnaar.', true);
     setPhase('battle-revealed');
     if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
     return;
@@ -128,6 +135,10 @@ function showRoundResult(ev){
     return;
   }
   const w = ev.winner;
+  // Welke regel een gelijkspel besliste. Alleen een regel die op de volgorde van de symbolen kiest, krijgt de tekst over het symbool.
+  const tieRule = ev.tieBroken ? RULES.find(r => r.id === ev.tieBroken.ruleId) : null;
+  const tieWin = tieRule && tieRule.logic && tieRule.logic.then ? tieRule.logic.then.win : null;
+  const tieBySuit = !!tieWin && (tieWin.highest === 'suitOrder' || tieWin.lowest === 'suitOrder') && !('of' in tieWin);
   // Winnen er meer spelers samen (een regel die de pot deelt), dan staan zij in ev.shared.
   const sharedWinners = ev.shared && ev.shared.length > 0 ? ev.shared : null;
   const sharedText = sharedWinners
@@ -142,11 +153,12 @@ function showRoundResult(ev){
     showStamp('LAATSTE OVER');
     setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
   } else {
-    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.tieBroken ? 'SYMBOOL BESLIST' : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
+    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.tieBroken ? (tieBySuit ? 'SYMBOOL BESLIST' : 'GELIJKSPEL BESLIST') : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
     setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
   }
-  if (ev.tieBroken){ // gelijke kaarten: het symbool besliste, er is geen battle
-    document.getElementById('dispatch').textContent = w.name + ' wint op symbool (' + ev.tieBroken.suit + '). ' + document.getElementById('dispatch').textContent;
+  if (ev.tieBroken){ // een regel besliste het gelijkspel (meestal het symbool), er is geen battle
+    const how = tieBySuit ? ' wint op symbool (' + ev.tieBroken.suit + '). ' : ' wint het gelijkspel door de regel "' + (tieRule ? tieRule.title : ev.tieBroken.ruleId) + '". ';
+    document.getElementById('dispatch').textContent = w.name + how + document.getElementById('dispatch').textContent;
   }
   const more = playerNotes(ev);
   if (more) document.getElementById('dispatch').textContent += ' ' + more;
@@ -167,7 +179,7 @@ function finalizeRoundOver(){
   const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(end)].filter(Boolean);
   if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
-    endGame(end.winner);
+    endGame(end.winner, end.jointWinners);
     setPhase('game-over');
     return;
   }
@@ -195,10 +207,17 @@ function showEndBanner(title, sub, extraClass){
   banner.appendChild(box);
 }
 
-function endGame(winner){
-  if (winner) showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
-  else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
-  if (winner) showWinnerRuleChoice(winner); // de winnaar zet één regel om voor het volgende spel (winner-rule.js)
+// winner: de laatste speler met kaarten, of null als niemand meer kaarten heeft. jointWinners: de spelers die dan samen
+// winnen omdat ze in dezelfde ronde afvielen (zie engineJointWinners); zij kiezen samen één regel.
+function endGame(winner, jointWinners){
+  if (winner){
+    showEndBanner('★ ' + winner.name.toUpperCase() + ' WINT HET SPEL ★', 'Alle andere spelers hebben geen kaarten meer.');
+    showWinnerRuleChoice(winner); // de winnaar zet één regel om voor het volgende spel (winner-rule.js)
+  } else if (jointWinners && jointWinners.length > 1){
+    const names = formatNamesNL(jointWinners.map(p => p.name));
+    showEndBanner('★ ' + names.toUpperCase() + ' WINNEN SAMEN ★', 'Zij vielen in dezelfde ronde af: niemand heeft nog kaarten.');
+    showWinnerRuleChoice({ name: names, joint: true });
+  } else showEndBanner('★ GELIJKSPEL ★', 'Niemand heeft nog kaarten.');
 }
 
 function endCycleDetected(){

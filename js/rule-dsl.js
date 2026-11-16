@@ -25,7 +25,8 @@
 //   { group: { relation, min, pick: 'highest' } }
 //                                              de hoogste groep kaarten die bij elkaar horen, van minstens min kaarten (min 2).
 //                                              relation: 'sameRank' (gelijke waarde), 'sameSuit' (zelfde symbool), 'sameColor'
-//                                              (zelfde kleur) of 'consecutive' (opeenvolgende waarden, bijv. 7-8-9).
+//                                              (zelfde kleur) of 'consecutive' (opeenvolgende waarden, bijv. 7-8-9; hier telt
+//                                              min de verschillende waarden: 7-7-8 is een reeks van twee, alle drie doen mee).
 //                                              De hoogste groep is die met de hoogste kaart; bij gelijke stand de grootste, en
 //                                              zijn ze dan nog gelijk, dan doen ze samen mee.
 //   { and: [..] }, { or: [..] }, { not: .. }   doorsnede, vereniging, de rest
@@ -39,7 +40,7 @@
 //
 // Voorwaarden (if):
 //   { exists: <kaarten> }                      er ligt minstens één zo'n kaart              (decide, tiebreak)
-//   { count: <kaarten>, min, max }             het aantal ligt tussen min en max            (decide, tiebreak)
+//   { count: <kaarten>, min, max }             het aantal ligt tussen min en max            (decide, tiebreak); min > max is fout
 //   { battle: true }                           er was deze ronde een battle                 (award)
 //   { winnerOpened: <kaart> }                  de winnaar begon de ronde met zo'n kaart     (award)
 //   { anyPlayer: <spelers> }                   er is minstens één zo'n speler               (award, roundEnd)
@@ -57,10 +58,12 @@
 //                                              elke gekozen speler krijgt count kaarten van from (bepaald vóór er iets verschuift)
 //                      { forEach: <spelers>, discardTop: n }
 //                                              elke gekozen speler legt zijn bovenste n kaarten af
+//                                              (count en n: 1 t/m 52)
 
 const DSL_MOMENTS = ['decide', 'tiebreak', 'award', 'roundEnd'];
 const DSL_RELATIONS = ['sameRank', 'sameSuit', 'sameColor', 'consecutive'];
 const DSL_MAX_DEPTH = 8;
+const DSL_MAX_CARDS = 52; // meer kaarten dan er in het spel zitten kan een gevolg niet verplaatsen
 
 // ---- controleren ----
 
@@ -80,11 +83,15 @@ function validateRuleLogic(logic){
     if (list.length === 0) err(path, 'lege lijst');
     for (const v of list) if (!allowed.includes(v)) err(path, 'onbekende ' + what + ' ' + JSON.stringify(v));
   };
-  const int = (value, path, min) => { if (!Number.isInteger(value) || value < min) err(path, 'een geheel getal van minstens ' + min + ' verwacht'); };
+  const int = (value, path, min, max) => {
+    if (!Number.isInteger(value) || value < min || (max !== undefined && value > max))
+      err(path, 'een geheel getal van ' + (max !== undefined ? min + ' t/m ' + max : 'minstens ' + min) + ' verwacht');
+  };
   const range = (node, path) => {
     if (!('min' in node) && !('max' in node)) err(path, 'min of max verwacht');
     if ('min' in node) int(node.min, path + '.min', 0);
     if ('max' in node) int(node.max, path + '.max', 0);
+    if (Number.isInteger(node.min) && Number.isInteger(node.max) && node.min > node.max) err(path, 'min is groter dan max: de voorwaarde kan nooit kloppen');
   };
   const deep = (path, depth) => { if (depth > DSL_MAX_DEPTH){ err(path, 'te diep genest'); return true; } return false; };
 
@@ -186,8 +193,8 @@ function validateRuleLogic(logic){
         only(node.transfer, path + '.transfer', ['from', 'count']);
         players(node.transfer.from, path + '.transfer.from', false, true);
         if (isObj(node.transfer.from) && 'withoutCards' in node.transfer.from) err(path + '.transfer.from', 'spelers zonder kaarten kunnen geen kaarten geven');
-        int(node.transfer.count, path + '.transfer.count', 1);
-      } else if (key === 'discardTop') int(node.discardTop, path + '.discardTop', 1);
+        int(node.transfer.count, path + '.transfer.count', 1, DSL_MAX_CARDS);
+      } else if (key === 'discardTop') int(node.discardTop, path + '.discardTop', 1, DSL_MAX_CARDS);
     }
   };
 
@@ -218,7 +225,10 @@ function dslCardMatches(card, node){
 // De hoogste groep volgens een relatie (zie de uitleg bovenaan). Geeft de spelers, in de volgorde van de tafel.
 function dslBestGroup(scope, group){
   let groups = [];
+  // De lengte van een groep. Bij een reeks tellen de verschillende waarden (7-7-8 is een reeks van twee), anders de kaarten.
+  let size = g => g.length;
   if (group.relation === 'consecutive'){
+    size = g => new Set(g.map(p => p.faceCard.value)).size;
     const values = Array.from(new Set(scope.map(p => p.faceCard.value))).sort((a, b) => a - b);
     let run = [];
     const close = () => { if (run.length) groups.push(scope.filter(p => run.includes(p.faceCard.value))); run = []; };
@@ -235,13 +245,13 @@ function dslBestGroup(scope, group){
     }
     groups = Array.from(byKey.values());
   }
-  groups = groups.filter(g => g.length >= group.min);
+  groups = groups.filter(g => size(g) >= group.min);
   if (groups.length === 0) return [];
   const top = g => Math.max(...g.map(p => p.faceCard.value));
   const bestTop = Math.max(...groups.map(top));
   groups = groups.filter(g => top(g) === bestTop);
-  const bestSize = Math.max(...groups.map(g => g.length));
-  const members = new Set(groups.filter(g => g.length === bestSize).flat());
+  const bestSize = Math.max(...groups.map(size));
+  const members = new Set(groups.filter(g => size(g) === bestSize).flat());
   return scope.filter(p => members.has(p));
 }
 

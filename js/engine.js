@@ -124,8 +124,11 @@ function engineResolve(state){
 // De spelers in de battle leggen elk een nieuwe kaart open. Wie geen kaart meer heeft, ligt eruit.
 // Geeft terug:
 //   { type: 'battle-revealed' }                              nog minstens twee in de battle: opnieuw vergelijken
+//   { type: 'battle-revealed', leftover: [spelers] }         iedereen in de battle ligt eruit (zeldzaam): de overige spelers
+//                                                            dingen met hun open kaart mee naar de pot. Daarna gewoon
+//                                                            engineResolve: de hoogste kaart wint, bij gelijke kaarten een battle.
 //   { type: 'win', winner, potSize, how: 'last-standing' }   nog één over in de battle, krijgt de pot
-//   { type: 'void', potSize }                                niemand meer over in de battle (zeldzaam)
+//   { type: 'void', potSize }                                niemand meer over, ook niet buiten de battle (zeldzaam)
 function engineLayBattleCards(state){
   for (const id of state.contenders){
     const w = enginePlayerById(state, id);
@@ -139,7 +142,14 @@ function engineLayBattleCards(state){
     }
   }
   state.contenders = state.contenders.filter(id => !enginePlayerById(state, id).out);
-  if (state.contenders.length === 0) return engineAwardToFirstActive(state);
+  if (state.contenders.length === 0){
+    // Niemand in de battle kon een kaart leggen. De pot gaat niet naar wie toevallig vooraan zit: de spelers die niet in de
+    // battle zaten (hun kaart ligt nog open) maken het onderling uit.
+    const rest = state.players.filter(p => !p.out && p.faceCard);
+    if (rest.length === 0) return engineAwardToFirstActive(state);
+    state.contenders = rest.map(p => p.id);
+    return { type: 'battle-revealed', leftover: rest };
+  }
   if (state.contenders.length === 1){
     return engineAwardPot(state, enginePlayerById(state, state.contenders[0]), 'last-standing');
   }
@@ -147,14 +157,23 @@ function engineLayBattleCards(state){
 }
 
 // Einde van de ronde: eerst de haken onRoundEnd van de actieve regels, daarna ligt eruit wie geen kaarten meer heeft.
-// Geeft terug of het spel voorbij is en zo ja wie er wint (null als er niemand over is), plus hoeveel kaarten
+// Geeft terug of het spel voorbij is en zo ja wie er wint (winner: null als er niemand over is; dan staan in jointWinners
+// de spelers die samen winnen, zie engineJointWinners), plus hoeveel kaarten
 // de haken hebben afgelegd en teruggehaald. Kaarten op de aflegstapel tellen niet mee: het spel eindigt zodra
 // er één speler met kaarten over is.
 function engineEndRound(state){
   const moved = engineRunHooks(state, 'onRoundEnd', {});
   state.players.forEach(p => { if (p.deck.length === 0) p.out = true; });
   const alive = engineActivePlayers(state);
-  return { gameOver: alive.length <= 1, winner: alive[0] || null, discarded: moved.discarded, returned: moved.returned, revived: moved.revived, transfers: moved.transfers };
+  return { gameOver: alive.length <= 1, winner: alive[0] || null, jointWinners: engineJointWinners(state), discarded: moved.discarded, returned: moved.returned, revived: moved.revived, transfers: moved.transfers };
+}
+
+// Samen winnen: heeft na een ronde niemand meer kaarten, dan winnen de spelers die aan die laatste ronde begonnen samen
+// (zij vielen in dezelfde ronde af). Geeft die spelers in de volgorde van de tafel, of een lege lijst zolang er nog iemand
+// meedoet. state.opening zegt wie de laatste ronde begon: elke speler die toen nog meedeed, legde een kaart.
+function engineJointWinners(state){
+  if (engineActivePlayers(state).length > 0) return [];
+  return state.players.filter(p => state.opening[p.id]);
 }
 
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
@@ -169,14 +188,18 @@ function engineAwardPot(state, winner, how, tieBreak){
     tieBroken: tieBreak ? { ruleId: tieBreak.rule.id, tied: tieBreak.tied, suit: tieBreak.suit } : null };
 }
 
+// Niemand kan de pot winnen. Doet er nog iemand mee, dan krijgt de eerste van hen de pot; anders gaat de pot naar de
+// aflegstapel, zodat de kaarten op één plek blijven (samen 52).
 function engineAwardToFirstActive(state){
   const potSize = state.pot.length;
   const alive = engineActivePlayers(state);
+  const discardedBefore = state.moved.discarded;
   const moved = engineRunHooks(state, 'onAward', { winner: alive[0] || null, how: 'void', potSize });
-  const toWinner = state.pot.length;
+  const toWinner = alive.length ? state.pot.length : 0;
   if (alive.length) alive[0].deck.push(...state.pot);
+  else engineDiscardPot(state);
   state.pot = [];
-  return { type: 'void', potSize, discarded: moved.discarded, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared };
+  return { type: 'void', potSize, discarded: state.moved.discarded - discardedBefore, toWinner, revived: moved.revived, transfers: moved.transfers, shared: moved.shared };
 }
 
 // ---- aflegstapel en haken ----
