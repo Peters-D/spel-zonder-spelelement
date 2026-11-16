@@ -71,6 +71,7 @@ function fastForward(){
     game.players[i].faceCard = null;
   });
   game.pot = [];
+  clearPending(); // doorspoelen ruimt alles op: de tellers tonen het nieuwe aantal
   game.discard = result.finalDiscard;
   game.moved = result.finalMoved;
   displayPot = 0;

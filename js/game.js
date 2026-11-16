@@ -31,11 +31,29 @@ function updateButtonLabel(){
 //                  ronde dicht (zie renderGrid).
 let roundPot = [];
 let roundSidelined = [];
+// Wat de spelkern al heeft toegekend, maar nog niet is weggeschoven: de pot gaat bij "Bepaal winnaar" meteen naar de winnaar (of naar de
+// aflegstapel), maar de kaarten liggen tot "Ruim tafel op" nog op tafel. Tot dan tonen de tellers het oude aantal, zodat de teller
+// en wat je ziet niet uit elkaar lopen. players: { spelerId: aantal kaarten dat nog onderweg is }, discard: idem voor de aflegstapel.
+let roundPending = { players: {}, discard: 0 };
+function clearPending(){ roundPending = { players: {}, discard: 0 }; }
+// Noteert wat de pot van deze ronde heeft opgeleverd (uit de gebeurtenis van de spelkern).
+function notePending(ev){
+  clearPending();
+  if (ev.type === 'win'){
+    if (ev.shared && ev.shared.length > 0) ev.shared.forEach(x => { roundPending.players[x.player.id] = (roundPending.players[x.player.id] || 0) + x.count; });
+    else if (ev.toWinner > 0) roundPending.players[ev.winner.id] = ev.toWinner;
+  } else if (ev.type === 'void' && ev.toWinner > 0){
+    const first = engineActivePlayers(game)[0];
+    if (first) roundPending.players[first.id] = ev.toWinner;
+  }
+  roundPending.discard = ev.discarded || 0;
+}
 
 function clearBoard(){
   const plan = typeof animPlanClear === 'function' ? animPlanClear(roundPot) : [];
   roundPot = [];
   roundSidelined = [];
+  clearPending(); // de kaarten schuiven nu weg: de tellers tonen vanaf nu het nieuwe aantal
   game.pot = [];
   displayPot = 0;
   game.players.forEach(p => { p.faceCard = null; });
@@ -48,6 +66,7 @@ function clearBoard(){
 function startRound(){
   if (typeof undoPush === 'function') undoPush(); // de stand aan het begin van de ronde, voor "stap terug"
   engineStartRound(game);
+  clearPending();
   roundPot = game.pot.slice();
   roundSidelined = [];
   displayPot = game.pot.length;
@@ -129,7 +148,7 @@ function showRoundResult(ev){
   if (ev.type !== 'win'){
     const text = [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(ev)].filter(Boolean).join(' ');
     if (text) setDispatch(text);
-    finalizeRoundOver();
+    finalizeRoundOver(ev);
     renderGrid(false);
     if (typeof animFlyTransfers === 'function') animFlyTransfers(roundEndTransfers);
     return;
@@ -162,7 +181,7 @@ function showRoundResult(ev){
   }
   const more = playerNotes(ev);
   if (more) document.getElementById('dispatch').textContent += ' ' + more;
-  finalizeRoundOver();
+  finalizeRoundOver(ev);
   const winnerIds = sharedWinners ? sharedWinners.map(x => x.player.id) : [w.id];
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(winnerIds.length > 1 ? winnerIds : w.id); // STATS HOOK
   renderGrid(false, game.players.map(p => winnerIds.includes(p.id)));
@@ -172,22 +191,25 @@ function showRoundResult(ev){
 // Overdrachten van de haken aan het einde van de ronde (bijv. Revival), om na het tekenen te laten zien.
 let roundEndTransfers = [];
 
-function finalizeRoundOver(){
+function finalizeRoundOver(ev){
   const end = engineEndRound(game);
   roundEndTransfers = end.transfers || [];
   // Berichten over wat regels aan het einde van de ronde deden (zonder zulke regels verandert er niets).
   const notes = [end.discarded > 0 ? end.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(end)].filter(Boolean);
   if (notes.length) document.getElementById('dispatch').textContent += ' ' + notes.join(' ');
   if (end.gameOver){
+    clearPending(); // het spel is voorbij: er wordt niet meer opgeruimd, dus de tellers tonen de eindstand
     endGame(end.winner, end.jointWinners);
     setPhase('game-over');
     return;
   }
   if (checkLiveCycle()){
+    clearPending();
     endCycleDetected();
     setPhase('cycle-over');
     return;
   }
+  if (ev) notePending(ev);
   setPhase('round-over');
 }
 

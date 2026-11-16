@@ -41,6 +41,7 @@ function undoStep(){
   if (snap.stats && typeof statsRestore === 'function') statsRestore(snap.stats);
   document.getElementById('endBanner').innerHTML = '';
   displayPot = 0;
+  clearPending();
   setPhase('cleared');
   renderGrid(true);
   setDispatch('Teruggezet naar het begin van een ronde. Speel de ronde opnieuw.');
