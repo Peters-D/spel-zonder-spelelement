@@ -513,15 +513,15 @@ test('animaties: bij Koninklijk paar schuift elke kaart naar wie hem krijgt', as
   noErrors(page);
 });
 
-test('animaties: bij Revival schuift een kaart van de linkerbuur naar de speler die terugkomt', async page => {
+test('animaties: bij Revival schuift een kaart van de linkerbuur naar de speler die zijn tweede kans krijgt', async page => {
   await startWith(page, ['secondChance'], { players: 4, seed: '5' });
   let seen = null;
   for (let i = 0; i < 2500 && !seen; i++){
     await page.click('#playBtn');
-    if (/weer mee/.test(await page.textContent('#dispatch'))) seen = await ghostTargets(page);
+    if (/geeft \d+ kaarte?n? aan/.test(await page.textContent('#dispatch'))) seen = await ghostTargets(page); // iemand krijgt zijn tweede kans
     if (['game-over', 'cycle-over'].includes(await page.evaluate(() => phase))) break;
   }
-  ok(seen, 'geen ronde gevonden waarin een speler terugkomt');
+  ok(seen, 'geen ronde gevonden waarin een speler zijn tweede kans krijgt');
   ok(Object.keys(seen).some(k => k.startsWith('player-')), 'er schuift geen kaart naar de speler die terugkomt: ' + JSON.stringify(seen));
   noErrors(page);
 });

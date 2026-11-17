@@ -80,7 +80,7 @@ function rbPlayer(p, moment){
     if (moment !== 'award') throw RB_ERR('"De winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".');
     return 'winner';
   }
-  if (p.kind === 'withoutCards') return { withoutCards: true };
+  if (p.kind === 'withoutCards') return p.chance ? { withoutCards: true, secondChance: true } : { withoutCards: true };
   if (p.kind === 'neighbor'){
     if (!['left', 'right'].includes(p.side)) throw RB_ERR('Kies de linker- of rechterbuur.');
     return { neighbor: p.side };
@@ -154,7 +154,7 @@ function rbNewCond(key){
 }
 
 function rbNewPlayer(kind){
-  return { kind, cs: rbNewCards('rank'), other: false, side: 'left' };
+  return { kind, cs: rbNewCards('rank'), other: false, side: 'left', chance: false };
 }
 
 function rbNewEffect(key){
@@ -229,7 +229,7 @@ function rbCardsFrom(node){
 function rbPlayerFrom(node){
   if (node === 'winner') return rbNewPlayer('winner');
   const p = rbNewPlayer('withoutCards');
-  if ('withoutCards' in node) return p;
+  if ('withoutCards' in node){ p.chance = node.secondChance === true; return p; }
   if ('neighbor' in node){ p.kind = 'neighbor'; p.side = node.neighbor; return p; }
   p.kind = 'opened';
   p.cs = rbCardsFrom(node.opened);

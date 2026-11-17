@@ -68,6 +68,7 @@ function fastForward(){
   result.finalPlayers.forEach((sp, i) => {
     game.players[i].deck = sp.deck;
     game.players[i].out = sp.out;
+    game.players[i].chanceUsed = !!sp.chanceUsed;
     game.players[i].faceCard = null;
   });
   game.pot = [];

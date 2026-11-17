@@ -97,9 +97,10 @@ const RULES = [
     id: 'secondChance',
     priority: 40,
     title: 'Revival',
-    short: 'Wie zonder kaarten valt, krijgt de bovenste kaart van de linkerbuur (zolang minstens 2 spelers kaarten hebben)',
+    short: 'Wie zonder kaarten valt, krijgt één keer de bovenste kaart van de linkerbuur; wint hij daarna een ronde, dan kan het weer (zolang minstens 2 spelers kaarten hebben)',
     description: 'Heeft een speler aan het einde van een ronde geen kaarten meer, dan krijgt die speler de bovenste kaart van de speler links van hem ' +
-      '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dat geldt voor iedere speler zonder kaarten, dus ook voor een speler die al eerder was uitgeschakeld. ' +
+      '(spelers zonder kaarten worden overgeslagen) en doet vanaf de volgende ronde weer mee. Dat is zijn tweede kans, en die heeft elke speler maar één keer: ' +
+      'raakt hij zijn kaarten daarna opnieuw kwijt, dan is hij definitief af. Wint hij tussendoor een ronde (ook samen met anderen), dan krijgt hij zijn tweede kans terug en kan hij later nogmaals een kaart krijgen. ' +
       'Dit gebeurt alleen zolang er op dat moment nog minstens 2 spelers kaarten hebben; ' +
       'is er nog maar één speler met kaarten, dan komt niemand terug en eindigt het spel gewoon. Met 2 spelers doet de regel dus niets, met 3 of meer wel. ' +
       'Vallen er meer spelers tegelijk af, dan gaat dat in de volgorde van de tafel; heeft de buur geen kaart meer te geven, dan krijgt die speler niets. ' +
@@ -115,7 +116,7 @@ const RULES = [
       { decks: [['K', '4'], ['3'], ['9']], after: [['4', 'K', '3', '9'], [], []], discarded: 0,
         text: 'Nog maar één speler houdt kaarten over: niemand komt terug en het spel is afgelopen.' }
     ],
-    logic: { moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
+    logic: { moment: 'roundEnd', if: { playersWithCards: { min: 2 } }, then: { forEach: { withoutCards: true, secondChance: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
   },
   {
     id: 'royalFamily',

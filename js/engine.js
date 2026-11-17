@@ -8,6 +8,7 @@
 //     rules:       { <regel-id>: true/false, ... }   (zie RULES in rules.js), eventueel plus suitOrder: ['♠','♥','♦','♣'] (volgorde van de symbolen, hoog naar laag)
 //     pot:         kaarten die deze ronde op tafel liggen
 //     discard:     de aflegstapel: kaarten die zijn afgelegd, bovenste kaart eerst (index 0)
+//     (per speler staat ook chanceUsed: true als de tweede kans van Revival is gebruikt)
 //     opening:     per speler-id de kaart waarmee die speler deze ronde begon (een battle overschrijft faceCard, dit blijft staan)
 //     moved:       { discarded, returned, revived, transferred, transfers, shared }: tellers van afgelegde, teruggehaalde en
 //                  tussen spelers verplaatste kaarten, de ids van spelers die weer meedoen, de overdrachten en de verdeelde potten
@@ -66,7 +67,8 @@ function dealGame(names, rules, seed){
 function createGameState(players, rules){
   return {
     players: players.map(p => ({
-      id: p.id, name: p.name, deck: p.deck.slice(), out: !!p.out, faceCard: null
+      id: p.id, name: p.name, deck: p.deck.slice(), out: !!p.out, faceCard: null,
+      chanceUsed: !!p.chanceUsed // de tweede kans van Revival is gebruikt; wie een ronde wint, krijgt hem terug (zie engineAwardPot)
     })),
     rules: Object.assign({}, DEFAULT_RULES, rules),
     pot: [],
@@ -179,6 +181,7 @@ function engineJointWinners(state){
 // Geeft de pot aan de winnaar, nadat de haken onAward van de actieve regels hun kans hebben gehad.
 // Geeft het aantal afgelegde kaarten (discarded) en wat de winnaar kreeg (toWinner) mee in de gebeurtenis.
 function engineAwardPot(state, winner, how, tieBreak){
+  winner.chanceUsed = false; // wie een ronde wint, krijgt zijn tweede kans terug
   const potSize = state.pot.length;
   const moved = engineRunHooks(state, 'onAward', { winner, how, potSize });
   const toWinner = state.pot.length;
@@ -290,6 +293,7 @@ function engineTransferCards(state, fromId, toId, count, position){
 // Bedoeld voor onAward: de pot is daarna leeg, dus de winnaar krijgt niets meer. Geeft per speler het aantal kaarten.
 function engineSharePot(state, memberIds){
   const members = memberIds.map(id => enginePlayerById(state, id));
+  members.forEach(m => { m.chanceUsed = false; }); // wie (samen) wint, krijgt zijn tweede kans terug
   const picks = state.pot.map((card, i) => ({ card, i })).sort((a, b) => (b.card.value - a.card.value) || (a.i - b.i));
   const shares = members.map(() => []);
   picks.forEach((x, k) => shares[k % members.length].push(x));
