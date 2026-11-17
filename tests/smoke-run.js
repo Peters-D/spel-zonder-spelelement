@@ -53,7 +53,9 @@ function makeEl(id){
     style: {}, dataset: {}, className: '', children: [],
     classList: (() => { const set = new Set(); return { add(c){ set.add(c); }, remove(c){ set.delete(c); },
       toggle(c, force){ const on = force === undefined ? !set.has(c) : !!force; if (on) set.add(c); else set.delete(c); return on; }, contains(c){ return set.has(c); } }; })(),
-    addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); }, remove(){}, focus(){ document.activeElement = this; }, select(){},
+    addEventListener(type, fn){ (this.handlers = this.handlers || {})[type] = fn; }, appendChild(c){ this.children.push(c); c.parent = this; },
+    // Net als in een echte pagina: remove() haalt het element uit zijn ouder (anders blijft elk ooit getoond stempel in het geheugen staan).
+    remove(){ if (this.parent){ const i = this.parent.children.indexOf(this); if (i >= 0) this.parent.children.splice(i, 1); this.parent = null; } }, focus(){ document.activeElement = this; }, select(){},
     setAttribute(k, v){ (this.attrs = this.attrs || {})[k] = String(v); }, getAttribute(k){ return this.attrs && k in this.attrs ? this.attrs[k] : null; },
     querySelectorAll(){ return this.children; },
     getContext(){ return new Proxy({}, { get: () => () => {}, set: () => true }); },

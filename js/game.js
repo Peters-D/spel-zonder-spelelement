@@ -115,7 +115,7 @@ function compareAndResolve(){
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
-    showStamp(ev.level > 1 ? 'NIEUWE BATTLE' : 'BATTLE', [names + (ev.contenders.length > 1 ? ' battlen' : ' battlet'),
+    showStamp(ev.level > 1 ? 'NIEUWE BATTLE' : 'BATTLE', [names + ' battlen',
       ev.overruled && ev.overruled.length > 0 && rule && rule.overruledMessage ? rule.overruledMessage(formatNamesNL(ev.overruled.map(p => p.name))) : '']);
     // Wie niet meedoet aan de battle: die kaart ligt vanaf nu in de pot.
     const toPot = typeof animCapture === 'function' ? animCapture(p => !ev.contenders.includes(p) && !roundSidelined.includes(p.id)) : [];
