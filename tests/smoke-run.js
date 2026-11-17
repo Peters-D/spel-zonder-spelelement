@@ -2384,6 +2384,42 @@ let liveChecked = 0;
   banner.innerHTML = '';
 }
 
+// ---- tellers en wat je ziet (game.js, render.js) ----
+{
+  const fail = t => failures.push('tellers: ' + t);
+  document.getElementById('seedInput').value = '1000';
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+  document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
+  run('numPlayers = 4; dealNewGame(); launchGame();');
+  try {
+    const shown = () => JSON.parse(run('JSON.stringify(Array.from(document.getElementById("playerGrid").children).map(c => c.children[2].textContent))'));
+    const real = () => JSON.parse(run('JSON.stringify(game.players.map(p => p.deck.length))'));
+    const potShown = () => run('displayPot');
+    const label = n => n + ' kaarten';
+    run('advance()'); // speel ronde
+    const before = real();
+    run('advance()'); // bepaal winnaar
+    // Zolang de kaarten nog op tafel liggen, tonen de tellers het oude aantal.
+    if (run('phase') === 'round-over'){
+      const exp = before.map(label);
+      if (JSON.stringify(shown()) !== JSON.stringify(exp)) fail('na "Bepaal winnaar" horen de tellers nog het aantal van vóór de ronde te tonen (' + JSON.stringify(shown()) + ' in plaats van ' + JSON.stringify(exp) + ')');
+      if (run('Object.keys(roundPending.players).length') === 0) fail('er hoort een winnaar met kaarten onderweg te zijn');
+      if (potShown() === 0) fail('de pot hoort nog op tafel te staan');
+      run('advance()'); // ruim tafel op
+      if (JSON.stringify(shown()) !== JSON.stringify(real().map(label))) fail('na "Ruim tafel op" horen de tellers het nieuwe aantal te tonen: ' + JSON.stringify(shown()));
+      if (run('Object.keys(roundPending.players).length') !== 0) fail('na het opruimen is er niets meer onderweg');
+    } else fail('het testspel zou na "Bepaal winnaar" in een gewone ronde-einde moeten staan, fase: ' + run('phase'));
+    // Aan het einde van het spel staat de eindstand er, ook al wordt er niet meer opgeruimd.
+    run(`game = createGameState([{ id: 0, name: 'A', deck: [] }, { id: 1, name: 'B', deck: [] }], {}); game.players[0].deck = ${JSON.stringify([{ rank: 'K', suit: '♠', value: 13 }])}; game.players[1].deck = ${JSON.stringify([{ rank: '3', suit: '♥', value: 3 }])};
+      visitedStates = new Set(); visitedLog = []; clearPending(); setPhase('idle'); advance(); advance();`);
+    if (run('phase') !== 'game-over') fail('het testspel met 2 kaarten hoort te eindigen, fase: ' + run('phase'));
+    if (JSON.stringify(shown()) !== JSON.stringify(['2 kaarten', '0 kaarten'])) fail('bij het einde van het spel horen de tellers de eindstand te tonen: ' + JSON.stringify(shown()));
+  } finally {
+    run('game = null;');
+    document.getElementById('endBanner').innerHTML = '';
+  }
+}
+
 // ---- de rondelimiet van de simulatie (simulation.js) ----
 {
   const fail = t => failures.push('rondelimiet: ' + t);

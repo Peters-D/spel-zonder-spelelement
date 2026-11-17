@@ -75,6 +75,7 @@ function fastForward(){
   // nog laten wegschuiven (animate.js), terwijl ze al rondes geleden zijn verdeeld.
   roundPot = [];
   roundSidelined = [];
+  clearPending(); // doorspoelen ruimt alles op: de tellers tonen het nieuwe aantal
   game.discard = result.finalDiscard;
   game.moved = result.finalMoved;
   displayPot = 0;

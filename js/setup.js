@@ -223,6 +223,7 @@ function launchGame(){
   visitedLog = [stateSignature(game.players, game.discard)];
   if (typeof undoReset === 'function') undoReset(); // een nieuw spel begint zonder geschiedenis
   displayPot = 0; // pot-teller van een vorig spel niet meenemen
+  if (typeof clearPending === 'function') clearPending();
   setPhase('idle');
   setDispatch('Klaar om te beginnen. Speel een ronde.');
   renderGrid(true);
