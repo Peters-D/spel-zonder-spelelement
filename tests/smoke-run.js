@@ -2408,11 +2408,36 @@ let liveChecked = 0;
       const exp = before.map(label);
       if (JSON.stringify(shown()) !== JSON.stringify(exp)) fail('na "Bepaal winnaar" horen de tellers nog het aantal van vóór de ronde te tonen (' + JSON.stringify(shown()) + ' in plaats van ' + JSON.stringify(exp) + ')');
       if (run('Object.keys(roundPending.players).length') === 0) fail('er hoort een winnaar met kaarten onderweg te zijn');
+      // Het stapelvenster van de winnaar toont hetzelfde als zijn teller, zonder de kaarten die nog op tafel liggen.
+      const winnerIdx = Number(run('Object.keys(roundPending.players)[0]'));
+      const viewerOf = () => { run('showDeckViewer(game.players[' + winnerIdx + '])'); return { title: document.getElementById('deckViewerTitle').textContent, n: document.getElementById('deckViewerList').children.length }; };
+      const beforeViewer = viewerOf();
+      if (beforeViewer.n !== before[winnerIdx] || !beforeViewer.title.endsWith('(' + before[winnerIdx] + ')')) fail('het stapelvenster van de winnaar hoort het oude aantal te tonen: ' + JSON.stringify(beforeViewer) + ' in plaats van ' + before[winnerIdx]);
+      // De stapel van iemand die niets kreeg, blijft ongewijzigd.
+      const other = [0, 1, 2, 3].find(i => i !== winnerIdx && !(String(i) in JSON.parse(run('JSON.stringify(roundPending.players)'))));
+      run('showDeckViewer(game.players[' + other + '])');
+      if (document.getElementById('deckViewerList').children.length !== before[other]) fail('het stapelvenster van een speler zonder nieuwe kaarten hoort ongewijzigd te zijn');
       if (potShown() === 0) fail('de pot hoort nog op tafel te staan');
       run('advance()'); // ruim tafel op
+      const afterViewer = viewerOf();
+      if (afterViewer.n !== real()[winnerIdx]) fail('na "Ruim tafel op" hoort het stapelvenster het nieuwe aantal te tonen: ' + JSON.stringify(afterViewer) + ' in plaats van ' + real()[winnerIdx]);
       if (JSON.stringify(shown()) !== JSON.stringify(real().map(label))) fail('na "Ruim tafel op" horen de tellers het nieuwe aantal te tonen: ' + JSON.stringify(shown()));
       if (run('Object.keys(roundPending.players).length') !== 0) fail('na het opruimen is er niets meer onderweg');
     } else fail('het testspel zou na "Bepaal winnaar" in een gewone ronde-einde moeten staan, fase: ' + run('phase'));
+    // De aflegstapel toont ook pas bij "Ruim tafel op" wat de pot erbij legde (Battle ruimt de pot op).
+    run(`game = createGameState([{ id: 0, name: 'A', deck: [] }, { id: 1, name: 'B', deck: [] }, { id: 2, name: 'C', deck: [] }], { battleDiscard: true });
+      game.players[0].deck = ${JSON.stringify([{ rank: 'K', suit: '♠', value: 13 }, { rank: '2', suit: '♠', value: 2 }, { rank: '8', suit: '♠', value: 8 }])};
+      game.players[1].deck = ${JSON.stringify([{ rank: 'K', suit: '♥', value: 13 }, { rank: '3', suit: '♥', value: 3 }, { rank: '9', suit: '♥', value: 9 }])};
+      game.players[2].deck = ${JSON.stringify([{ rank: '5', suit: '♦', value: 5 }, { rank: '6', suit: '♦', value: 6 }, { rank: '7', suit: '♦', value: 7 }])};
+      visitedStates = new Set(); visitedLog = []; clearPending(); setPhase('idle'); for (let k = 0; k < 8 && phase !== 'round-over' && phase !== 'game-over'; k++) advance();`);
+    const discardShown = () => { run('showDiscardViewer()'); return { title: document.getElementById('deckViewerTitle').textContent, n: document.getElementById('deckViewerList').children.length }; };
+    if (run('phase') === 'round-over' && run('game.discard.length') > 0){
+      const d = discardShown();
+      if (d.title !== 'Aflegstapel (0)' || !/leeg/.test(document.getElementById('deckViewerList').children.map(n => n.textContent).join(''))) fail('de aflegstapel hoort tot "Ruim tafel op" nog leeg te zijn terwijl de pot op tafel ligt: ' + JSON.stringify(d));
+      run('advance()');
+      const d2 = discardShown();
+      if (d2.n !== run('game.discard.length') || d2.n === 0) fail('na "Ruim tafel op" hoort de aflegstapel de kaarten te tonen: ' + JSON.stringify(d2));
+    } else fail('het testspel met Battle ruimt de pot op hoort in ronde-einde met afgelegde kaarten te komen, fase: ' + run('phase') + ', afgelegd: ' + run('game.discard.length'));
     // Aan het einde van het spel staat de eindstand er, ook al wordt er niet meer opgeruimd.
     run(`game = createGameState([{ id: 0, name: 'A', deck: [] }, { id: 1, name: 'B', deck: [] }], {}); game.players[0].deck = ${JSON.stringify([{ rank: 'K', suit: '♠', value: 13 }])}; game.players[1].deck = ${JSON.stringify([{ rank: '3', suit: '♥', value: 3 }])};
       visitedStates = new Set(); visitedLog = []; clearPending(); setPhase('idle'); advance(); advance();`);

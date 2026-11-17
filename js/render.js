@@ -75,13 +75,29 @@ function showCardList(title, subtitle, cards, emptyText){
   document.getElementById('deckViewer').classList.add('show');
 }
 
+// Zonder de kaarten van de pot die de spelkern al heeft toegekend maar die nog op tafel liggen (zie roundPending in game.js): de
+// stapels en de aflegstapel tonen dan hetzelfde als de tellers, tot "Ruim tafel op" ze laat wegschuiven.
+function withoutPotCards(cards){
+  if (typeof roundPot === 'undefined' || !roundPot.length) return cards;
+  const onTable = new Set(roundPot.map(cardKey));
+  return cards.filter(c => !onTable.has(cardKey(c)));
+}
+function visibleDeck(p){
+  return typeof roundPending !== 'undefined' && roundPending.players[p.id] ? withoutPotCards(p.deck) : p.deck;
+}
+function visibleDiscard(){
+  return typeof roundPending !== 'undefined' && roundPending.discard ? withoutPotCards(game.discard) : game.discard;
+}
+
 function showDeckViewer(p){
-  showCardList(p.name + ' — stapel (' + p.deck.length + ')', 'Bovenste kaart eerst', p.deck, 'Geen kaarten meer.');
+  const deck = visibleDeck(p);
+  showCardList(p.name + ' — stapel (' + deck.length + ')', 'Bovenste kaart eerst', deck, 'Geen kaarten meer.');
 }
 
 // De aflegstapel ligt gesloten, maar op volgorde: hier zie je de kaarten.
 function showDiscardViewer(){
-  showCardList('Aflegstapel (' + game.discard.length + ')', 'Ligt gesloten, op volgorde. Bovenste kaart eerst.', game.discard, 'De aflegstapel is leeg.');
+  const discard = visibleDiscard();
+  showCardList('Aflegstapel (' + discard.length + ')', 'Ligt gesloten, op volgorde. Bovenste kaart eerst.', discard, 'De aflegstapel is leeg.');
 }
 
 function hideDeckViewer(){
