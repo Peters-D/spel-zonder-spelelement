@@ -36,7 +36,7 @@ function renderGrid(faceDown, warFlags){
     }
     const pcount = document.createElement('div');
     pcount.className = 'pcount';
-    pcount.textContent = isSidelined ? 'in de pot' : ((p.deck.length - ((typeof roundPending !== 'undefined' && roundPending.players[p.id]) || 0)) + ' kaarten');
+    pcount.textContent = isSidelined ? 'in de pot' : (visibleDeck(p).length + ' kaarten');
     const phint = document.createElement('div');
     phint.className = 'phint';
     phint.textContent = 'tik om de stapel te zien';
@@ -131,7 +131,7 @@ function updateIntegrity(){
 function updateDiscardPile(){
   const used = game.discard.length > 0 || RULES.some(r => r.usesDiscard && game.rules[r.id]);
   document.getElementById('discardPile').classList.toggle('hidden', !used);
-  document.getElementById('discardCount').textContent = game.discard.length - ((typeof roundPending !== 'undefined' && roundPending.discard) || 0);
+  document.getElementById('discardCount').textContent = visibleDiscard().length;
 }
 
 function updatePotPile(){

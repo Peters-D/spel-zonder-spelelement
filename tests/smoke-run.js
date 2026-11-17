@@ -2424,6 +2424,22 @@ let liveChecked = 0;
       if (JSON.stringify(shown()) !== JSON.stringify(real().map(label))) fail('na "Ruim tafel op" horen de tellers het nieuwe aantal te tonen: ' + JSON.stringify(shown()));
       if (run('Object.keys(roundPending.players).length') !== 0) fail('na het opruimen is er niets meer onderweg');
     } else fail('het testspel zou na "Bepaal winnaar" in een gewone ronde-einde moeten staan, fase: ' + run('phase'));
+    // Een overdracht aan het einde van de ronde (Revival) haalt kaarten van de winnaar af die net uit de pot kwamen: de teller wordt dan
+    // niet negatief en blijft gelijk aan wat het stapelvenster toont.
+    run(`game = createGameState([{ id: 0, name: 'B', deck: [] }, { id: 1, name: 'C', deck: [], out: true }, { id: 2, name: 'A', deck: [] }, { id: 3, name: 'D', deck: [] }], { secondChance: true });
+      game.players[0].deck = ${JSON.stringify([{ rank: '3', suit: '♥', value: 3 }])};
+      game.players[2].deck = ${JSON.stringify([{ rank: 'K', suit: '♠', value: 13 }])};
+      game.players[3].deck = ${JSON.stringify([{ rank: '5', suit: '♦', value: 5 }, { rank: '6', suit: '♦', value: 6 }])};
+      visitedStates = new Set(); visitedLog = []; clearPending(); setPhase('idle'); for (let k = 0; k < 4 && phase !== 'round-over' && phase !== 'game-over'; k++) advance();`);
+    if (run('phase') !== 'round-over') fail('het testspel met een Revival-overdracht hoort in ronde-einde te staan, fase: ' + run('phase'));
+    else {
+      const counters = shown();
+      if (counters.some(t => /^-|NaN/.test(t))) fail('een teller mag nooit negatief zijn: ' + JSON.stringify(counters));
+      run('showDeckViewer(game.players[2])');
+      if (!document.getElementById('deckViewerTitle').textContent.endsWith('(' + parseInt(counters[2], 10) + ')')) fail('de teller en het stapelvenster van de winnaar horen gelijk te zijn: ' + JSON.stringify(counters) + ' / ' + document.getElementById('deckViewerTitle').textContent);
+      run('advance()');
+      if (JSON.stringify(shown()) !== JSON.stringify(real().map(label))) fail('na "Ruim tafel op" horen de tellers weer de echte stand te tonen: ' + JSON.stringify(shown()));
+    }
     // De aflegstapel toont ook pas bij "Ruim tafel op" wat de pot erbij legde (Battle ruimt de pot op).
     run(`game = createGameState([{ id: 0, name: 'A', deck: [] }, { id: 1, name: 'B', deck: [] }, { id: 2, name: 'C', deck: [] }], { battleDiscard: true });
       game.players[0].deck = ${JSON.stringify([{ rank: 'K', suit: '♠', value: 13 }, { rank: '2', suit: '♠', value: 2 }, { rank: '8', suit: '♠', value: 8 }])};
