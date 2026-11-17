@@ -431,6 +431,81 @@ test('animaties: blijven uit als het apparaat om minder beweging vraagt', async 
   } finally { await page.ctx.close(); }
 });
 
+// ---- stempels, bediening en kopteksten ----
+// Zet een eigen stand klaar (stapels per speler, bovenste kaart eerst) zonder de deling van het spel.
+async function setDecks(page, decks, rules = {}){
+  await page.evaluate(([d, r]) => {
+    const c = t => { const rank = t.slice(0, -1), suit = t.slice(-1); return { rank, suit, value: { J: 11, Q: 12, K: 13, A: 14 }[rank] || +rank }; };
+    game.players.forEach((p, i) => { p.out = !d[i] || d[i].length === 0; p.deck = (d[i] || []).map(c); p.faceCard = null; });
+    Object.assign(game.rules, r); game.pot = []; game.discard = []; game.contenders = []; setPhase('idle');
+  }, [decks, rules]);
+}
+const stampText = page => page.evaluate(() => { const s = document.querySelector('#battlefield .stamp'); return s ? s.innerText.replace(/\s+/g, ' ').trim() : null; });
+
+test('stempel: elke uitkomst heeft er een, het blijft staan tot de volgende klik en staat in het midden', async page => {
+  await startGame(page, { players: 3 });
+  await setDecks(page, [['K♠', '2♠', '9♠'], ['K♥', '3♥', '4♥'], ['5♦', '6♦', '7♦']]);
+  await page.click('#playBtn'); // speel ronde: nog geen stempel
+  eq(await stampText(page), null, 'geen stempel voordat er iets gebeurt');
+  await page.click('#playBtn'); // bepaal winnaar: twee Heren, dus een battle
+  const battle = await stampText(page);
+  ok(battle && battle.startsWith('BATTLE') && battle.includes('Speler 1 en Speler 2 battlen'), 'stempel bij de start van een battle: ' + battle);
+  await page.waitForTimeout(2500);
+  eq(await stampText(page), battle, 'het stempel blijft staan tot de volgende klik');
+  const pos = await page.evaluate(() => { const s = document.querySelector('#battlefield .stamp').getBoundingClientRect(), f = document.getElementById('battlefield').getBoundingClientRect();
+    return { dx: Math.abs((s.left + s.width / 2) - (f.left + f.width / 2)), dy: Math.abs((s.top + s.height / 2) - (f.top + f.height / 2)) }; });
+  ok(pos.dx < 3 && pos.dy < 3, 'het stempel staat in het midden van het speelveld: ' + JSON.stringify(pos));
+  await page.click('#playBtn'); // leg battle-kaarten
+  eq(await stampText(page), null, 'het stempel van de vorige stap is weg');
+  await page.click('#playBtn'); // bepaal winnaar
+  const won = await stampText(page);
+  ok(won && won.startsWith('BATTLE GEWONNEN') && /verovert \d+ kaarten/.test(won), 'stempel bij het winnen van een battle: ' + won);
+  await page.click('#playBtn'); // ruim tafel op
+  eq(await stampText(page), null, 'na het opruimen staat er geen stempel meer');
+  noErrors(page);
+});
+
+test('stempel: een afgelegde pot heet POT AFGELEGD', async page => {
+  await startGame(page, { players: 3 });
+  await setDecks(page, [['K♠', '2♠', '9♠'], ['K♥', '3♥', '4♥'], ['5♦', '6♦', '7♦']], { battleDiscard: true });
+  await playUntil(page, 'round-over');
+  const t = await stampText(page);
+  ok(t && t.startsWith('POT AFGELEGD') && t.includes('gaan naar de aflegstapel'), 'stempel als de pot naar de aflegstapel gaat: ' + t);
+  noErrors(page);
+});
+
+test('stempel: Revival staat in het stempel', async page => {
+  await startGame(page, { players: 4 });
+  await setDecks(page, [['3♥'], [], ['K♠'], ['5♦', '6♦']], { secondChance: true });
+  await page.click('#playBtn'); await page.click('#playBtn');
+  const r = await stampText(page);
+  ok(r && r.startsWith('OVERWINNING') && r.includes('doet weer mee'), 'Revival staat in het stempel: ' + r);
+  noErrors(page);
+});
+
+test('bediening: "Speel vanzelf" en "Pauzeer" zijn even breed en het schuifje blijft staan', async () => {
+  for (const width of [420, 900]){
+    const page = await open({ width, height: 900 });
+    try {
+      await startGame(page);
+      const geo = () => page.evaluate(() => { const r = id => { const e = document.getElementById(id).getBoundingClientRect(); return [Math.round(e.left), Math.round(e.width)]; };
+        return { knop: r('autoPlayBtn'), schuif: r('speedSlider'), label: r('speedLabel'), tekst: document.getElementById('autoPlayBtn').textContent }; });
+      const voor = await geo();
+      await page.click('#autoPlayBtn'); await page.waitForTimeout(150);
+      const na = await geo();
+      await page.click('#autoPlayBtn');
+      ok(voor.tekst !== na.tekst, 'de knoptekst hoort te wisselen');
+      eq(JSON.stringify([na.knop, na.schuif]), JSON.stringify([voor.knop, voor.schuif]), 'knop en schuifje bij ' + width + ' px');
+      ok(voor.schuif[1] >= 80, 'het schuifje is breed genoeg (' + voor.schuif[1] + ' px bij ' + width + ' px)');
+      noErrors(page);
+    } finally { await page.ctx.close(); }
+  }
+});
+
+test('startscherm: de kop is "Seed" zonder uitleg', async page => {
+  eq((await page.locator('#setup h2').allTextContents()).filter(t => t.startsWith('Seed')), ['Seed'], 'koppen die met Seed beginnen');
+});
+
 test('animaties: snel auto-play slaat ze over en het spel blijft kloppen', async page => {
   await startGame(page);
   await page.fill('#speedSlider', '100');

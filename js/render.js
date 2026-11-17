@@ -145,14 +145,29 @@ function updatePotPile(){
   }
 }
 
-function showStamp(text, color){
+// Het stempel in het midden van het speelveld: wat er net gebeurde, met eronder in gewone taal wat het betekent (lines). Het blijft
+// staan tot de volgende klik (clearStamps, aangeroepen aan het begin van elke stap), zodat je het rustig kunt lezen.
+let currentStamp = null;
+function showStamp(text, lines, color){
+  clearStamps();
   const bf = document.getElementById('battlefield');
   const s = document.createElement('div');
   s.className = 'stamp';
-  s.textContent = text;
+  s.appendChild(document.createTextNode(text));
+  for (const line of (lines || []).filter(Boolean)){
+    const sub = document.createElement('div');
+    sub.className = 'stamp-sub';
+    sub.textContent = line;
+    s.appendChild(sub);
+  }
   if (color) s.style.borderColor = color, s.style.color = color;
   bf.appendChild(s);
+  currentStamp = s;
   requestAnimationFrame(()=>s.classList.add('show'));
-  setTimeout(()=>s.remove(), 900);
+}
+
+function clearStamps(){
+  if (currentStamp && typeof currentStamp.remove === 'function') currentStamp.remove();
+  currentStamp = null;
 }
 

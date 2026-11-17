@@ -207,6 +207,7 @@ function dealNewGame(){
 }
 
 function launchGame(){
+  if (typeof clearStamps === 'function') clearStamps();
   document.getElementById('cycleWarning').classList.add('hidden');
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('game').classList.remove('hidden');
@@ -299,6 +300,7 @@ document.getElementById('cycleNewSeedBtn').addEventListener('click', () => {
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   stopAutoPlay();
+  if (typeof clearStamps === 'function') clearStamps();
   document.getElementById('setup').classList.remove('hidden');
   document.getElementById('game').classList.add('hidden');
 });

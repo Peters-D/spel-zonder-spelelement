@@ -9,7 +9,7 @@ const speedLabel = document.getElementById('speedLabel');
 
 speedSlider.addEventListener('input', () => {
   autoPlaySpeed = parseInt(speedSlider.value);
-  speedLabel.textContent = (autoPlaySpeed / 1000).toFixed(1).replace('.', ',') + ' s per stap';
+  speedLabel.textContent = (autoPlaySpeed / 1000).toFixed(1).replace('.', ',') + ' s';
 });
 
 function autoPlayTick(){
@@ -49,6 +49,7 @@ const fastForwardBtn = document.getElementById('fastForwardBtn');
 function fastForward(){
   if (!(phase === 'idle' || phase === 'round-over' || phase === 'cleared')) return;
   stopAutoPlay();
+  clearStamps();
   if (typeof undoPush === 'function') undoPush(); // het doorspoelen telt als één stap terug
 
   const result = simulateFullTrace(game.players, SIM_ROUND_CAP, game.rules, { discard: game.discard, moved: game.moved });

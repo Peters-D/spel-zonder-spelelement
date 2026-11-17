@@ -94,6 +94,7 @@ function layBattleCards(){
       ? 'Niemand in de battle heeft nog een kaart: ze liggen eruit. ' + formatNamesNL(ev.leftover.map(p => p.name)) +
         (ev.leftover.length > 1 ? ' dingen' : ' dingt') + ' met de open kaart mee naar de pot. Bepaal de winnaar.'
       : 'Bekijk de battle-kaarten en bepaal de winnaar.', true);
+    if (ev.leftover) showStamp('ALLE BATTLERS UIT', ['Niemand in de battle heeft nog een kaart.', formatNamesNL(ev.leftover.map(p => p.name)) + (ev.leftover.length > 1 ? ' dingen' : ' dingt') + ' met de open kaart mee naar de pot.']);
     setPhase('battle-revealed');
     if (typeof animFlyToPot === 'function') animFlyToPot(toPot);
     return;
@@ -114,6 +115,8 @@ function compareAndResolve(){
     } else {
       setDispatch('BATTLE tussen ' + names + '! Klik om battle-kaarten te leggen.', true);
     }
+    showStamp(ev.level > 1 ? 'NIEUWE BATTLE' : 'BATTLE', [names + (ev.contenders.length > 1 ? ' battlen' : ' battlet'),
+      ev.overruled && ev.overruled.length > 0 && rule && rule.overruledMessage ? rule.overruledMessage(formatNamesNL(ev.overruled.map(p => p.name))) : '']);
     // Wie niet meedoet aan de battle: die kaart ligt vanaf nu in de pot.
     const toPot = typeof animCapture === 'function' ? animCapture(p => !ev.contenders.includes(p) && !roundSidelined.includes(p.id)) : [];
     for (const p of game.players) if (!p.out && p.faceCard && !ev.contenders.includes(p) && !roundSidelined.includes(p.id)) roundSidelined.push(p.id);
@@ -148,7 +151,8 @@ function showRoundResult(ev){
   if (ev.type !== 'win'){
     const text = [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : '', playerNotes(ev)].filter(Boolean).join(' ');
     if (text) setDispatch(text);
-    finalizeRoundOver(ev);
+    const endNotes = finalizeRoundOver(ev);
+    showStamp('GEEN WINNAAR', [ev.discarded > 0 ? ev.discarded + ' kaarten gaan naar de aflegstapel.' : 'Niemand wint de pot.', ...endNotes]);
     renderGrid(false);
     if (typeof animFlyTransfers === 'function') animFlyTransfers(roundEndTransfers);
     return;
@@ -168,20 +172,25 @@ function showRoundResult(ev){
   const outcome = sharedText ? sharedText : ev.discarded === 0 ? null
     : ev.toWinner === 0 ? w.name + ' wint, maar alle ' + ev.potSize + ' kaarten gaan naar de aflegstapel.'
     : w.name + ' verovert ' + ev.toWinner + ' van de ' + ev.potSize + ' kaarten. De rest (' + ev.discarded + ') gaat naar de aflegstapel.';
+  // Het stempel: wat er gebeurde (stampText) en in gewone taal wat het betekent (de zin van het spel zelf).
+  let stampText, stampLine;
   if (ev.how === 'last-standing'){
-    showStamp('LAATSTE OVER');
-    setDispatch(outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!');
+    stampText = 'LAATSTE OVER';
+    stampLine = outcome || w.name + ' is de laatste in de battle en wint ' + displayPot + ' kaarten!';
   } else {
-    showStamp(sharedWinners ? 'SAMEN GEWONNEN' : ev.tieBroken ? (tieBySuit ? 'SYMBOOL BESLIST' : 'GELIJKSPEL BESLIST') : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING');
-    setDispatch(outcome || w.name + ' verovert ' + displayPot + ' kaarten!');
+    stampText = sharedWinners ? 'SAMEN GEWONNEN' : ev.tieBroken ? (tieBySuit ? 'SYMBOOL BESLIST' : 'GELIJKSPEL BESLIST') : ev.how === 'battle' ? 'BATTLE GEWONNEN' : 'OVERWINNING';
+    stampLine = outcome || w.name + ' verovert ' + displayPot + ' kaarten!';
   }
+  if (!sharedWinners && ev.toWinner === 0 && ev.discarded > 0) stampText = 'POT AFGELEGD'; // de winnaar krijgt niets
+  setDispatch(stampLine);
   if (ev.tieBroken){ // een regel besliste het gelijkspel (meestal het symbool), er is geen battle
     const how = tieBySuit ? ' wint op symbool (' + ev.tieBroken.suit + '). ' : ' wint het gelijkspel door de regel "' + (tieRule ? tieRule.title : ev.tieBroken.ruleId) + '". ';
     document.getElementById('dispatch').textContent = w.name + how + document.getElementById('dispatch').textContent;
   }
   const more = playerNotes(ev);
   if (more) document.getElementById('dispatch').textContent += ' ' + more;
-  finalizeRoundOver(ev);
+  const endNotes = finalizeRoundOver(ev);
+  showStamp(stampText, [ev.tieBroken ? w.name + (tieBySuit ? ' wint op symbool (' + ev.tieBroken.suit + ').' : ' wint het gelijkspel door de regel "' + (tieRule ? tieRule.title : ev.tieBroken.ruleId) + '".') : '', stampLine, ...(more ? [more] : []), ...endNotes]);
   const winnerIds = sharedWinners ? sharedWinners.map(x => x.player.id) : [w.id];
   if (typeof statsRecordRoundWin === 'function') statsRecordRoundWin(winnerIds.length > 1 ? winnerIds : w.id); // STATS HOOK
   renderGrid(false, game.players.map(p => winnerIds.includes(p.id)));
@@ -201,16 +210,17 @@ function finalizeRoundOver(ev){
     clearPending(); // het spel is voorbij: er wordt niet meer opgeruimd, dus de tellers tonen de eindstand
     endGame(end.winner, end.jointWinners);
     setPhase('game-over');
-    return;
+    return notes;
   }
   if (checkLiveCycle()){
     clearPending();
     endCycleDetected();
     setPhase('cycle-over');
-    return;
+    return notes;
   }
   if (ev) notePending(ev);
   setPhase('round-over');
+  return notes; // voor het stempel: wat regels aan het einde van de ronde deden
 }
 
 // Zet een banner onder de titel. De tekst gaat als gewone tekst in de pagina (nooit als HTML), zodat een naam met HTML erin
@@ -248,6 +258,7 @@ function endCycleDetected(){
 }
 
 function advance(){
+  clearStamps(); // het stempel van de vorige stap blijft tot de volgende klik
   if (phase === 'idle') startRound();
   else if (phase === 'revealed') compareAndResolve();
   else if (phase === 'battle-pending') layBattleCards();
