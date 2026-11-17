@@ -67,9 +67,24 @@ function showWinnerRuleChoice(winner){
   }
   for (const rule of RULES){
     const wasOn = !!(game && game.rules && game.rules[rule.id]);
+    // Een tegel per regel: de naam, de stand nu (Aan/Uit) en wat er na een klik van wordt.
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = (wasOn ? 'Zet uit: ' : 'Zet aan: ') + rule.title;
+    btn.className = 'winner-tile ' + (wasOn ? 'is-on' : 'is-off');
+    const name = document.createElement('span');
+    name.className = 'winner-tile-name';
+    name.textContent = rule.title;
+    const state = document.createElement('span');
+    state.className = 'winner-tile-state';
+    state.textContent = wasOn ? 'Aan' : 'Uit';
+    const next = document.createElement('span');
+    next.className = 'winner-tile-next';
+    next.textContent = 'wordt: ' + (wasOn ? 'uit' : 'aan');
+    btn.appendChild(name);
+    btn.appendChild(state);
+    btn.appendChild(next);
+    // Voor een schermlezer met pauzes tussen de delen, zodat "Aan wordt: uit" niet als één brij klinkt.
+    btn.setAttribute('aria-label', rule.title + ', nu ' + (wasOn ? 'aan' : 'uit') + ', wordt: ' + (wasOn ? 'uit' : 'aan'));
     btn.addEventListener('click', () => {
       if (done) return;
       done = true;

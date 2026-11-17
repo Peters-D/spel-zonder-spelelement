@@ -433,12 +433,23 @@ header::before{
 }
 .winner-choice p{ margin:0 0 10px; }
 .winner-choice p:last-child{ margin-bottom:0; }
-.winner-choice-buttons{ display:flex; flex-direction:column; gap:6px; }
-.winner-choice-buttons button{
-  border:1px solid var(--brass); background:transparent; color: var(--brass); border-radius:10px; padding:9px 10px;
-  font-family:'Special Elite', monospace; font-size:12px; cursor:pointer;
+/* De keuze na een spel: een tegel per regel, met de stand nu (Aan/Uit) en wat er na een klik van wordt. */
+.winner-choice-buttons{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px; }
+.winner-tile{
+  display:grid; grid-template-columns: 1fr auto; grid-template-areas: "name state" "next next"; gap:4px 8px; align-items:start;
+  text-align:left; min-width:0; padding:10px 12px; border-radius:12px; cursor:pointer;
+  font-family:'Inter', sans-serif; font-size:13px; line-height:1.25; color: var(--paper);
+  border:1px solid var(--line); background: transparent;
 }
-.winner-choice-buttons button:hover, .winner-choice-buttons button:focus-visible{ background: var(--brass); color: var(--ink); }
+.winner-tile.is-on{ border-color: var(--brass); background: color-mix(in srgb, var(--brass) 16%, transparent); }
+.winner-tile-name{ grid-area:name; font-weight:600; overflow-wrap:anywhere; }
+.winner-tile-state{
+  grid-area:state; font-family:'Special Elite', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+  padding:2px 8px; border-radius:999px; border:1px solid var(--paper-dim); color: var(--paper-dim);
+}
+.winner-tile.is-on .winner-tile-state{ background: var(--brass); border-color: var(--brass); color: var(--ink); }
+.winner-tile-next{ grid-area:next; font-size:11.5px; color: var(--paper-dim); }
+.winner-tile:hover, .winner-tile:focus-visible{ border-color: var(--brass); outline:none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 55%, transparent); }
 .winner-next{
   width:100%; margin-top:10px; background: var(--brass); color: var(--ink); border:1px solid var(--brass); border-radius:10px;
   padding:10px; font-family:'Special Elite', monospace; font-size:12.5px; cursor:pointer;
