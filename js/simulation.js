@@ -14,7 +14,8 @@ function stateSignature(playerList, discard){
 
 const SIM_ROUND_CAP = 3000;
 
-// Simuleert vanaf een gegeven spelerstand tot een winnaar, een cyclus, of de rondelimiet.
+// Simuleert vanaf een gegeven spelerstand tot een winnaar, een cyclus, of de rondelimiet (capRounds: zoveel rondes worden er
+// ten hoogste gespeeld; 'unknown' betekent dat het spel daarna nog loopt).
 // trace bevat per gebeurtenis een 'battle'-entry (voor statsRecordBattle) en/of een
 // 'win'-entry (voor statsRecordRoundWin), in de exacte volgorde zoals live zou gebeuren.
 // start: de rest van de spelstand waarmee de simulatie begint ({ discard, moved }). Bij fast-forward midden in een
@@ -29,7 +30,9 @@ function simulateFullTrace(startPlayers, capRounds, rules, start){
   const seen = new Set();
   let rounds = 0;
   const trace = [];
-  while (rounds < capRounds){
+  // Eerst kijken of het spel voorbij is of een stand terugkomt, dan pas of de limiet bereikt is: een spel dat precies in de
+  // laatste toegestane ronde eindigt (of daar een cyclus sluit) is beslist, niet "onbekend".
+  for (;;){
     const active = engineActivePlayers(state);
     if (active.length <= 1){
       return { outcome: 'win', winnerId: active[0] ? active[0].id : null, jointWinnerIds: engineJointWinners(state).map(p => p.id), rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
@@ -39,6 +42,7 @@ function simulateFullTrace(startPlayers, capRounds, rules, start){
       return { outcome: 'cycle', rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
     }
     seen.add(sig);
+    if (rounds >= capRounds) break;
     const result = enginePlayRound(state);
     rounds++;
     for (let lvl = 1; lvl <= result.battleLevels; lvl++){
@@ -50,7 +54,7 @@ function simulateFullTrace(startPlayers, capRounds, rules, start){
       trace.push({ type: 'win', winnerId: result.winner.id, winnerIds: result.shared.length > 0 ? result.shared : [result.winner.id], counts });
     }
   }
-  return { outcome: 'unknown', rounds: capRounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
+  return { outcome: 'unknown', rounds, trace, finalPlayers: state.players, finalDiscard: state.discard, finalMoved: state.moved };
 }
 
 function simulateOutcome(dealtPlayers, rules){
