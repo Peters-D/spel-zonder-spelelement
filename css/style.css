@@ -228,6 +228,12 @@ h1{
   font-family:'Special Elite', monospace; font-size:16px; letter-spacing:0.08em; white-space:nowrap; z-index:5;
   padding:6px 14px; border-radius:4px; transform: translate(-50%, -50%) rotate(-8deg) scale(0); opacity:0;
   text-transform:uppercase; pointer-events:none; top:50%; left:50%; max-width:calc(100% - 16px); box-sizing:border-box;
+  text-align:center;
+}
+/* De regels onder het stempel (wat er gebeurde, in gewone taal): mogen over meerdere regels lopen. */
+.stamp-sub{
+  font-family:'Inter', sans-serif; font-size:12.5px; letter-spacing:0; text-transform:none; white-space:normal; line-height:1.3;
+  margin-top:4px; max-width:260px;
 }
 
 .theme-switch{ position:relative; display:flex; justify-content:flex-end; margin-bottom:12px; }
@@ -377,6 +383,8 @@ header::before{
   white-space:nowrap;
   transition: background 0.15s ease, color 0.15s ease;
 }
+/* "Speel vanzelf" en "Pauzeer" even breed: anders verschuift het schuifje bij elke klik. */
+#autoPlayBtn{ width:124px; text-align:center; }
 .autoplay-btn.active{
   background: var(--brass);
   color: var(--ink);
@@ -399,7 +407,7 @@ header::before{
   text-align:right;
   flex-shrink:0;
 }
-@media (max-width: 395px){
+@media (max-width: 480px){
   /* Op smalle schermen is er naast de knoppen te weinig ruimte voor het schuifje (minder dan ±100px).
      Het schuifje komt dan op een eigen regel onder de knoppen. */
   .autoplay-row{ flex-wrap:wrap; }

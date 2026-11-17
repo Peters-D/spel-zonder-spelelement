@@ -36,6 +36,7 @@ function undoStep(){
   const snap = undoStack.pop();
   if (!snap) return;
   stopAutoPlay();
+  clearStamps();
   game = snap.game;
   while (visitedLog.length > snap.visited) visitedStates.delete(visitedLog.pop());
   if (snap.stats && typeof statsRestore === 'function') statsRestore(snap.stats);
