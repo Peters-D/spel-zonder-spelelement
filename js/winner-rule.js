@@ -83,6 +83,8 @@ function showWinnerRuleChoice(winner){
     btn.appendChild(name);
     btn.appendChild(state);
     btn.appendChild(next);
+    // Voor een schermlezer met pauzes tussen de delen, zodat "Aan wordt: uit" niet als één brij klinkt.
+    btn.setAttribute('aria-label', rule.title + ', nu ' + (wasOn ? 'aan' : 'uit') + ', wordt: ' + (wasOn ? 'uit' : 'aan'));
     btn.addEventListener('click', () => {
       if (done) return;
       done = true;
