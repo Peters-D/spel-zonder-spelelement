@@ -7,7 +7,7 @@
 // De aflegstapel (met zijn volgorde) hoort bij de stand; zonder afgelegde kaarten is de tekst gelijk aan voorheen.
 function stateSignature(playerList, discard){
   const sig = playerList.map(p =>
-    p.id + ':' + (p.out ? 'UIT' : p.deck.map(c => c.rank + c.suit).join(','))
+    p.id + ':' + (p.out ? 'UIT' : p.deck.map(c => c.rank + c.suit).join(',')) + (p.chanceUsed ? '!' : '') // ! = tweede kans gebruikt
   ).join('|');
   return discard && discard.length ? sig + '|AFGELEGD:' + discard.map(c => c.rank + c.suit).join(',') : sig;
 }

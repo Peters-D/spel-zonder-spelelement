@@ -1142,10 +1142,10 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     onRoundEnd(ctx){
       const state = ctx.state;
       if (state.players.filter(p => p.deck.length > 0).length < 2) return;
-      const dead = state.players.filter(p => p.deck.length === 0);
+      const dead = state.players.filter(p => p.deck.length === 0 && !p.chanceUsed);
       // De gevers worden bepaald vóór er kaarten verschuiven, zodat een speler die net een kaart kreeg niet meteen weer geeft.
       const givers = dead.map(p => engineNeighbor(state, p.id, 'left'));
-      dead.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, 1); });
+      dead.forEach((p, i) => { if (givers[i] && engineTransferCards(state, givers[i].id, p.id, 1) > 0) p.chanceUsed = true; });
     }
   },
   royalFamily: {
@@ -1586,7 +1586,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     twoBeatsAce: 'Als er een 2 ligt en er een Aas ligt, dan winnen kaarten met een 2. Bij gelijk spel: BATTLE!',
     battleFirst: 'De kaarten van de hoogste groep van minstens 2 kaarten met dezelfde waarde winnen. Bij gelijk spel: BATTLE!',
     battleDiscard: 'Als er een battle is geweest, dan gaat de hele pot naar de aflegstapel.',
-    secondChance: 'Aan het einde van de ronde, als minstens twee spelers kaarten hebben, dan krijgt elke speler zonder kaarten 1 kaart van de linkerbuur met kaarten.',
+    secondChance: 'Aan het einde van de ronde, als minstens twee spelers kaarten hebben, dan krijgt elke speler zonder kaarten die nog een tweede kans heeft 1 kaart van de linkerbuur met kaarten. Een tweede kans heeft elke speler één keer: wie een ronde wint, krijgt hem terug.',
     royalFamily: 'Als de winnaar de ronde met een Heer begon en er een andere speler is die de ronde met een Vrouw begon, dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een Vrouw, de hoogste kaart eerst.',
     suitBreak: 'Bij een gelijkspel wint de kaart met het hoogste symbool.'
   };
@@ -1799,6 +1799,8 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     out.push(st('award', [Object.assign(rbNewCond('anyPlayer'), { who: 'winner' }), Object.assign(rbNewCond('battle'), { not: true })], rbNewEffect('sharePot'), 'or'));
     out.push(st('award', [Object.assign(rbNewCond('playersWithCards'), { mode: 'between', n: 2, m: 4 })], Object.assign(rbNewEffect('sharePot'), { who: [rbNewPlayer('winner'), Object.assign(rbNewPlayer('opened'), { other: true }), rbNewPlayer('withoutCards')] })));
     out.push(st('roundEnd', [Object.assign(rbNewCond('playersWithCards'), { mode: 'max', n: 3 })], Object.assign(rbNewEffect('transfer'), { each: rbNewPlayer('withoutCards'), from: Object.assign(rbNewPlayer('neighbor'), { side: 'right' }), count: 2 })));
+    out.push(st('roundEnd', [], Object.assign(rbNewEffect('transfer'), { each: Object.assign(rbNewPlayer('withoutCards'), { chance: true }), from: rbNewPlayer('neighbor'), count: 1 })));
+    out.push(st('award', [Object.assign(rbNewCond('anyPlayer'), { who: 'withoutCards', chance: true })], rbNewEffect('discardPot')));
     for (const m of ['decide', 'tiebreak', 'award', 'roundEnd']) out.push(rbNewState(m));
     out.push(st('decide', [Object.assign(rbNewCond('exists'), { cs: cs('rank', { ranks: ['A'] }) }), Object.assign(rbNewCond('count'), { cs: cs('rank', { ranks: ['2'] }), mode: 'min', n: 2 }), Object.assign(rbNewCond('exists'), { cs: cs('suit', { suits: ['♣'] }), not: true })], win(cs('highest')), 'or'));
     return JSON.stringify(out); })()`));
@@ -1993,7 +1995,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   // Elk sleutelwoord dat de controle kent, staat in de uitleg (anders kan het model die bouwsteen niet gebruiken).
   const grammar = run('RULE_PROMPT_GRAMMAR');
   const words = ['moment', 'if', 'then', 'decide', 'tiebreak', 'award', 'roundEnd', 'rank', 'suit', 'color', 'red', 'black', 'all', 'highest', 'lowest', 'value', 'suitOrder', 'of', 'group', 'relation',
-    'sameRank', 'sameSuit', 'sameColor', 'consecutive', 'min', 'max', 'pick', 'and', 'or', 'not', 'winner', 'opened', 'exclude', 'withoutCards', 'neighbor', 'left', 'right',
+    'sameRank', 'sameSuit', 'sameColor', 'consecutive', 'min', 'max', 'pick', 'and', 'or', 'not', 'winner', 'opened', 'exclude', 'withoutCards', 'secondChance', 'neighbor', 'left', 'right',
     'exists', 'count', 'battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'win', 'discardPot', 'sharePot', 'forEach', 'transfer', 'from', 'discardTop'];
   for (const w of words) if (!grammar.includes('"' + w + '"')) fail('de uitleg noemt "' + w + '" niet');
   // En omgekeerd: elk woord tussen aanhalingstekens in de uitleg is een bekend sleutelwoord, een waarde of een symbool.
@@ -2386,6 +2388,53 @@ let liveChecked = 0;
 
   run('delete globalThis.localStorage; winnerRules = {}; renderRuleOptions(); game = null;');
   banner.innerHTML = '';
+}
+
+// ---- Revival: elke speler heeft één tweede kans (engine.js, rule-dsl.js) ----
+{
+  const fail = t => failures.push('tweede kans: ' + t);
+  const same = (name, got, exp) => { if (JSON.stringify(got) !== JSON.stringify(exp)) fail(name + ': verwacht ' + JSON.stringify(exp) + ', kreeg ' + JSON.stringify(got)); };
+  // Speelt n rondes met Revival aan en geeft na elke ronde per speler [aantal kaarten, uit, tweede kans gebruikt].
+  const rounds = (decks, n) => JSON.parse(run(`(() => { const st = __state(${JSON.stringify(decks)}); st.rules = Object.assign({}, st.rules, { secondChance: true });
+    const out = []; for (let i = 0; i < ${n}; i++){ enginePlayRound(st); out.push(st.players.map(p => [p.deck.length, p.out, p.chanceUsed])); } return JSON.stringify(out); })()`));
+
+  // Eén keer een kaart; daarna, zonder een ronde te winnen, definitief af.
+  const a = rounds([['K♠'], ['3♥'], ['9♦', '8♦', '7♦', '6♦', '5♦']], 3);
+  same('ronde 1: speler 2 krijgt zijn tweede kans (de bovenste kaart van de linkerbuur)', a[0], [[3, false, false], [1, false, true], [3, false, false]]);
+  same('ronde 2: speler 2 verliest de kaart en krijgt geen tweede kaart: definitief af', a[1], [[5, false, false], [0, true, true], [2, false, false]]);
+  same('ronde 3: wie definitief af is, komt niet terug', a[2][1], [0, true, true]);
+
+  // Wint een speler na zijn tweede kans een ronde, dan krijgt hij hem terug.
+  const b = rounds([['2♠'], ['3♥'], ['5♦', '9♦', '7♦', '6♦'], ['4♣', '6♣', '6♠', '6♥']], 2);
+  same('ronde 1: twee spelers zonder kaarten gebruiken hun tweede kans', b[0].map(x => [x[1], x[2]]), [[false, true], [false, true], [false, false], [false, false]]);
+  same('ronde 2: de winnaar krijgt zijn tweede kans terug, de verliezer is definitief af', b[1], [[4, false, false], [0, true, true], [4, false, false], [2, false, false]]);
+
+  // De regel doet niets zonder minstens twee spelers met kaarten, en met Revival uit blijft de vlag onaangeroerd.
+  same('met één speler met kaarten komt niemand terug', rounds([['K♠'], ['3♥']], 1)[0], [[2, false, false], [0, true, false]]);
+  same('zonder Revival gebruikt niemand een tweede kans', JSON.parse(run(`(() => { const st = __state(${JSON.stringify([['K♠'], ['3♥'], ['9♦', '8♦', '7♦']])}); enginePlayRound(st); return JSON.stringify(st.players.map(p => p.chanceUsed)); })()`)), [false, false, false]);
+
+  // Samen winnen (een gedeelde pot) telt ook als winnen.
+  const shared = JSON.parse(run(`(() => { const st = __state([['K♠'], ['Q♥'], ['9♦']]); st.rules = Object.assign({}, st.rules, { royalFamily: true });
+    st.players[0].chanceUsed = true; st.players[1].chanceUsed = true; st.players[2].chanceUsed = true; enginePlayRound(st); return JSON.stringify(st.players.map(p => p.chanceUsed)); })()`));
+  same('wie samen wint, krijgt zijn tweede kans terug (de Heer en de Vrouw, niet de derde speler)', shared, [false, false, true]);
+
+  // De vlag hoort bij de stand: vingerafdruk, kopie voor het doorspoelen en de simulatie.
+  const sig = JSON.parse(run(`(() => { const st = __state([['K♠'], ['3♥']]); const x = stateSignature(st.players, st.discard); st.players[1].chanceUsed = true; return JSON.stringify([x, stateSignature(st.players, st.discard)]); })()`));
+  if (sig[0] === sig[1]) fail('de vingerafdruk van een stand hoort het verschil in tweede kans te tonen: ' + JSON.stringify(sig));
+  const kept = JSON.parse(run(`(() => { const st = __state([['K♠', '2♠'], ['3♥']]); st.players[1].chanceUsed = true; const r = simulateFullTrace(st.players, 5, {}); return JSON.stringify([createGameState(st.players, {}).players[1].chanceUsed, r.finalPlayers.map(p => p.chanceUsed)]); })()`));
+  same('createGameState neemt de vlag over en de simulatie geeft hem door', kept[0], true);
+
+  // De beschrijving: wat wel en niet mag.
+  const errs = logic => JSON.parse(run('JSON.stringify(validateRuleLogic(' + JSON.stringify(logic) + '))'));
+  const rev = secondChance => ({ moment: 'roundEnd', then: { forEach: Object.assign({ withoutCards: true }, secondChance === undefined ? {} : { secondChance }), transfer: { from: { neighbor: 'left' }, count: 1 } } });
+  same('secondChance: true is goed', errs(rev(true)), []);
+  same('secondChance zonder de vlag is goed', errs(rev()), []);
+  if (errs(rev(false)).length === 0) fail('secondChance: false hoort te worden afgekeurd');
+  if (errs(rev('ja')).length === 0) fail('secondChance: "ja" hoort te worden afgekeurd');
+  if (errs({ moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' }, secondChance: true }, discardTop: 1 } }).length === 0) fail('secondChance hoort alleen bij withoutCards te mogen');
+  // De zin legt de tweede kans uit.
+  const sentence = JSON.parse(run('JSON.stringify(describeRuleLogic(' + JSON.stringify(rev(true)) + '))'));
+  if (!/die nog een tweede kans heeft/.test(sentence) || !/wie een ronde wint, krijgt hem terug/.test(sentence)) fail('de zin hoort de tweede kans uit te leggen: ' + sentence);
 }
 
 // ---- tellers en wat je ziet (game.js, render.js) ----

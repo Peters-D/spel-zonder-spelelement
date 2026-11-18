@@ -36,6 +36,9 @@
 //   { opened: <kaart>, exclude: 'winner' }     spelers die de ronde begonnen met zo'n kaart (<kaart>: rank/suit/color/and/or/not);
 //                                              exclude (optioneel) laat de winnaar weg
 //   { withoutCards: true }                     spelers zonder kaarten
+//   { withoutCards: true, secondChance: true } spelers zonder kaarten die hun tweede kans nog hebben. Elke speler heeft er één:
+//                                              wie bij forEach + transfer kaarten krijgt, gebruikt hem; wie een ronde wint (ook samen),
+//                                              krijgt hem terug. Wie zonder kaarten en zonder tweede kans zit, valt definitief af.
 //   { neighbor: 'left' | 'right' }             bij forEach: de eerstvolgende speler met kaarten links of rechts van die speler
 //
 // Voorwaarden (if):
@@ -142,7 +145,11 @@ function validateRuleLogic(logic){
       only(node, path, ['opened', 'exclude']);
       card(node.opened, path + '.opened', 1);
       if ('exclude' in node && (node.exclude !== 'winner' || !allowWinner)) err(path + '.exclude', '"winner" verwacht (alleen bij het moment award)');
-    } else if (key === 'withoutCards'){ only(node, path, ['withoutCards']); if (node.withoutCards !== true) err(path + '.withoutCards', 'true verwacht'); }
+    } else if (key === 'withoutCards'){
+      only(node, path, ['withoutCards', 'secondChance']);
+      if (node.withoutCards !== true) err(path + '.withoutCards', 'true verwacht');
+      if ('secondChance' in node && node.secondChance !== true) err(path + '.secondChance', 'true verwacht');
+    }
     else if (key === 'neighbor'){
       only(node, path, ['neighbor']);
       if (!allowNeighbor) err(path, '"neighbor" kan alleen als from bij forEach');
@@ -289,7 +296,7 @@ function dslSelectPlayers(node, ctx){
     return state.players.filter(p => state.opening[p.id] && dslCardMatches(state.opening[p.id], node.opened) &&
       !(node.exclude === 'winner' && ctx.winner && p.id === ctx.winner.id));
   }
-  return state.players.filter(p => p.deck.length === 0); // withoutCards
+  return state.players.filter(p => p.deck.length === 0 && !(node.secondChance && p.chanceUsed)); // withoutCards (met secondChance: nog een tweede kans)
 }
 
 function dslTest(node, env){
@@ -353,6 +360,9 @@ function compileRuleLogic(logic){
     // Wie geeft, staat vast vóór er kaarten verschuiven: een speler die net een kaart kreeg, geeft niet meteen door.
     const from = then.transfer.from;
     const givers = targets.map(p => 'neighbor' in from ? engineNeighbor(state, p.id, from.neighbor) : dslSelectPlayers(from, ctx).find(g => g.id !== p.id) || null);
-    targets.forEach((p, i) => { if (givers[i]) engineTransferCards(state, givers[i].id, p.id, then.transfer.count); });
+    const second = then.forEach !== 'winner' && then.forEach.secondChance === true;
+    targets.forEach((p, i) => {
+      if (givers[i] && engineTransferCards(state, givers[i].id, p.id, then.transfer.count) > 0 && second) p.chanceUsed = true; // de tweede kans is gebruikt
+    });
   } };
 }

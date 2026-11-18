@@ -94,7 +94,10 @@ function rtCards(node){
 // Een keuze van spelers, als zinsdeel. forEach: "elke speler ..."; anders "de spelers ...".
 function rtPlayer(node, forEach){
   if (node === 'winner') return 'de winnaar';
-  if ('withoutCards' in node) return forEach ? 'elke speler zonder kaarten' : 'de spelers zonder kaarten';
+  if ('withoutCards' in node){
+    const second = node.secondChance === true;
+    return forEach ? 'elke speler zonder kaarten' + (second ? ' die nog een tweede kans heeft' : '') : 'de spelers zonder kaarten' + (second ? ' die nog een tweede kans hebben' : '');
+  }
   if ('neighbor' in node) return (node.neighbor === 'left' ? 'de linkerbuur' : 'de rechterbuur') + ' met kaarten';
   const c = rtCards(node.opened);
   const other = node.exclude === 'winner' ? 'andere ' : '';
@@ -132,7 +135,7 @@ function rtCondition(node){
   if ('anyPlayer' in node){
     const p = node.anyPlayer;
     if (p === 'winner') return 'er een winnaar is';
-    if ('withoutCards' in p) return 'er een speler zonder kaarten is';
+    if ('withoutCards' in p) return 'er een speler zonder kaarten is' + (p.secondChance === true ? ' die nog een tweede kans heeft' : '');
     return 'er een ' + (p.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(p.opened).single + ' begon';
   }
   if ('playersWithCards' in node)
@@ -142,7 +145,7 @@ function rtCondition(node){
     const x = node.not;
     if ('exists' in x && ('rank' in x.exists || 'suit' in x.exists || 'color' in x.exists)) return 'er geen ' + rtCards(x.exists).bare + ' ligt';
     if ('battle' in x) return 'er geen battle is geweest';
-    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'withoutCards' in x.anyPlayer) return 'er geen speler zonder kaarten is';
+    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'withoutCards' in x.anyPlayer) return 'er geen speler zonder kaarten is' + (x.anyPlayer.secondChance === true ? ' die nog een tweede kans heeft' : '');
     if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'opened' in x.anyPlayer)
       return 'er geen ' + (x.anyPlayer.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(x.anyPlayer.opened).single + ' begon';
     if ('anyPlayer' in x && x.anyPlayer === 'winner') return 'er geen winnaar is';
@@ -173,6 +176,12 @@ function rtEffect(node){
 
 // De hele regel als zin(nen). Geeft '' als de beschrijving niet klopt (zie validateRuleLogic).
 function describeRuleLogic(logic){
+  const base = rtDescribeCore(logic);
+  // Een tweede kans (zie rule-dsl.js) legt de zin zelf niet uit: erbij zetten hoe hij werkt.
+  return base && JSON.stringify(logic).includes('"secondChance"') ? base + ' Een tweede kans heeft elke speler één keer: wie een ronde wint, krijgt hem terug.' : base;
+}
+
+function rtDescribeCore(logic){
   if (validateRuleLogic(logic).length) return '';
   const m = logic.moment, then = logic.then;
   const cond = 'if' in logic ? rtCondition(logic.if) : null;

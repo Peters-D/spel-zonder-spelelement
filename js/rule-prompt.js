@@ -35,6 +35,7 @@ const RULE_PROMPT_GRAMMAR = [
   '  "winner"                                         de winnaar (alleen bij award)',
   '  { "opened": <soort kaart> }                       spelers die de ronde begonnen met zo\'n kaart; met "exclude": "winner" zonder de winnaar (alleen bij award)',
   '  { "withoutCards": true }                          spelers zonder kaarten',
+  '  { "withoutCards": true, "secondChance": true }      spelers zonder kaarten die hun tweede kans nog hebben (elke speler heeft er één; wie met forEach + transfer kaarten krijgt, gebruikt hem; wie een ronde wint, krijgt hem terug)',
   '  { "neighbor": "left" } of { "neighbor": "right" } de eerstvolgende speler met kaarten links of rechts (alleen als "from" bij transfer)',
   '',
   'Voorwaarden (if):',

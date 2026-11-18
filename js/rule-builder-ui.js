@@ -142,6 +142,8 @@ function rbPlayerEditor(p, slot, label){
   if (p.kind === 'opened'){
     box.appendChild(rbCardsEditor(p.cs, true, label));
     if (RULE_BLOCKS.players.find(b => b.key === 'opened').excludeMoments.includes(rb.moment)) box.appendChild(rbCheck('behalve de winnaar', p.other, v => { p.other = v; }, false));
+  } else if (p.kind === 'withoutCards'){
+    box.appendChild(rbCheck('alleen spelers die nog een tweede kans hebben', p.chance, v => { p.chance = v; }, false));
   } else if (p.kind === 'neighbor'){
     box.appendChild(rbSelect([['left', 'de linkerbuur'], ['right', 'de rechterbuur']], p.side, label + ': links of rechts?', v => { p.side = v; }, false));
   }
