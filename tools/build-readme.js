@@ -22,7 +22,7 @@ const readmeFile = path.join(root, 'README.md');
 // ---- regels laden (dezelfde bestanden als de browser, zonder pagina) ----
 function loadCatalogue(){
   const ctx = vm.createContext({ console, Math, JSON, Set, Map, Array, Object });
-  for (const f of ['js/cards.js', 'js/rule-registry.js', 'js/blocks-effects.js', 'js/blocks-conditions.js', 'js/rule-dsl.js', 'js/rules.js']){
+  for (const f of ['js/cards.js', 'js/rule-registry.js', 'js/blocks-effects.js', 'js/blocks-conditions.js', 'js/blocks-players.js', 'js/rule-dsl.js', 'js/rules.js']){
     vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), ctx, { filename: f });
   }
   // Functies (decide, overruledMessage) vallen bij JSON weg; alleen de gegevens zijn nodig.

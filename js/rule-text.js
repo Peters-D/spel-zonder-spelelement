@@ -93,16 +93,7 @@ function rtCards(node){
 
 // Een keuze van spelers, als zinsdeel. forEach: "elke speler ..."; anders "de spelers ...".
 function rtPlayer(node, forEach){
-  if (node === 'winner') return 'de winnaar';
-  if ('withoutCards' in node){
-    const second = node.secondChance === true;
-    return forEach ? 'elke speler zonder kaarten' + (second ? ' die nog een tweede kans heeft' : '') : 'de spelers zonder kaarten' + (second ? ' die nog een tweede kans hebben' : '');
-  }
-  if ('neighbor' in node) return (node.neighbor === 'left' ? 'de linkerbuur' : 'de rechterbuur') + ' met kaarten';
-  const c = rtCards(node.opened);
-  const other = node.exclude === 'winner' ? 'andere ' : '';
-  return forEach ? 'elke ' + other + 'speler die de ronde begon met ' + c.single
-    : 'de ' + other + 'spelers die de ronde begonnen met ' + c.single;
+  return registryPlayersOf(node).phrase(node, forEach); // zie js/blocks-players.js
 }
 
 // Een aantal in een bijzin, met het werkwoord achteraan: "er minstens twee Azen liggen", "geen enkele speler kaarten heeft".
@@ -162,8 +153,6 @@ function rtDescribeCore(logic){
 
 const RULE_MOMENTS = RULE_REGISTRY.moments.map(m => ({ id: m.id, label: m.label })); // zie js/rule-registry.js
 
-const RT_ALL = ['decide', 'tiebreak', 'award', 'roundEnd'];
-
 // sample: een voorbeeld dat bij de controle klopt (voor de tests); bij een samengestelde voorwaarde een functie van het moment.
 const RULE_BLOCKS = {
   conditions: registryBlocks('condition').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-conditions.js
@@ -186,16 +175,11 @@ const RULE_BLOCKS = {
   ],
   singleCards: ['rank', 'suit', 'color', 'and', 'or', 'not'],
   // Keuzes van spelers en de plekken waar ze passen: sharePot (pot verdelen), forEach (wie het overkomt), anyPlayer (voorwaarde),
-  // from (van wie kaarten komen).
-  players: [
-    { key: 'winner', label: 'de winnaar', sample: 'winner', slots: ['sharePot', 'anyPlayer'], moments: ['award'] },
-    // excludeMoments: waar "behalve de winnaar" (exclude: 'winner') kan; de winnaar bestaat alleen bij award
-    { key: 'opened', label: 'spelers die de ronde met een bepaalde kaart begonnen', sample: { opened: { rank: 'Q' } }, slots: ['sharePot', 'forEach', 'anyPlayer', 'from'], moments: RT_ALL, excludeMoments: ['award'] },
-    { key: 'withoutCards', label: 'spelers zonder kaarten', sample: { withoutCards: true }, slots: ['sharePot', 'forEach', 'anyPlayer'], moments: RT_ALL },
-    { key: 'neighbor', label: 'de linker- of rechterbuur met kaarten', sample: { neighbor: 'left' }, slots: ['from'], moments: RT_ALL }
-  ],
+  // from (van wie kaarten komen). Zie js/blocks-players.js.
+  players: registryBlocks('players').map(b => Object.assign({ key: b.key, label: b.label, sample: b.sample, slots: b.slots, moments: b.moments },
+    b.excludeMoments ? { excludeMoments: b.excludeMoments } : {})),
   // Bij welk moment elke plek voor spelers bestaat.
-  playerSlots: { sharePot: ['award'], forEach: ['roundEnd'], anyPlayer: ['award', 'roundEnd'], from: ['roundEnd'] }
+  playerSlots: PLAYER_SLOTS
 };
 
 function ruleBlockSample(block, moment){

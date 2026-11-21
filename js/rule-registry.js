@@ -10,8 +10,8 @@
 //                 shared    velden die elk gevolg op dit moment heeft (bij roundEnd: forEach), met hun controle
 //                 compile   maakt van de voorwaarde en het gevolg de functie die de spelkern aanroept (zie compileRuleLogic)
 //   bouwstenen  defineBlock(soort, { key, moments, label, sample, ... })
-//                 soort     'effect' (gevolg, js/blocks-effects.js) of 'condition' (voorwaarde, js/blocks-conditions.js); later ook
-//                           'players' en 'cards'
+//                 soort     'effect' (gevolg, js/blocks-effects.js), 'condition' (voorwaarde, js/blocks-conditions.js) of
+//                           'players' (keuze van spelers, js/blocks-players.js); later ook 'cards'
 //                 key       de sleutel in de beschrijving, bijv. 'discardPot'
 //                 moments   bij welke momenten de bouwsteen kan
 //                 label     de naam in de regelbouwer
@@ -25,7 +25,7 @@
 //
 // De volgorde van defineBlock telt: in die volgorde staan de bouwstenen in meldingen ("precies één van ... verwacht") en keuzelijsten.
 
-const RULE_REGISTRY = { moments: [], effect: [], condition: [] };
+const RULE_REGISTRY = { moments: [], effect: [], condition: [], players: [] };
 
 function defineMoment(m){
   RULE_REGISTRY.moments.push(m);
@@ -55,6 +55,12 @@ function registryBlock(kind, key){
 // De voorwaarde in een beschrijving (if, of een deel daarvan): de bouwsteen waarvan de sleutel erin staat.
 function registryConditionOf(node){
   return RULE_REGISTRY.condition.find(b => b.key in node) || null;
+}
+
+// De keuze van spelers in een beschrijving: 'winner', of het object met de sleutel van de bouwsteen.
+function registryPlayersOf(node){
+  if (typeof node === 'string') return RULE_REGISTRY.players.find(b => b.literal && b.key === node) || null;
+  return RULE_REGISTRY.players.find(b => !b.literal && b.key in node) || null;
 }
 
 // Het gevolg in een beschrijving (then): de bouwsteen waarvan de sleutel erin staat.
