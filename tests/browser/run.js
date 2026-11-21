@@ -734,7 +734,9 @@ test('eigen regels: de proef kan meespelen met de regels die zijn aangevinkt', a
   await page.check('#customTrialBase');
   await page.click('#customRuleTrialBtn');
   await page.waitForFunction(() => window.__opts.length === 2);
-  await page.click('#customRuleTrialBtn'); // Stop: het gaat om de opties
+  // Wachten tot de tweede proef klaar is. Niet op "Stop" klikken: sinds de stoelfix eindigen de proefspellen zo snel dat de proef
+  // vaak al klaar is, en dan start dezelfde knop een derde proef.
+  await page.waitForFunction(() => document.getElementById('customRuleTrialBtn').textContent === 'Speel proefspellen', null, { timeout: 60000 });
   eq(await page.evaluate(() => window.__opts.map(o => [o.games, o.base])), [[50, {}], [50, { battleFirst: true }]], 'opties van de proef');
   noErrors(page);
 });
