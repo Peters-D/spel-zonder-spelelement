@@ -146,7 +146,10 @@ own('vangnet', () => {
   const fail = t => failures.push('vangnet: ' + t);
   const file = path.join(__dirname, 'rule-snapshot.json');
   run(fs.readFileSync(path.join(__dirname, 'rule-snapshot-corpus.js'), 'utf8'));
-  const now = JSON.parse(run('__ruleSnapshot()'));
+  // De verzameling is bevroren: alleen --update maakt haar opnieuw; anders komen de beschrijvingen uit het vastgelegde bestand.
+  const stored = !update && fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+  const corpus = stored ? { valid: stored.valid.map(x => x.logic), invalid: stored.invalid.map(x => x.logic) } : JSON.parse(run('__ruleCorpus()'));
+  const now = JSON.parse(run('__ruleSnapshot(' + JSON.stringify(corpus) + ')'));
   if (now.valid.length < 300 || now.invalid.length < 40) fail('de verzameling is te klein geworden: ' + now.valid.length + ' geldige en ' + now.invalid.length + ' ongeldige beschrijvingen');
   if (update){
     // Eén beschrijving per regel, zodat een verschil in de pull request per beschrijving te lezen is.
@@ -156,8 +159,8 @@ own('vangnet', () => {
     console.log('tests/rule-snapshot.json bijgewerkt (' + now.valid.length + ' geldige en ' + now.invalid.length + ' ongeldige beschrijvingen).');
     return;
   }
-  if (!fs.existsSync(file)){ fail('tests/rule-snapshot.json ontbreekt: draai node tests/smoke.js --update'); return; }
-  const old = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!stored){ fail('tests/rule-snapshot.json ontbreekt: draai node tests/smoke.js --update'); return; }
+  const old = stored;
   const J = x => JSON.stringify(x);
   const diffs = [];
   const compare = (name, oldList, newList, fields) => {

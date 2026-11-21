@@ -9,7 +9,11 @@
 //   gedrag   een vingerafdruk van wat de regel doet op vaste tafels (beslissen, gelijkspel) of vaste rondes (pot, einde van de ronde)
 // plus de foutmeldingen van een vaste reeks ongeldige beschrijvingen, de keuzelijsten van de bouwer en de volledige instructie
 // voor Claude. De uitkomst staat in tests/rule-snapshot.json; `node tests/smoke.js --update` schrijft hem opnieuw.
-globalThis.__ruleSnapshot = function(){
+//
+// De verzameling zelf is bevroren: __ruleCorpus() maakt haar alleen bij --update (uit de bouwstenenlijst van dat moment); daarna
+// leest de rooktest de beschrijvingen uit tests/rule-snapshot.json en geeft ze aan __ruleSnapshot(corpus). Zo hangt het vangnet
+// niet af van de lijsten die de verbouwing juist verandert (RULE_BLOCKS, ruleBlockSample en dergelijke).
+globalThis.__ruleCorpus = function(){
   const J = x => JSON.stringify(x);
   const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
   const rnd = mulberry32(hashSeed('vangnet'));
@@ -103,6 +107,42 @@ globalThis.__ruleSnapshot = function(){
     add(logic);
   }
 
+  return JSON.stringify({ valid: [...valid.values()], invalid: __ruleInvalidCorpus() });
+};
+
+// De ongeldige beschrijvingen (vast; hangen nergens van af).
+globalThis.__ruleInvalidCorpus = function(){
+  const nest = (d, inner) => { let x = inner; for (let i = 0; i < d; i++) x = { not: x }; return x; };
+  return [
+    'x', null, [], {}, { moment: 'later', then: { win: { all: true } } }, { moment: 'decide' }, { moment: 'decide', then: { win: { all: true } }, code: 'x' },
+    { moment: 'decide', then: { win: { rank: '1' } } }, { moment: 'decide', then: { win: { suit: 'x' } } }, { moment: 'decide', then: { win: { color: 'blue' } } },
+    { moment: 'decide', then: { win: { rank: 'K', suit: '♥' } } }, { moment: 'decide', then: { win: { rank: [] } } }, { moment: 'decide', then: { win: { all: false } } },
+    { moment: 'decide', then: { win: { highest: 'size' } } }, { moment: 'decide', then: { win: { highest: 'value', of: { rank: 'Z' } } } },
+    { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 1, pick: 'highest' } } } }, { moment: 'decide', then: { win: { group: { relation: 'friends', min: 2, pick: 'highest' } } } },
+    { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 2, pick: 'lowest' } } } }, { moment: 'decide', then: { win: { and: [] } } },
+    { moment: 'decide', then: { win: nest(9, { all: true }) } }, { moment: 'decide', then: { discardPot: true } }, { moment: 'award', then: { win: { all: true } } },
+    { moment: 'decide', if: { battle: true }, then: { win: { all: true } } }, { moment: 'award', if: { exists: { rank: 'K' } }, then: { discardPot: true } },
+    { moment: 'decide', if: { count: { all: true } }, then: { win: { all: true } } }, { moment: 'decide', if: { count: { rank: 'A' }, min: 3, max: 1 }, then: { win: { all: true } } },
+    { moment: 'decide', if: { count: { rank: 'A' }, min: -1 }, then: { win: { all: true } } }, { moment: 'award', if: { playersWithCards: { min: 4, max: 2 } }, then: { discardPot: true } },
+    { moment: 'award', if: { playersWithCards: 3 }, then: { discardPot: true } }, { moment: 'award', if: { winnerOpened: { highest: 'value' } }, then: { discardPot: true } },
+    { moment: 'roundEnd', then: { forEach: 'winner', discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { neighbor: 'left' }, discardTop: 1 } },
+    { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' }, exclude: 'winner' }, discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { withoutCards: true }, count: 1 } } },
+    { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' } } } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, discardTop: 0 } },
+    { moment: 'roundEnd', then: { forEach: { withoutCards: true }, discardTop: 53 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true, secondChance: false }, discardTop: 1 } },
+    { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' }, secondChance: true }, discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'up' }, count: 1 } } },
+    { moment: 'award', then: { sharePot: [] } }, { moment: 'award', then: { sharePot: ['winner', { neighbor: 'left' }] } }, { moment: 'award', then: { discardPot: true, sharePot: ['winner'] } },
+    { moment: 'award', if: { and: [] }, then: { discardPot: true } }, { moment: 'award', if: nest(9, { battle: true }), then: { discardPot: true } }
+  ];
+};
+
+// Wat het spel doet met de beschrijvingen van een verzameling ({ valid: [logic], invalid: [logic] }).
+globalThis.__ruleSnapshot = function(corpus){
+  const J = x => JSON.stringify(x);
+  const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
+  const rnd = mulberry32(hashSeed('vangnet-tafels'));
+  const onTable = m => m === 'decide' || m === 'tiebreak';
+  const MOMENTS = ['decide', 'tiebreak', 'award', 'roundEnd'];
+
   // ---- wat het spel ermee doet ----
   // Vaste tafels voor beslissen en gelijkspel, vaste stapels voor de pot en het einde van de ronde.
   const deckOrder = () => shuffle(buildDeck(), rnd);
@@ -136,31 +176,8 @@ globalThis.__ruleSnapshot = function(){
     if (r.error) return 'fout: ' + r.error;
     return J(r.logic) === J(logic) ? 'gelijk' : 'anders: ' + J(r.logic);
   };
-  const validOut = [...valid.values()].map(logic => ({ logic, zin: describeRuleLogic(logic), bouwer: builder(logic), gedrag: behaviour(logic) }));
-
-  // ---- ongeldige beschrijvingen en hun foutmeldingen ----
-  const nest = (d, inner) => { let x = inner; for (let i = 0; i < d; i++) x = { not: x }; return x; };
-  const invalid = [
-    'x', null, [], {}, { moment: 'later', then: { win: { all: true } } }, { moment: 'decide' }, { moment: 'decide', then: { win: { all: true } }, code: 'x' },
-    { moment: 'decide', then: { win: { rank: '1' } } }, { moment: 'decide', then: { win: { suit: 'x' } } }, { moment: 'decide', then: { win: { color: 'blue' } } },
-    { moment: 'decide', then: { win: { rank: 'K', suit: '♥' } } }, { moment: 'decide', then: { win: { rank: [] } } }, { moment: 'decide', then: { win: { all: false } } },
-    { moment: 'decide', then: { win: { highest: 'size' } } }, { moment: 'decide', then: { win: { highest: 'value', of: { rank: 'Z' } } } },
-    { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 1, pick: 'highest' } } } }, { moment: 'decide', then: { win: { group: { relation: 'friends', min: 2, pick: 'highest' } } } },
-    { moment: 'decide', then: { win: { group: { relation: 'sameRank', min: 2, pick: 'lowest' } } } }, { moment: 'decide', then: { win: { and: [] } } },
-    { moment: 'decide', then: { win: nest(9, { all: true }) } }, { moment: 'decide', then: { discardPot: true } }, { moment: 'award', then: { win: { all: true } } },
-    { moment: 'decide', if: { battle: true }, then: { win: { all: true } } }, { moment: 'award', if: { exists: { rank: 'K' } }, then: { discardPot: true } },
-    { moment: 'decide', if: { count: { all: true } }, then: { win: { all: true } } }, { moment: 'decide', if: { count: { rank: 'A' }, min: 3, max: 1 }, then: { win: { all: true } } },
-    { moment: 'decide', if: { count: { rank: 'A' }, min: -1 }, then: { win: { all: true } } }, { moment: 'award', if: { playersWithCards: { min: 4, max: 2 } }, then: { discardPot: true } },
-    { moment: 'award', if: { playersWithCards: 3 }, then: { discardPot: true } }, { moment: 'award', if: { winnerOpened: { highest: 'value' } }, then: { discardPot: true } },
-    { moment: 'roundEnd', then: { forEach: 'winner', discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { neighbor: 'left' }, discardTop: 1 } },
-    { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' }, exclude: 'winner' }, discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { withoutCards: true }, count: 1 } } },
-    { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' } } } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, discardTop: 0 } },
-    { moment: 'roundEnd', then: { forEach: { withoutCards: true }, discardTop: 53 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true, secondChance: false }, discardTop: 1 } },
-    { moment: 'roundEnd', then: { forEach: { opened: { rank: 'K' }, secondChance: true }, discardTop: 1 } }, { moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'up' }, count: 1 } } },
-    { moment: 'award', then: { sharePot: [] } }, { moment: 'award', then: { sharePot: ['winner', { neighbor: 'left' }] } }, { moment: 'award', then: { discardPot: true, sharePot: ['winner'] } },
-    { moment: 'award', if: { and: [] }, then: { discardPot: true } }, { moment: 'award', if: nest(9, { battle: true }), then: { discardPot: true } }
-  ];
-  const invalidOut = invalid.map(logic => ({ logic, fouten: validateRuleLogic(logic) }));
+  const validOut = corpus.valid.map(logic => ({ logic, zin: describeRuleLogic(logic), bouwer: builder(logic), gedrag: behaviour(logic) }));
+  const invalidOut = corpus.invalid.map(logic => ({ logic, fouten: validateRuleLogic(logic) }));
 
   // ---- de keuzelijsten van de bouwer en de instructie voor Claude ----
   const keuzes = { momenten: RULE_MOMENTS, perMoment: {}, spelers: {}, kaartlabels: RB_CARD_LABELS, relatielabels: RB_RELATION_LABELS, aantallabels: RB_MODE_LABELS };
