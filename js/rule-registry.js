@@ -10,7 +10,8 @@
 //                 shared    velden die elk gevolg op dit moment heeft (bij roundEnd: forEach), met hun controle
 //                 compile   maakt van de voorwaarde en het gevolg de functie die de spelkern aanroept (zie compileRuleLogic)
 //   bouwstenen  defineBlock(soort, { key, moments, label, sample, ... })
-//                 soort     'effect' (gevolg; later ook 'condition', 'players' en 'cards')
+//                 soort     'effect' (gevolg, js/blocks-effects.js) of 'condition' (voorwaarde, js/blocks-conditions.js); later ook
+//                           'players' en 'cards'
 //                 key       de sleutel in de beschrijving, bijv. 'discardPot'
 //                 moments   bij welke momenten de bouwsteen kan
 //                 label     de naam in de regelbouwer
@@ -24,7 +25,7 @@
 //
 // De volgorde van defineBlock telt: in die volgorde staan de bouwstenen in meldingen ("precies één van ... verwacht") en keuzelijsten.
 
-const RULE_REGISTRY = { moments: [], effect: [] };
+const RULE_REGISTRY = { moments: [], effect: [], condition: [] };
 
 function defineMoment(m){
   RULE_REGISTRY.moments.push(m);
@@ -49,6 +50,11 @@ function registryBlocks(kind, moment){
 
 function registryBlock(kind, key){
   return RULE_REGISTRY[kind].find(b => b.key === key) || null;
+}
+
+// De voorwaarde in een beschrijving (if, of een deel daarvan): de bouwsteen waarvan de sleutel erin staat.
+function registryConditionOf(node){
+  return RULE_REGISTRY.condition.find(b => b.key in node) || null;
 }
 
 // Het gevolg in een beschrijving (then): de bouwsteen waarvan de sleutel erin staat.

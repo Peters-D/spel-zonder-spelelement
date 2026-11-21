@@ -156,30 +156,19 @@ function validateRuleLogic(logic){
       if (!['left', 'right'].includes(node.neighbor)) err(path + '.neighbor', '"left" of "right" verwacht');
     }
   };
+  // Een voorwaarde: precies één van de voorwaarden uit het register, met alleen haar eigen sleutels, bij een moment waar ze kan.
   const condition = (node, path, moment, depth) => {
     if (!isObj(node)) return err(path, 'een voorwaarde verwacht');
     if (deep(path, depth)) return;
-    const onTable = moment === 'decide' || moment === 'tiebreak';
-    const key = oneOf(node, path, ['exists', 'count', 'battle', 'winnerOpened', 'anyPlayer', 'playersWithCards', 'and', 'or', 'not']);
-    const needs = (ok, when) => { if (!ok) err(path, '"' + key + '" kan alleen bij ' + when); };
-    if (key === 'exists'){ only(node, path, ['exists']); needs(onTable, 'decide en tiebreak'); cards(node.exists, path + '.exists', depth + 1); }
-    else if (key === 'count'){ only(node, path, ['count', 'min', 'max']); needs(onTable, 'decide en tiebreak'); cards(node.count, path + '.count', depth + 1); range(node, path); }
-    else if (key === 'battle'){ only(node, path, ['battle']); needs(moment === 'award', 'award'); if (node.battle !== true) err(path + '.battle', 'true verwacht'); }
-    else if (key === 'winnerOpened'){ only(node, path, ['winnerOpened']); needs(moment === 'award', 'award'); card(node.winnerOpened, path + '.winnerOpened', depth + 1); }
-    else if (key === 'anyPlayer'){ only(node, path, ['anyPlayer']); needs(!onTable, 'award en roundEnd'); players(node.anyPlayer, path + '.anyPlayer', moment === 'award', false); }
-    else if (key === 'playersWithCards'){
-      only(node, path, ['playersWithCards']); needs(!onTable, 'award en roundEnd');
-      if (!isObj(node.playersWithCards)) err(path + '.playersWithCards', '{ min, max } verwacht');
-      else { only(node.playersWithCards, path + '.playersWithCards', ['min', 'max']); range(node.playersWithCards, path + '.playersWithCards'); }
-    } else if (key === 'not'){ only(node, path, ['not']); condition(node.not, path + '.not', moment, depth + 1); }
-    else if (key){
-      only(node, path, [key]);
-      if (!Array.isArray(node[key]) || node[key].length === 0) err(path + '.' + key, 'een lijst verwacht');
-      else node[key].forEach((x, i) => condition(x, path + '.' + key + '[' + i + ']', moment, depth + 1));
-    }
+    const key = oneOf(node, path, registryBlocks('condition').map(b => b.key));
+    if (!key) return;
+    const block = registryBlock('condition', key);
+    only(node, path, block.fields);
+    if (!block.moments.includes(moment)) err(path, '"' + key + '" kan alleen bij ' + block.moments.join(' en '));
+    block.validate(node, path, v, moment, depth);
   };
   // De gedeelde hulpjes, voor de controle van de bouwstenen in het register (zie js/rule-registry.js).
-  const v = { err, isObj, only, oneOf, int, range, card, cards, players };
+  const v = { err, isObj, only, oneOf, int, range, card, cards, players, condition };
   // Het gevolg: de bouwstenen van het moment uit het register. Heeft een moment één gevolg (decide, tiebreak), dan is dat verplicht;
   // anders precies één van de gevolgen, plus de velden die alle gevolgen van het moment delen (bij roundEnd: forEach).
   const effect = (node, path, moment) => {
@@ -291,24 +280,9 @@ function dslSelectPlayers(node, ctx){
   return state.players.filter(p => p.deck.length === 0 && !(node.secondChance && p.chanceUsed)); // withoutCards (met secondChance: nog een tweede kans)
 }
 
+// Klopt een voorwaarde? De voorwaarden staan in het register (js/blocks-conditions.js).
 function dslTest(node, env){
-  if ('and' in node) return node.and.every(x => dslTest(x, env));
-  if ('or' in node) return node.or.some(x => dslTest(x, env));
-  if ('not' in node) return !dslTest(node.not, env);
-  if ('exists' in node) return dslSelectCards(env.scope, node.exists, env.rules).length > 0;
-  if ('count' in node){
-    const n = dslSelectCards(env.scope, node.count, env.rules).length;
-    return (!('min' in node) || n >= node.min) && (!('max' in node) || n <= node.max);
-  }
-  if ('battle' in node) return env.ctx.state.battleLevel > 0;
-  if ('winnerOpened' in node){
-    const w = env.ctx.winner, start = w ? env.ctx.state.opening[w.id] : null;
-    return !!start && dslCardMatches(start, node.winnerOpened);
-  }
-  if ('anyPlayer' in node) return dslSelectPlayers(node.anyPlayer, env.ctx).length > 0;
-  const n = env.ctx.state.players.filter(p => p.deck.length > 0).length; // playersWithCards
-  const r = node.playersWithCards;
-  return (!('min' in r) || n >= r.min) && (!('max' in r) || n <= r.max);
+  return registryConditionOf(node).test(node, env);
 }
 
 // Maakt van een beschrijving de functie die de spelkern aanroept: { decide } | { breakTie } | { onAward } | { onRoundEnd }.

@@ -181,6 +181,40 @@ own('vangnet', () => {
   if (diffs.length > 20) fail('en nog ' + (diffs.length - 20) + ' verschillen');
 });
 
+// ---- het register van bouwstenen (js/rule-registry.js en js/blocks-*.js) ----
+// Elke bouwsteen heeft alle onderdelen die het spel gebruikt, zijn voorbeeld klopt bij elk moment waar hij kan, en het register
+// weigert een dubbele sleutel. Een nieuwe bouwsteen die iets mist, valt hier op.
+{
+  const fail = t => failures.push('register: ' + t);
+  const out = JSON.parse(run(`(() => { const problems = [];
+    const ids = RULE_REGISTRY.moments.map(m => m.id);
+    for (const m of RULE_REGISTRY.moments) if (typeof m.compile !== 'function' || !m.label) problems.push('moment ' + m.id + ' mist compile of label');
+    const needs = { effect: ['validate', 'run'], condition: ['validate', 'test', 'sentence'] };
+    const defaultThen = m => registryBlocks('effect', m)[0].sample;
+    for (const [kind, fns] of Object.entries(needs)) for (const b of RULE_REGISTRY[kind]){
+      for (const f of fns) if (typeof b[f] !== 'function') problems.push(kind + ' ' + b.key + ' mist ' + f);
+      if (kind === 'effect' && typeof b.describe !== 'function' && typeof b.parts !== 'function') problems.push('effect ' + b.key + ' mist een zin (describe of parts)');
+      if (kind === 'condition' && !(Array.isArray(b.fields) && b.fields.includes(b.key))) problems.push('condition ' + b.key + ' mist fields met zijn eigen sleutel');
+      if (!b.label || !Array.isArray(b.moments) || b.moments.length === 0 || b.moments.some(m => !ids.includes(m))) problems.push(kind + ' ' + b.key + ' mist een label of heeft onbekende momenten');
+      for (const m of b.moments){
+        const sample = typeof b.sample === 'function' ? b.sample(m) : b.sample;
+        const logic = kind === 'effect' ? { moment: m, then: sample } : { moment: m, if: sample, then: defaultThen(m) };
+        try {
+          const errors = validateRuleLogic(logic);
+          if (errors.length) problems.push(kind + ' ' + b.key + ' bij ' + m + ': het voorbeeld klopt niet: ' + errors[0]);
+          else if (!describeRuleLogic(logic)) problems.push(kind + ' ' + b.key + ' bij ' + m + ': geen zin');
+        } catch (e){ problems.push(kind + ' ' + b.key + ' bij ' + m + ': fout bij controleren of beschrijven: ' + e.message); }
+      }
+    }
+    let threw = false; try { defineBlock('effect', { key: 'win' }); } catch (e){ threw = true; }
+    if (!threw) problems.push('defineBlock weigert een dubbele sleutel niet');
+    threw = false; try { defineBlock('iets', { key: 'x' }); } catch (e){ threw = true; }
+    if (!threw) problems.push('defineBlock weigert een onbekende soort niet');
+    return JSON.stringify({ problems, counts: Object.fromEntries(Object.keys(needs).map(k => [k, RULE_REGISTRY[k].length])) }); })()`));
+  for (const p of out.problems) fail(p);
+  if (out.counts.effect !== 5 || out.counts.condition !== 9) fail('verwacht 5 gevolgen en 9 voorwaarden, kreeg ' + JSON.stringify(out.counts));
+}
+
 // ---- thema's: alle kleuren staan in css/themes.css ----
 {
   const read = f => fs.readFileSync(path.join(root, f), 'utf8');
