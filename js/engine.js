@@ -48,13 +48,38 @@
 // Verloop van één ronde:
 //   engineStartRound → engineResolve → ('battle' → engineLayBattleCards → engineResolve → …) → engineEndRound
 
-// Deelt een nieuw spel: schudt een spel van 52 kaarten en verdeelt het om de beurt over de spelers (namen, in tafelvolgorde).
-// Met een seed (tekst) is de deling altijd dezelfde; zonder seed (leeg of null) is ze willekeurig. De seed staat in state.seed
-// (null = willekeurig spel).
+// ---- kernkeuzes van het spel ----
+// Twee keuzes die bepalen of het spel eerlijk is voor elke plek aan tafel. Ze staan hier apart, zodat ze later in het regelsysteem
+// kunnen worden opgenomen (en daar dan dezelfde standaard houden).
+//
+// 1. Bij wie het delen begint (engineDealStart). 52 kaarten delen niet altijd gelijk: bij 3, 6 en 8 spelers krijgen de eersten in
+//    de beurt één kaart meer. Begon het delen altijd bij speler 1, dan hadden de eerste plekken altijd die extra kaart(en).
+//    Nu kiest dezelfde toevalsbron als het schudden de speler bij wie het begint. VOLGORDE VAN HET TOEVAL: eerst schudden, dan
+//    de beginspeler kiezen. Wie dat omdraait, verandert elk spel met een bestaande seed (een test legt dit vast).
+// 2. De volgorde waarin de winnaar de pot onderop legt (enginePotOrder): eerst zijn eigen kaart (de kaart waarmee hij de ronde
+//    begon), daarna de rest in de volgorde waarin ze gelegd zijn. Voorheen kwam alles in tafelvolgorde, waardoor de winnende kaart
+//    op de plek van het nummer van de winnaar terugkwam. Dat gaf de eerste plekken een voorsprong en liet de meeste spellen
+//    vastlopen (zie de PR "Stoelfix"); met de eigen kaart vooraan maakt de plek aan tafel niet meer uit.
+
+function engineDealStart(rng, playerCount){
+  return Math.floor(rng() * playerCount) % playerCount;
+}
+
+// Zet de eigen kaart van de winnaar vooraan in de pot (zie hierboven). Verandert de pot ter plekke.
+function enginePotOrder(state, winner){
+  const own = winner && state.opening[winner.id];
+  const i = own ? state.pot.indexOf(own) : -1;
+  if (i > 0) state.pot.unshift(state.pot.splice(i, 1)[0]);
+}
+
+// Deelt een nieuw spel: schudt een spel van 52 kaarten en verdeelt het om de beurt over de spelers (namen, in tafelvolgorde),
+// beginnend bij de speler die engineDealStart kiest. Met een seed (tekst) is de deling altijd dezelfde; zonder seed (leeg of null)
+// is ze willekeurig. De seed staat in state.seed (null = willekeurig spel).
 function dealGame(names, rules, seed){
-  const deck = shuffle(buildDeck(), seed ? mulberry32(hashSeed(seed)) : Math.random);
+  const rng = seed ? mulberry32(hashSeed(seed)) : Math.random;
+  const deck = shuffle(buildDeck(), rng);
   const dealt = names.map((name, i) => ({ id: i, name, deck: [] }));
-  let idx = 0;
+  let idx = engineDealStart(rng, dealt.length);
   while (deck.length){
     dealt[idx % dealt.length].deck.push(deck.pop());
     idx++;
@@ -182,6 +207,7 @@ function engineJointWinners(state){
 // Geeft het aantal afgelegde kaarten (discarded) en wat de winnaar kreeg (toWinner) mee in de gebeurtenis.
 function engineAwardPot(state, winner, how, tieBreak){
   winner.chanceUsed = false; // wie een ronde wint, krijgt zijn tweede kans terug
+  enginePotOrder(state, winner); // de eigen kaart van de winnaar vooraan (kernkeuze, zie bovenaan)
   const potSize = state.pot.length;
   const moved = engineRunHooks(state, 'onAward', { winner, how, potSize });
   const toWinner = state.pot.length;

@@ -191,7 +191,8 @@ const BASE_RULES = [
   {
     id: 'delen',
     title: 'Delen',
-    description: 'Een gewoon kaartspel van 52 kaarten wordt geschud en zo gelijk mogelijk verdeeld over de spelers. ' +
+    description: 'Een gewoon kaartspel van 52 kaarten wordt geschud en om de beurt zo gelijk mogelijk verdeeld over de spelers. ' +
+      'Bij welke speler het delen begint, is ook toeval; zo krijgt niet steeds dezelfde speler een kaart extra als de kaarten niet precies opgaan. ' +
       'Iedere speler krijgt een gesloten stapel. Spelers maken geen keuzes: zodra de kaarten zijn gedeeld, ligt de uitkomst vast. ' +
       'Met dezelfde seed wordt altijd hetzelfde spel gedeeld.'
   },
@@ -199,8 +200,9 @@ const BASE_RULES = [
     id: 'ronde',
     title: 'Een ronde',
     description: 'Elke speler die nog kaarten heeft, legt de bovenste kaart van de eigen stapel open op tafel. ' +
-      'Alle open kaarten vormen samen de pot. De winnaar van de ronde krijgt de hele pot; die gaat onderop de eigen stapel, ' +
-      'in de volgorde waarin de kaarten zijn gelegd. De pot wordt niet geschud.'
+      'Alle open kaarten vormen samen de pot. De winnaar van de ronde krijgt de hele pot en legt die onderop de eigen stapel: ' +
+      'eerst de eigen kaart waarmee de ronde begon, daarna de andere kaarten in de volgorde waarin ze zijn gelegd. De pot wordt niet geschud. ' +
+      'Zo maakt het niet uit waar je aan tafel zit.'
   },
   {
     id: 'wie-wint',

@@ -85,8 +85,10 @@ test('stap terug tot het begin zet de knop uit', async page => {
 test('meerdere keren snel op ⏩ klikken loopt niet vast', async page => {
   await startGame(page, { players: 3 });
   const t0 = Date.now();
-  for (let i = 0; i < 4; i++) await page.click('#fastForwardBtn');
+  // Sinds de stoelfix eindigt het spel meestal bij de eerste klik; daarna is de knop uit. Ook dan blijven snelle extra klikken onschuldig.
+  for (let i = 0; i < 4; i++) await page.click('#fastForwardBtn', { force: true });
   ok(Date.now() - t0 < 10000, 'vier klikken op ⏩ duurden langer dan 10 seconden');
+  ok(['game-over', 'round-over', 'cycle-over'].includes(await page.evaluate(() => phase)), 'na doorspoelen hoort het spel op een rondegrens of aan het einde te staan');
   await page.waitForTimeout(300);
   ok((await text(page, '#integrityStatus')).includes('klopt'), 'kaartentelling klopt niet na ⏩');
   // Het spel reageert nog: stap terug werkt na het doorspoelen.

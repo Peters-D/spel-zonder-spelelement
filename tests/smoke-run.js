@@ -673,7 +673,7 @@ const discardStats = { used: { testBattleDiscard: 0, testRoundDiscard: 0, 'testB
   if (r.shared.length !== 0 || !same(r.after, [['4', 'Q', 'J', '9'], ['7'], ['5']])) failures.push('Koninklijk paar: een winnende Vrouw deelt niet: ' + JSON.stringify(r));
   // Een Heer die niet wint (de Aas wint), deelt niet.
   r = play([['K', '4'], ['Q', '7'], ['A', '5']]);
-  if (r.shared.length !== 0 || !same(r.after, [['4'], ['7'], ['5', 'K', 'Q', 'A']])) failures.push('Koninklijk paar: bij een winnende Aas wordt er niet gedeeld: ' + JSON.stringify(r));
+  if (r.shared.length !== 0 || !same(r.after, [['4'], ['7'], ['5', 'A', 'K', 'Q']])) failures.push('Koninklijk paar: bij een winnende Aas wordt er niet gedeeld: ' + JSON.stringify(r));
   // Met "2 verslaat Aas" wint de 2: ook dan geen Heer die wint.
   r = play([['K', '4'], ['Q', '7'], ['A', '5'], ['2', '8']], { twoBeatsAce: true });
   if (r.shared.length !== 0) failures.push('Koninklijk paar: met 2 verslaat Aas wint de 2 en wordt er niet gedeeld: ' + JSON.stringify(r));
@@ -1070,10 +1070,41 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
     if (JSON.stringify(a.decks) === JSON.stringify(c.decks)) failures.push('dealGame: een andere seed geeft dezelfde deling (' + n + ' spelers)');
     if (all.length !== 52 || new Set(all).size !== 52) failures.push('dealGame: geen 52 unieke kaarten (' + n + ' spelers)');
     const sizes = a.decks.map(d => d.length);
-    if (Math.max(...sizes) - Math.min(...sizes) > 1 || sizes.some((x, i) => i > 0 && x > sizes[i - 1])) failures.push('dealGame: kaarten niet om de beurt verdeeld: ' + JSON.stringify(sizes));
+    // Om de beurt: de stapels schelen hooguit één kaart, en de spelers met een kaart extra zitten aaneengesloten (rondom de tafel).
+    const big = sizes.map(x => x === Math.max(...sizes));
+    const runs = big.filter((b, i) => b && !big[(i - 1 + n) % n]).length;
+    if (Math.max(...sizes) - Math.min(...sizes) > 1 || (52 % n !== 0 && runs !== 1)) failures.push('dealGame: kaarten niet om de beurt verdeeld: ' + JSON.stringify(sizes));
     if (a.seed !== 'abc' || JSON.stringify(a.ids) !== JSON.stringify(a.names.map((_, i) => i)) || a.names[n - 1] !== 'S' + (n - 1)) failures.push('dealGame: seed, ids of namen kloppen niet');
     if (a.rule !== true || a.other !== false) failures.push('dealGame: de regels komen niet in de spelstand');
   }
+  // Stoelfix, delen: de beginspeler komt uit dezelfde toevalsbron als het schudden, ná het schudden (volgorde vastgelegd), en wisselt met de seed.
+  const dealCheck = JSON.parse(run(`(() => { const out = { same: true, starts: new Set() };
+    for (const n of [3, 4, 6, 8]) for (let s = 0; s < 40; s++){
+      const seed = 'deal' + s, g = dealGame(Array.from({ length: n }, (_, i) => 'S' + i), {}, seed);
+      const rng = mulberry32(hashSeed(seed)), deck = shuffle(buildDeck(), rng), first = engineDealStart(rng, n);
+      const decks = Array.from({ length: n }, () => []); let idx = first; while (deck.length){ decks[idx % n].push(deck.pop()); idx++; }
+      if (JSON.stringify(decks.map(d => d.map(c => c.rank + c.suit))) !== JSON.stringify(g.players.map(p => p.deck.map(c => c.rank + c.suit)))) out.same = false;
+      if (n === 3) out.starts.add(first);
+    }
+    return JSON.stringify({ same: out.same, starts: out.starts.size }); })()`));
+  if (!dealCheck.same) failures.push('dealGame: de deling hoort eerst te schudden en dan met dezelfde toevalsbron de beginspeler te kiezen');
+  if (dealCheck.starts !== 3) failures.push('dealGame: bij 3 spelers hoort het delen bij elk van de drie spelers te kunnen beginnen (' + dealCheck.starts + ')');
+  // Stoelfix, pot: de winnaar legt eerst zijn eigen kaart onderop, daarna de rest in de volgorde van leggen.
+  const potOrder = JSON.parse(run(`(() => { const st = __state([['3♠', '2♠'], ['5♥', '2♥'], ['K♦', '2♦'], ['4♣', '2♣']]); enginePlayRound(st);
+    return JSON.stringify(st.players[2].deck.map(c => c.rank)); })()`));
+  if (JSON.stringify(potOrder) !== JSON.stringify(['2', 'K', '3', '5', '4'])) failures.push('stoelfix: de winnaar hoort zijn eigen kaart eerst onderop te leggen: ' + JSON.stringify(potOrder));
+  const potBattle = JSON.parse(run(`(() => { const st = __state([['9♠', '8♠'], ['9♥', 'A♥'], ['3♦', '2♦']]); enginePlayRound(st);
+    return JSON.stringify(st.players[1].deck.map(c => c.rank + c.suit)); })()`));
+  if (JSON.stringify(potBattle) !== JSON.stringify(['9♥', '9♠', '3♦', '8♠', 'A♥'])) failures.push('stoelfix: na een battle hoort de eigen openingskaart van de winnaar eerst te liggen, de rest in de volgorde van leggen: ' + JSON.stringify(potBattle));
+  // Stoelfix, eerlijkheid: met 4 spelers eindigt (bijna) elk spel en houdt elke plek na 100 rondes ongeveer evenveel kaarten over.
+  const fair = JSON.parse(run(`(() => { const n = 4, N = 400, share = Array(n).fill(0); let ended = 0;
+    for (let g = 0; g < N; g++){ const st = dealGame(Array.from({ length: n }, (_, i) => 'S' + i), {}, 'eerlijk' + g);
+      for (let r = 0; r < 100 && engineActivePlayers(st).length > 1; r++) enginePlayRound(st);
+      const t = st.players.reduce((a, p) => a + p.deck.length, 0) || 1; st.players.forEach((p, i) => { share[i] += p.deck.length / t * n / N; });
+      if (g < 100){ const full = dealGame(Array.from({ length: n }, (_, i) => 'S' + i), {}, 'eerlijk' + g); if (simulateOutcome(full.players, full.rules).outcome === 'win') ended++; } }
+    return JSON.stringify({ share, ended }); })()`));
+  if (fair.share.some(x => x < 0.9 || x > 1.1)) failures.push('stoelfix: elke plek hoort na 100 rondes ongeveer evenveel kaarten te hebben (0,90 t/m 1,10): ' + JSON.stringify(fair.share.map(x => +x.toFixed(3))));
+  if (fair.ended < 95) failures.push('stoelfix: met 4 spelers hoort (bijna) elk spel te eindigen: ' + fair.ended + ' van 100');
   const r1 = deal(4, ''), r2 = deal(4, null);
   if (r1.seed !== null || r2.seed !== null) failures.push('dealGame: zonder seed hoort seed null te zijn');
   if (JSON.stringify(r1.decks) === JSON.stringify(r2.decks)) failures.push('dealGame: twee willekeurige delingen zijn gelijk');
@@ -2265,9 +2296,9 @@ let liveChecked = 0;
 
 // ---- het volgende spel en de cyclusmelding (setup.js) ----
 {
-  const start = (seed, n) => {
+  const start = (seed, n, ruleSet = 'standard') => {
     document.getElementById('seedInput').value = seed;
-    for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+    for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS[ruleSet][id];
     document.getElementById('namesList').children = Array.from({ length: n }, () => ({ value: '' }));
     run('numPlayers = ' + n + '; dealNewGame(); launchGame();');
   };
@@ -2307,11 +2338,13 @@ let liveChecked = 0;
 
   // Een deling die niet eindigt wordt overgeslagen: het wordt de eerste seed erna waarmee het spel wel eindigt.
   // Daarvoor zoeken we met 3 spelers een seed w waarmee het spel eindigt terwijl seed w-1 dat niet doet, en beginnen we twee seeds eerder.
+  // Sinds de stoelfix eindigt bijna elk spel; alleen met "Battle ruimt de pot op" lopen er nog delingen vast, dus die regel staat aan.
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['battleDiscard'][id];
   const outcomes = JSON.parse(run(`(() => { const out = {}; for (let s = 1; s <= 80; s++){ document.getElementById('seedInput').value = String(s); dealNewGame(); out[s] = simulateOutcome(game.players, game.rules).outcome; } return JSON.stringify(out); })()`));
   const w = Object.keys(outcomes).map(Number).find(k => k >= 5 && outcomes[k] === 'win' && outcomes[k - 1] !== 'win');
   if (!w) fail('geen testseed gevonden waarmee een eerdere seed wordt overgeslagen');
   else {
-    start(String(w - 2), 3);
+    start(String(w - 2), 3, 'battleDiscard');
     run('startNextGame()');
     if (seedNow() !== String(w) || simOutcome() !== 'win' || run('phase') !== 'idle') fail('een deling die niet eindigt hoort overgeslagen te worden: verwacht seed ' + w + ', kreeg ' + seedNow());
   }
@@ -2347,10 +2380,10 @@ let liveChecked = 0;
     delete document.getElementById('cycleWarning').scrollIntoView;
     document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
   }
-  // Met 2 spelers en de gewone regels eindigt geen enkele deling: dan terug naar het startscherm met de melding, bij seed 2.
+  // Met 2 spelers en de gewone regels eindigde voor de stoelfix geen enkele deling; nu eindigt de volgende deling gewoon en begint het spel.
   start('1', 2);
   run('startNextGame()');
-  if (hidden('setup') || !hidden('game') || hidden('cycleWarning') || seedNow() !== '2' || document.getElementById('seedInput').value !== '2') fail('met 2 spelers hoort het startscherm met de melding terug te komen, bij seed 2 (kreeg seed ' + seedNow() + ')');
+  if (!hidden('setup') || hidden('game') || !hidden('cycleWarning') || seedNow() !== '2' || simOutcome() !== 'win') fail('met 2 spelers hoort het volgende spel (seed 2) meteen te beginnen en te eindigen (kreeg seed ' + seedNow() + ', ' + simOutcome() + ')');
   document.getElementById('cycleWarning').classList.add('hidden'); document.getElementById('setup').classList.remove('hidden'); document.getElementById('game').classList.add('hidden');
   // Een regel die de winnaar omzet staat ook echt aan (of uit) in het spel dat met "Volgend spel" begint. In de echte pagina is het
   // vinkje op het startscherm één element; de nagebootste pagina maakt er twee, dus hier koppelen we ze aan elkaar.
@@ -2536,7 +2569,7 @@ let liveChecked = 0;
     if (JSON.stringify(win.over) !== JSON.stringify(['win', win.rounds, win.winner])) fail('een ruimere limiet verandert de uitkomst niet: ' + JSON.stringify(win));
     if (!win.sameEnd || win.traceAt !== win.traceFull) fail('de eindstand en het verloop horen gelijk te zijn aan die met de ruime limiet: ' + JSON.stringify(win));
   }
-  const cyc = probe('cycle', 2, {}, 'cyc');
+  const cyc = probe('cycle', 3, { battleDiscard: true }, 'cyc'); // sinds de stoelfix lopen alleen met deze regel nog spellen vast
   if (!cyc) fail('geen testspel met een cyclus gevonden');
   else {
     if (cyc.at[0] !== 'cycle' || cyc.at[1] !== cyc.rounds) fail('een cyclus die precies op de limiet sluit hoort als cyclus gemeld te worden: ' + JSON.stringify(cyc));
@@ -2550,8 +2583,9 @@ let liveChecked = 0;
 // ---- doorspoelen en de statistieken (controls.js, stats.js) ----
 {
   const fail = t => failures.push('doorspoelen: ' + t);
-  document.getElementById('seedInput').value = '1000';
-  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS['standard'][id];
+  // Een spel dat pas na 3000 rondes eindigt: alle regels aan, 4 spelers, seed 1027 (3118 rondes). Sinds de stoelfix zijn die zeldzaam.
+  document.getElementById('seedInput').value = '1027';
+  for (const id of RULE_IDS) document.getElementById(id + 'Input').checked = RULE_SETS[RULE_IDS.join('+')][id];
   document.getElementById('namesList').children = Array.from({ length: 4 }, () => ({ value: '' }));
   run('numPlayers = 4; dealNewGame(); launchGame();');
   const state = () => run('JSON.stringify({ h: statsHistory, w: statsWins, b: statsTotalBattles, l: statsLongestTie, r: statsRoundCount })');
@@ -2561,7 +2595,7 @@ let liveChecked = 0;
     const snap0 = run('JSON.stringify(statsSnapshot())');
     run('roundPot = [game.players[0].deck[0]]; roundSidelined = [1];'); // alsof er net een ronde zichtbaar is gespeeld
     run('fastForward()');
-    if (run('phase') !== 'round-over') fail('het testspel (4 spelers, seed 1000) hoort niet binnen 3000 rondes te eindigen, fase: ' + run('phase'));
+    if (run('phase') !== 'round-over') fail('het testspel (4 spelers, alle regels, seed 1027) hoort niet binnen 3000 rondes te eindigen, fase: ' + run('phase'));
     if (run('roundPot.length + roundSidelined.length') !== 0) fail('na doorspoelen horen er geen kaarten van de laatste zichtbare ronde meer klaar te staan om weg te schuiven');
     if (run('__draws') !== 1) fail('doorspoelen hoort het statistiekenpaneel één keer te tekenen, niet na elke ronde (' + run('__draws') + ' keer)');
     const fresh = state();
@@ -2572,12 +2606,13 @@ let liveChecked = 0;
       r.trace.forEach(e => { if (e.type === 'battle') statsRecordBattle(e.depth); else if (e.type === 'win') statsRecordRoundWin(e.winnerIds || e.winnerId, e.counts); }); })()`);
     if (state() !== fresh) fail('de statistieken na doorspoelen horen gelijk te zijn aan wanneer elke ronde apart wordt geteld');
     run('statsRestore(' + snap0 + ');');
-    // Opnieuw en nog eens doorspoelen (bij een spel dat niet eindigt kan dat): elke klik tekent het paneel één keer.
-    for (let k = 1; k <= 3; k++){
+    // Opnieuw doorspoelen: de eerste klik stopt na 3000 rondes, de tweede speelt het spel uit. Elke klik tekent het paneel één keer.
+    for (let k = 1; k <= 2; k++){
       run('__draws = 0; fastForward();');
       if (run('__draws') !== 1) fail('klik ' + k + ' op doorspoelen hoort het paneel één keer te tekenen (' + run('__draws') + ' keer)');
     }
-    if (run('statsHistory.length') < 3 * 2000) fail('na drie keer doorspoelen horen de rondes in de statistieken te staan (' + run('statsHistory.length') + ')');
+    if (run('phase') !== 'game-over') fail('na twee keer doorspoelen hoort het spel uit te zijn, fase: ' + run('phase'));
+    if (run('statsHistory.length') < 2000) fail('na twee keer doorspoelen horen de rondes in de statistieken te staan (' + run('statsHistory.length') + ')');
   } finally {
     run('renderStatsPanel = __origDraw; delete globalThis.__draws; delete globalThis.__origDraw; game = null;');
     document.getElementById('endBanner').innerHTML = '';
