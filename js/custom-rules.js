@@ -153,7 +153,7 @@ function customToRule(def){
   return Object.assign({
     id: def.id, priority: def.priority, title: def.title, short: def.short, description: def.description, default: false,
     examples: def.examples.map(e => JSON.parse(JSON.stringify(e))), logic: JSON.parse(JSON.stringify(def.logic)),
-    usesDiscard: 'discardPot' in then || 'discardTop' in then,
+    usesDiscard: !!(registryEffectOf(then, def.logic.moment) || {}).usesDiscard,
     custom: true
   }, compileRuleLogic(def.logic));
 }
