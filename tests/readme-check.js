@@ -12,7 +12,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-check-'));
 fs.mkdirSync(path.join(tmp, 'js'));
 const fresh = () => {
   fs.copyFileSync(path.join(repo, 'README.md'), path.join(tmp, 'README.md'));
-  for (const f of ['cards.js', 'rule-registry.js', 'blocks-effects.js', 'blocks-conditions.js', 'blocks-players.js', 'rule-dsl.js', 'rules.js']) fs.copyFileSync(path.join(repo, 'js', f), path.join(tmp, 'js', f));
+  for (const f of ['cards.js', 'rule-registry.js', 'blocks-effects.js', 'blocks-conditions.js', 'blocks-players.js', 'blocks-cards.js', 'rule-dsl.js', 'rules.js']) fs.copyFileSync(path.join(repo, 'js', f), path.join(tmp, 'js', f));
 };
 const run = (...a) => spawnSync(process.execPath, [script, tmp, ...a], { encoding: 'utf8' });
 const read = f => fs.readFileSync(path.join(tmp, f), 'utf8');

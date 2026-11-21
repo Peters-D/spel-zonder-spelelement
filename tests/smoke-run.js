@@ -189,13 +189,28 @@ own('vangnet', () => {
   const out = JSON.parse(run(`(() => { const problems = [];
     const ids = RULE_REGISTRY.moments.map(m => m.id);
     for (const m of RULE_REGISTRY.moments) if (typeof m.compile !== 'function' || !m.label) problems.push('moment ' + m.id + ' mist compile of label');
-    const needs = { effect: ['validate', 'run'], condition: ['validate', 'test', 'sentence'], players: ['validate', 'select', 'phrase'] };
+    const needs = { effect: ['validate', 'run'], condition: ['validate', 'test', 'sentence'], players: ['validate', 'select', 'phrase'], cards: ['validate', 'select', 'phrase'] };
     const defaultThen = m => registryBlocks('effect', m)[0].sample;
     for (const [kind, fns] of Object.entries(needs)) for (const b of RULE_REGISTRY[kind]){
       for (const f of fns) if (typeof b[f] !== 'function') problems.push(kind + ' ' + b.key + ' mist ' + f);
       if (kind === 'effect' && typeof b.describe !== 'function' && typeof b.parts !== 'function') problems.push('effect ' + b.key + ' mist een zin (describe of parts)');
       if (kind === 'condition' && !(Array.isArray(b.fields) && b.fields.includes(b.key))) problems.push('condition ' + b.key + ' mist fields met zijn eigen sleutel');
-      if (!b.label || !Array.isArray(b.moments) || b.moments.length === 0 || b.moments.some(m => !ids.includes(m))) problems.push(kind + ' ' + b.key + ' mist een label of heeft onbekende momenten');
+      if (kind !== 'cards' && (!b.label || !Array.isArray(b.moments) || b.moments.length === 0 || b.moments.some(m => !ids.includes(m)))) problems.push(kind + ' ' + b.key + ' mist een label of heeft onbekende momenten');
+      if (kind === 'cards'){
+        if (!b.label) problems.push('cards ' + b.key + ' mist een label');
+        if (!b.leaf && !(Array.isArray(b.fields) && b.fields.includes(b.key))) problems.push('cards ' + b.key + ' mist fields met zijn eigen sleutel');
+        if (b.single && typeof b.matches !== 'function') problems.push('cards ' + b.key + ' mist matches (nodig voor één kaart)');
+        // Het voorbeeld als keuze op tafel (win), en bij single ook als één kaart (winnerOpened).
+        const logics = [{ moment: 'decide', then: { win: b.sample } }].concat(b.single ? [{ moment: 'award', if: { winnerOpened: b.sample }, then: defaultThen('award') }] : []);
+        for (const logic of logics){
+          try {
+            const errors = validateRuleLogic(logic);
+            if (errors.length) problems.push('cards ' + b.key + ' bij ' + logic.moment + ': het voorbeeld klopt niet: ' + errors[0]);
+            else if (!describeRuleLogic(logic)) problems.push('cards ' + b.key + ' bij ' + logic.moment + ': geen zin');
+          } catch (e){ problems.push('cards ' + b.key + ': fout bij controleren of beschrijven: ' + e.message); }
+        }
+        continue;
+      }
       if (kind === 'players'){
         if (!b.literal && !(Array.isArray(b.fields) && b.fields.includes(b.key))) problems.push('players ' + b.key + ' mist fields met zijn eigen sleutel');
         if (!Array.isArray(b.slots) || b.slots.length === 0 || b.slots.some(s => !PLAYER_SLOTS[s])) problems.push('players ' + b.key + ' heeft geen of onbekende plekken');
@@ -228,7 +243,7 @@ own('vangnet', () => {
     if (!threw) problems.push('defineBlock weigert een onbekende soort niet');
     return JSON.stringify({ problems, counts: Object.fromEntries(Object.keys(needs).map(k => [k, RULE_REGISTRY[k].length])) }); })()`));
   for (const p of out.problems) fail(p);
-  if (out.counts.effect !== 5 || out.counts.condition !== 9 || out.counts.players !== 4) fail('verwacht 5 gevolgen, 9 voorwaarden en 4 keuzes van spelers, kreeg ' + JSON.stringify(out.counts));
+  if (out.counts.effect !== 5 || out.counts.condition !== 9 || out.counts.players !== 4 || out.counts.cards !== 10) fail('verwacht 5 gevolgen, 9 voorwaarden, 4 keuzes van spelers en 10 van kaarten, kreeg ' + JSON.stringify(out.counts));
 }
 
 // ---- thema's: alle kleuren staan in css/themes.css ----
