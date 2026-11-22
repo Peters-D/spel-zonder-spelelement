@@ -148,7 +148,7 @@ defineBlock('condition', {
       let r = node.playersWithCards;
       if (r.min !== undefined && r.min > max) return null;
       if (r.max !== undefined && r.max > max){
-        if (notes) notes.push('"Ten hoogste ' + r.max + ' spelers" is in de bouwer "ten hoogste ' + max + '" geworden: er zijn nooit meer dan ' + max + ' spelers, dus de regel speelt hetzelfde.');
+        if (notes) notes.push('De bovengrens van ' + r.max + ' spelers is in de bouwer ' + max + ' geworden: er zijn nooit meer dan ' + max + ' spelers, dus de regel speelt hetzelfde.');
         r = Object.assign({}, r, { max });
       }
       rbRangeFrom(r, c);
