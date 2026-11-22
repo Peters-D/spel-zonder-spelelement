@@ -28,6 +28,49 @@ const CARD_RELATIONS = {
 };
 const DSL_RELATIONS = Object.keys(CARD_RELATIONS);
 
+// ---- hulpjes ----
+
+const dslList = v => Array.isArray(v) ? v : [v];
+const dslIsRed = card => card.suit === '♥' || card.suit === '♦';
+const dslColor = card => card.suit ? (dslIsRed(card) ? 'red' : 'black') : null;
+
+// De hoogste groep volgens een relatie. Geeft de spelers, in de volgorde van de tafel.
+// Een groep: minstens min kaarten die bij elkaar horen (min 2). relation: 'sameRank' (gelijke waarde), 'sameSuit' (zelfde symbool),
+// 'sameColor' (zelfde kleur) of 'consecutive' (opeenvolgende waarden, bijv. 7-8-9; hier telt min de verschillende waarden: 7-7-8 is
+// een reeks van twee, alle drie doen mee). De hoogste groep is die met de hoogste kaart; bij gelijke stand de grootste, en zijn ze
+// dan nog gelijk, dan doen ze samen mee.
+function dslBestGroup(scope, group){
+  let groups = [];
+  // De lengte van een groep. Bij een reeks tellen de verschillende waarden (7-7-8 is een reeks van twee), anders de kaarten.
+  let size = g => g.length;
+  if (group.relation === 'consecutive'){
+    size = g => new Set(g.map(p => p.faceCard.value)).size;
+    const values = Array.from(new Set(scope.map(p => p.faceCard.value))).sort((a, b) => a - b);
+    let run = [];
+    const close = () => { if (run.length) groups.push(scope.filter(p => run.includes(p.faceCard.value))); run = []; };
+    for (const v of values){ if (run.length && v !== run[run.length - 1] + 1) close(); run.push(v); }
+    close();
+  } else {
+    const keyOf = group.relation === 'sameRank' ? p => p.faceCard.value : group.relation === 'sameSuit' ? p => p.faceCard.suit : p => dslColor(p.faceCard);
+    const byKey = new Map();
+    for (const p of scope){
+      const k = keyOf(p);
+      if (k === null || k === undefined) continue; // een kaart zonder symbool hoort bij geen symbool- of kleurgroep
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(p);
+    }
+    groups = Array.from(byKey.values());
+  }
+  groups = groups.filter(g => size(g) >= group.min);
+  if (groups.length === 0) return [];
+  const top = g => Math.max(...g.map(p => p.faceCard.value));
+  const bestTop = Math.max(...groups.map(top));
+  groups = groups.filter(g => top(g) === bestTop);
+  const bestSize = Math.max(...groups.map(size));
+  const members = new Set(groups.filter(g => size(g) === bestSize).flat());
+  return scope.filter(p => members.has(p));
+}
+
 // De spelers uit scope waarvan de open kaart past (voor rank, suit en color).
 const cardsByMatch = (scope, node) => scope.filter(p => dslCardMatches(p.faceCard, node));
 // De inhoud van and en or: een niet-lege lijst, met daarin keuzes van kaarten of (single) losse kaarten.
@@ -183,6 +226,7 @@ const cardsExtreme = (key, label, prompt, builderLabel) => ({
     }
   }
 });
+// De hoogste op waarde: bij gelijke waarde allemaal. Op symbool: in de volgorde van rules.suitOrder; is een symbool onbekend, dan niemand.
 defineBlock('cards', cardsExtreme('highest', 'de hoogste kaart (op waarde of symbool)',
   '{ "highest": "value" } of { "highest": "suitOrder" }, eventueel met "of": <kaarten>   (de hoogste op waarde of op symboolvolgorde)', 'de hoogste kaart'));
 defineBlock('cards', cardsExtreme('lowest', 'de laagste kaart (op waarde of symbool)',

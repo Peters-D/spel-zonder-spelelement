@@ -9,59 +9,14 @@
 // Een beschrijving:
 //   { moment, if (optioneel), then }
 //
-// moment      'decide'    wie wint de open kaarten (meer dan één speler = battle)
-//             'tiebreak'  er zijn meerdere winnaars: wie van hen wint
-//             'award'     de pot wordt toegekend
-//             'roundEnd'  de ronde is voorbij, vóór het uitschakelen
-//
-// Kaarten kiezen (bij 'decide' uit alle open kaarten, bij 'tiebreak' uit de kaarten van de spelers die gelijk eindigden):
-//   { rank: 'K' } of { rank: ['K', 'Q'] }      kaarten met die waarde
-//   { suit: '♥' } of { suit: ['♥', '♦'] }      kaarten met dat symbool
-//   { color: 'red' | 'black' }                 rood (♥ ♦) of zwart (♠ ♣)
-//   { all: true }                              alle kaarten
-//   { highest: 'value' | 'suitOrder', of }     de hoogste op waarde (bij gelijke waarde allemaal), of op de volgorde van de
-//   { lowest:  'value' | 'suitOrder', of }     symbolen (rules.suitOrder; is een symbool onbekend, dan niemand). of (optioneel)
-//                                              is een keuze waarbinnen gezocht wordt.
-//   { group: { relation, min, pick: 'highest' } }
-//                                              de hoogste groep kaarten die bij elkaar horen, van minstens min kaarten (min 2).
-//                                              relation: 'sameRank' (gelijke waarde), 'sameSuit' (zelfde symbool), 'sameColor'
-//                                              (zelfde kleur) of 'consecutive' (opeenvolgende waarden, bijv. 7-8-9; hier telt
-//                                              min de verschillende waarden: 7-7-8 is een reeks van twee, alle drie doen mee).
-//                                              De hoogste groep is die met de hoogste kaart; bij gelijke stand de grootste, en
-//                                              zijn ze dan nog gelijk, dan doen ze samen mee.
-//   { and: [..] }, { or: [..] }, { not: .. }   doorsnede, vereniging, de rest
-//
-// Spelers kiezen (bij 'award' en 'roundEnd'):
-//   'winner'                                   de winnaar van de ronde (alleen bij 'award')
-//   { opened: <kaart>, exclude: 'winner' }     spelers die de ronde begonnen met zo'n kaart (<kaart>: rank/suit/color/and/or/not);
-//                                              exclude (optioneel) laat de winnaar weg
-//   { withoutCards: true }                     spelers zonder kaarten
-//   { withoutCards: true, secondChance: true } spelers zonder kaarten die hun tweede kans nog hebben. Elke speler heeft er één:
-//                                              wie bij forEach + transfer kaarten krijgt, gebruikt hem; wie een ronde wint (ook samen),
-//                                              krijgt hem terug. Wie zonder kaarten en zonder tweede kans zit, valt definitief af.
-//   { neighbor: 'left' | 'right' }             bij forEach: de eerstvolgende speler met kaarten links of rechts van die speler
-//
-// Voorwaarden (if):
-//   { exists: <kaarten> }                      er ligt minstens één zo'n kaart              (decide, tiebreak)
-//   { count: <kaarten>, min, max }             het aantal ligt tussen min en max            (decide, tiebreak); min > max is fout
-//   { battle: true }                           er was deze ronde een battle                 (award)
-//   { winnerOpened: <kaart> }                  de winnaar begon de ronde met zo'n kaart     (award)
-//   { anyPlayer: <spelers> }                   er is minstens één zo'n speler               (award, roundEnd)
-//   { playersWithCards: { min, max } }         zoveel spelers hebben kaarten                (award, roundEnd)
-//   { and: [..] }, { or: [..] }, { not: .. }
-//
-// Gevolgen (then):
-//   decide, tiebreak   { win: <kaarten> }      die spelers winnen. Bij 'tiebreak' moet er precies één overblijven, anders
-//                                              beslist de regel niets.
-//   award              { discardPot: true }    de hele pot gaat naar de aflegstapel
-//                      { sharePot: [<spelers>, ..] }
-//                                              de pot wordt verdeeld over die spelers, in deze volgorde (zie engineSharePot).
-//                                              Alleen als er een winnaar is en de pot niet leeg is.
-//   roundEnd           { forEach: <spelers>, transfer: { from: <spelers>, count } }
-//                                              elke gekozen speler krijgt count kaarten van from (bepaald vóór er iets verschuift)
-//                      { forEach: <spelers>, discardTop: n }
-//                                              elke gekozen speler legt zijn bovenste n kaarten af
-//                                              (count en n: 1 t/m 52)
+// De momenten en bouwstenen staan in het register, elk met zijn controle, gedrag, zin, bouwerdeel en uitleg:
+//   js/rule-registry.js        hoe het register werkt, en de momenten (decide, tiebreak, award, roundEnd)
+//   js/blocks-effects.js       de gevolgen (then)
+//   js/blocks-conditions.js    de voorwaarden (if)
+//   js/blocks-players.js       de keuzes van spelers (bij award en roundEnd)
+//   js/blocks-cards.js         de keuzes van kaarten (en van één kaart)
+// Alles in één lijst: de uitleg voor een taalmodel (RULE_PROMPT_GRAMMAR in js/rule-prompt.js), die uit hetzelfde register komt.
+// Een bouwsteen toevoegen: zie de README ("Een nieuwe bouwsteen toevoegen").
 
 const DSL_MOMENTS = RULE_REGISTRY.moments.map(m => m.id); // zie js/rule-registry.js
 const DSL_MAX_DEPTH = 8;
@@ -170,46 +125,9 @@ function validateRuleLogic(logic){
 
 // ---- uitvoeren ----
 
-const dslList = v => Array.isArray(v) ? v : [v];
-const dslIsRed = card => card.suit === '♥' || card.suit === '♦';
-const dslColor = card => card.suit ? (dslIsRed(card) ? 'red' : 'black') : null;
-
 // Past één kaart bij de beschrijving? Zie js/blocks-cards.js.
 function dslCardMatches(card, node){
   return registryCardsOf(node).matches(card, node);
-}
-
-// De hoogste groep volgens een relatie (zie de uitleg bovenaan). Geeft de spelers, in de volgorde van de tafel.
-function dslBestGroup(scope, group){
-  let groups = [];
-  // De lengte van een groep. Bij een reeks tellen de verschillende waarden (7-7-8 is een reeks van twee), anders de kaarten.
-  let size = g => g.length;
-  if (group.relation === 'consecutive'){
-    size = g => new Set(g.map(p => p.faceCard.value)).size;
-    const values = Array.from(new Set(scope.map(p => p.faceCard.value))).sort((a, b) => a - b);
-    let run = [];
-    const close = () => { if (run.length) groups.push(scope.filter(p => run.includes(p.faceCard.value))); run = []; };
-    for (const v of values){ if (run.length && v !== run[run.length - 1] + 1) close(); run.push(v); }
-    close();
-  } else {
-    const keyOf = group.relation === 'sameRank' ? p => p.faceCard.value : group.relation === 'sameSuit' ? p => p.faceCard.suit : p => dslColor(p.faceCard);
-    const byKey = new Map();
-    for (const p of scope){
-      const k = keyOf(p);
-      if (k === null || k === undefined) continue; // een kaart zonder symbool hoort bij geen symbool- of kleurgroep
-      if (!byKey.has(k)) byKey.set(k, []);
-      byKey.get(k).push(p);
-    }
-    groups = Array.from(byKey.values());
-  }
-  groups = groups.filter(g => size(g) >= group.min);
-  if (groups.length === 0) return [];
-  const top = g => Math.max(...g.map(p => p.faceCard.value));
-  const bestTop = Math.max(...groups.map(top));
-  groups = groups.filter(g => top(g) === bestTop);
-  const bestSize = Math.max(...groups.map(size));
-  const members = new Set(groups.filter(g => size(g) === bestSize).flat());
-  return scope.filter(p => members.has(p));
 }
 
 // De spelers uit scope (elk met een open kaart) die bij de keuze horen, in de volgorde van de tafel. Zie js/blocks-cards.js.

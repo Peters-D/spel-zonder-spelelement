@@ -88,7 +88,8 @@ defineBlock('players', {
     if (node.withoutCards !== true) v.err(path + '.withoutCards', 'true verwacht');
     if ('secondChance' in node && node.secondChance !== true) v.err(path + '.secondChance', 'true verwacht');
   },
-  // Met secondChance alleen wie zijn tweede kans nog heeft.
+  // Met secondChance alleen wie zijn tweede kans nog heeft. Elke speler heeft er één: wie bij forEach + transfer kaarten krijgt, gebruikt
+  // hem; wie een ronde wint (ook samen), krijgt hem terug. Wie zonder kaarten en zonder tweede kans zit, valt definitief af.
   select(node, ctx){ return ctx.state.players.filter(p => p.deck.length === 0 && !(node.secondChance && p.chanceUsed)); },
   phrase(node, forEach){
     const second = node.secondChance === true;
@@ -113,8 +114,9 @@ defineBlock('players', {
     if (!allow.neighbor) v.err(path, '"neighbor" kan alleen als from bij forEach');
     if (!['left', 'right'].includes(node.neighbor)) v.err(path + '.neighbor', '"left" of "right" verwacht');
   },
-  // De buurman hangt af van de speler die krijgt; dat regelt het gevolg zelf (zie transfer in js/blocks-effects.js).
-  select(){ return []; },
+  // De buur hangt af van de speler die krijgt; dat regelt het gevolg zelf (zie transfer in js/blocks-effects.js). neighbor kan
+  // alleen als from bij transfer (zie validate), dus hier komt het spel nooit; een fout laat het meteen zien als dat verandert.
+  select(){ throw new Error('"neighbor" kies je niet los: de buur hangt af van de speler die krijgt (zie transfer)'); },
   phrase(node){ return (node.neighbor === 'left' ? 'de linkerbuur' : 'de rechterbuur') + ' met kaarten'; },
   prompt: ['{ "neighbor": "left" } of { "neighbor": "right" } de eerstvolgende speler met kaarten links of rechts (alleen als "from" bij transfer)'],
   builder: {
