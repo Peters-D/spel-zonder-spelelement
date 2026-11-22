@@ -183,7 +183,7 @@ function rbCondRow(c, i, list, prefix){
   if (c.key === 'playersWithCards'){ row.appendChild(rbRangeEditor(c, 8, label)); row.appendChild(rbMake('span', 'bld-word', 'spelers hebben nog kaarten')); }
   if (c.key === 'anyPlayer'){
     // Een voorwaarde "er is een speler die ..." heeft dezelfde velden als een speler, onder andere namen: de keuzes gaan direct naar c.
-    const p = { get kind(){ return c.who; }, set kind(v){ c.who = v; }, get cs(){ return c.cs; }, set cs(v){ c.cs = v; }, get other(){ return c.other; }, set other(v){ c.other = v; } };
+    const p = { get kind(){ return c.who; }, set kind(v){ c.who = v; }, get cs(){ return c.cs; }, set cs(v){ c.cs = v; }, get other(){ return c.other; }, set other(v){ c.other = v; }, get chance(){ return c.chance; }, set chance(v){ c.chance = v; } };
     row.appendChild(rbPlayerEditor(p, 'anyPlayer', label));
   }
   return row;

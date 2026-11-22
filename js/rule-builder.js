@@ -123,7 +123,7 @@ function rbCond(c, moment, nested){
   else if (c.key === 'count') node = Object.assign({ count: rbCards(c.cs, false) }, rbRange(c, 52));
   else if (c.key === 'battle') node = { battle: true };
   else if (c.key === 'winnerOpened') node = { winnerOpened: rbCards(c.cs, true) };
-  else if (c.key === 'anyPlayer') node = { anyPlayer: rbPlayer({ kind: c.who, cs: c.cs, other: c.other }, moment) };
+  else if (c.key === 'anyPlayer') node = { anyPlayer: rbPlayer({ kind: c.who, cs: c.cs, other: c.other, chance: c.chance }, moment) };
   else if (c.key === 'playersWithCards') node = { playersWithCards: rbRange(c, 8) };
   else throw RB_ERR('Kies een voorwaarde.');
   return c.not ? { not: node } : node;
@@ -147,7 +147,7 @@ function rbNewCond(key){
   const c = { key, not: false };
   if (key === 'exists' || key === 'count' || key === 'winnerOpened') c.cs = rbNewCards('rank');
   if (key === 'count') Object.assign(c, { mode: 'min', n: 2, m: 3 });
-  if (key === 'anyPlayer') Object.assign(c, { who: 'withoutCards', cs: rbNewCards('rank'), other: false });
+  if (key === 'anyPlayer') Object.assign(c, { who: 'withoutCards', cs: rbNewCards('rank'), other: false, chance: false });
   if (key === 'playersWithCards') Object.assign(c, { mode: 'min', n: 2, m: 3 });
   if (key === 'group') Object.assign(c, { mode: 'or', conds: [] });
   return c;
@@ -264,8 +264,12 @@ function rbCondFrom(node, nested){
     c = rbNewCond('anyPlayer');
     const p = rbPlayerFrom(node.anyPlayer);
     if (!p || p.kind === 'neighbor') return null;
-    c.who = p.kind; c.cs = p.cs; c.other = p.other;
-  } else if ('playersWithCards' in node){ c = rbNewCond('playersWithCards'); rbRangeFrom(node.playersWithCards, c); }
+    c.who = p.kind; c.cs = p.cs; c.other = p.other; c.chance = p.chance;
+  } else if ('playersWithCards' in node){
+    const r = node.playersWithCards;
+    if ((r.min !== undefined && r.min > 8) || (r.max !== undefined && r.max > 8)) return null; // de bouwer telt tot 8 spelers
+    c = rbNewCond('playersWithCards'); rbRangeFrom(r, c);
+  }
   else return null; // dubbele "niet": dat toont de bouwer niet
   c.not = not;
   return c;
