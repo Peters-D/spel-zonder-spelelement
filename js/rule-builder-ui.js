@@ -6,8 +6,8 @@ let rb = null;            // de stand van de bouwer (zie rbNewState)
 let rbFocus = 0;          // de teller voor de bedieningselementen, om de focus na opnieuw tekenen terug te zetten
 let rbFocusWanted = -1;
 
-// De namen in de keuzelijsten komen uit het register (builder.label in js/blocks-cards.js, CARD_RELATIONS).
-const RB_CARD_LABELS = Object.fromEntries(rbCardKinds(false).map(b => [b.key, b.builder.label]));
+// De namen in de keuzelijsten komen uit het register (label in js/blocks-cards.js, CARD_RELATIONS).
+const RB_CARD_LABELS = Object.fromEntries(rbCardKinds(false).map(b => [b.key, b.label]));
 const RB_RELATION_LABELS = CARD_RELATIONS;
 const RB_MODE_LABELS = { min: 'minstens', max: 'ten hoogste', exact: 'precies', between: 'tussen' };
 
@@ -87,7 +87,7 @@ function rbChips(options, selected, label, onChange){
 function rbCardsEditor(cs, single, label){
   const box = rbMake('div', 'bld-cards');
   const kinds = rbCardKinds(single);
-  box.appendChild(rbSelect(kinds.map(b => [b.key, b.builder.label]), cs.kind, label + ': welke kaarten?', v => { cs.kind = v; }, true));
+  box.appendChild(rbSelect(kinds.map(b => [b.key, b.label]), cs.kind, label + ': welke kaarten?', v => { cs.kind = v; }, true));
   const block = registryBlock('cards', cs.kind);
   if (block && block.builder) block.builder.editor(box, cs, label); // zie js/blocks-cards.js
   if (RB_SINGLE.includes(cs.kind)){
@@ -121,7 +121,7 @@ function rbPlayerEditor(p, slot, label){
   const box = rbMake('div', 'bld-player');
   const choices = rulePlayerChoices(slot, rb.moment);
   if (!choices.some(c => c.key === p.kind)) p.kind = choices[0].key;
-  box.appendChild(rbSelect(choices.map(c => [c.key, registryBlock('players', c.key).builder.label]), p.kind, label + ': welke spelers?', v => { p.kind = v; }, true));
+  box.appendChild(rbSelect(choices.map(c => [c.key, c.label]), p.kind, label + ': welke spelers?', v => { p.kind = v; }, true));
   registryBlock('players', p.kind).builder.editor(box, p, label); // zie js/blocks-players.js
   return box;
 }
@@ -271,7 +271,8 @@ function rbLoad(){
     customShowMessages(parsed.errors.map(e => [false, e]));
     return;
   }
-  const st = rbFromLogic(parsed.def.logic);
+  const notes = [];
+  const st = rbFromLogic(parsed.def.logic, notes);
   if (!st){
     customShowMessages([[false, 'De bouwer kan deze regel niet laten zien (bijvoorbeeld door een groep binnen een groep, of meer dan twee eisen aan een kaart). Controleren en toevoegen kan wel gewoon.']]);
     return;
@@ -281,6 +282,7 @@ function rbLoad(){
   rb = st;
   rbRender();
   rbRefreshOutput(true); // het tekstvak bevat dit blok zelf: het mag in de vorm van de bouwer worden gezet
+  for (const n of notes) customLine(customEl('customRuleMessages'), null, n); // wat de bouwer heeft aangepast om de regel te tonen
 }
 
 (function wireBuilder(){

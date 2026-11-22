@@ -4,8 +4,9 @@
 //
 //   rbNewState(moment)            een lege stand voor een moment, met een gevolg dat klopt
 //   rbToLogic(state)              { logic } of { error } (een melding in gewone taal)
-//   rbFromLogic(logic)            de stand bij een beschrijving, of null als de bouwer die niet kan tonen (dieper dan één groep,
-//                                 meer dan twee eisen aan een kaart)
+//   rbFromLogic(logic, notes)     de stand bij een beschrijving, of null als de bouwer die niet kan tonen (dieper dan één groep,
+//                                 meer dan twee eisen aan een kaart). Past de bouwer iets aan om de regel te kunnen tonen (zonder
+//                                 dat de regel anders speelt), dan komt er een zin daarover in de lijst notes (als die is meegegeven)
 //   rbSuggestExamples(logic)      { examples, note }: voorbeelden die het spel zelf zoekt (zie hieronder)
 //   rbBlock(state, taken)         het hele regelblok: { def, sentence, note, kept, regenerated } of { errors }
 //   rbMetaFrom(def, state)        onthoudt een geladen blok (id, uitleg, voorbeelden) in state.meta
@@ -179,20 +180,20 @@ function rbRangeFrom(node, out){
   else { out.mode = 'max'; out.n = node.max; }
 }
 
-function rbCondFrom(node, nested){
+function rbCondFrom(node, nested, notes){
   let not = false;
   if ('not' in node){ not = true; node = node.not; }
   let c;
   if ('and' in node || 'or' in node){ // een groep, één niveau diep
     if (nested) return null;
     const mode = 'and' in node ? 'and' : 'or';
-    const conds = node[mode].map(x => rbCondFrom(x, true));
+    const conds = node[mode].map(x => rbCondFrom(x, true, notes));
     if (conds.some(x => !x)) return null;
     return { key: 'group', not, mode, conds };
   }
   const block = registryConditionOf(node);
   if (!block || !block.builder) return null; // dubbele "niet": dat toont de bouwer niet
-  c = block.builder.fromLogic(node, rbNewCond(block.key)); // zie js/blocks-conditions.js
+  c = block.builder.fromLogic(node, rbNewCond(block.key), notes); // zie js/blocks-conditions.js
   if (!c) return null;
   c.not = not;
   return c;
@@ -204,7 +205,7 @@ function rbEffectFrom(node){
 }
 
 // beschrijving -> stand, of null als de bouwer die niet kan tonen (bijvoorbeeld en/of binnen een voorwaarde, of meer dan twee eisen).
-function rbFromLogic(logic){
+function rbFromLogic(logic, notes){
   if (validateRuleLogic(logic).length) return null;
   const st = rbNewState(logic.moment);
   st.conds = [];
@@ -213,7 +214,7 @@ function rbFromLogic(logic){
     const list = 'and' in top ? { mode: 'and', items: top.and } : 'or' in top ? { mode: 'or', items: top.or } : { mode: 'and', items: [top] };
     st.condMode = list.mode;
     for (const item of list.items){
-      const c = rbCondFrom(item);
+      const c = rbCondFrom(item, false, notes);
       if (!c) return null;
       st.conds.push(c);
     }

@@ -13,7 +13,8 @@
 //                                        maakt (en, of, niet: het groepje voorwaarden en het vinkje "juist niet")
 //     fresh(c)                           vult een nieuwe voorwaarde c ({ key, not }) met de beginwaarden
 //     toLogic(c, moment)                 c -> beschrijving; een fout is een RB_ERR
-//     fromLogic(node, c)                 vult c vanuit de beschrijving; geeft c, of null als de bouwer het niet kan tonen
+//     fromLogic(node, c, notes)          vult c vanuit de beschrijving; geeft c, of null als de bouwer het niet kan tonen. Past de
+//                                        bouwer iets aan om de regel te kunnen tonen, dan zet hij een zin daarover in notes
 //     editor(row, c, label)              de velden in het formulier (na de keuzelijst)
 //   De veldtypes van de bouwer: kaarten (rbCards, rbCardsFrom, rbCardsEditor), spelers (rbPlayer, rbPlayerFrom, rbPlayerEditor),
 //   een aantal (rbRange, rbRangeFrom, rbRangeEditor) en een getal (rbInt, rbNumber). Zie js/rule-builder.js en js/rule-builder-ui.js.
@@ -137,13 +138,19 @@ defineBlock('condition', {
     return rtAmount(node.playersWithCards, { pre: '', sing: 'speler kaarten', plural: 'spelers kaarten', vs: 'heeft', vp: 'hebben', none: 'geen enkele speler kaarten heeft' });
   },
   prompt: ['{ "playersWithCards": { "min": n, "max": n } }    award, roundEnd'],
-  // De bouwer telt tot CONDITION_MAX_PLAYERS spelers; een beschrijving met een groter getal kan hij niet tonen.
+  // De bouwer telt tot CONDITION_MAX_PLAYERS spelers. Een bovengrens daarboven wordt die grens: er zijn nooit meer spelers, dus de
+  // regel speelt hetzelfde (de bouwer meldt het). Een ondergrens daarboven kan hij niet tonen: die zou de regel echt veranderen.
   builder: {
     fresh(c){ Object.assign(c, { mode: 'min', n: 2, m: 3 }); },
     toLogic(c){ return { playersWithCards: rbRange(c, CONDITION_MAX_PLAYERS) }; },
-    fromLogic(node, c){
-      const r = node.playersWithCards, max = CONDITION_MAX_PLAYERS;
-      if ((r.min !== undefined && r.min > max) || (r.max !== undefined && r.max > max)) return null;
+    fromLogic(node, c, notes){
+      const max = CONDITION_MAX_PLAYERS;
+      let r = node.playersWithCards;
+      if (r.min !== undefined && r.min > max) return null;
+      if (r.max !== undefined && r.max > max){
+        if (notes) notes.push('De bovengrens van ' + r.max + ' spelers is in de bouwer ' + max + ' geworden: er zijn nooit meer dan ' + max + ' spelers, dus de regel speelt hetzelfde.');
+        r = Object.assign({}, r, { max });
+      }
       rbRangeFrom(r, c);
       return c;
     },

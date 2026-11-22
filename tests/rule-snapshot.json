@@ -313,8 +313,8 @@
   {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":1,"max":3}},"then":{"forEach":{"withoutCards":true},"discardTop":1}},"zin":"Aan het einde van de ronde, als tussen één en drie spelers kaarten hebben, dan legt elke speler zonder kaarten zijn bovenste kaart af.","bouwer":"gelijk","gedrag":"c27a7de7"},
   {"logic":{"moment":"award","if":{"playersWithCards":{"min":0}},"then":{"discardPot":true}},"zin":"Als minstens nul spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel.","bouwer":"gelijk","gedrag":"03cbe997"},
   {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":0}},"then":{"forEach":{"withoutCards":true},"discardTop":1}},"zin":"Aan het einde van de ronde, als minstens nul spelers kaarten hebben, dan legt elke speler zonder kaarten zijn bovenste kaart af.","bouwer":"gelijk","gedrag":"c27a7de7"},
-  {"logic":{"moment":"award","if":{"playersWithCards":{"min":2,"max":9}},"then":{"discardPot":true}},"zin":"Als tussen 2 en 9 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel.","bouwer":"kan niet tonen","gedrag":"43b9191d"},
-  {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":2,"max":9}},"then":{"forEach":{"withoutCards":true},"discardTop":1}},"zin":"Aan het einde van de ronde, als tussen 2 en 9 spelers kaarten hebben, dan legt elke speler zonder kaarten zijn bovenste kaart af.","bouwer":"kan niet tonen","gedrag":"c27a7de7"},
+  {"logic":{"moment":"award","if":{"playersWithCards":{"min":2,"max":9}},"then":{"discardPot":true}},"zin":"Als tussen 2 en 9 spelers kaarten hebben, dan gaat de hele pot naar de aflegstapel.","bouwer":"anders: {\"moment\":\"award\",\"if\":{\"playersWithCards\":{\"min\":2,\"max\":8}},\"then\":{\"discardPot\":true}}","gedrag":"43b9191d"},
+  {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":2,"max":9}},"then":{"forEach":{"withoutCards":true},"discardTop":1}},"zin":"Aan het einde van de ronde, als tussen 2 en 9 spelers kaarten hebben, dan legt elke speler zonder kaarten zijn bovenste kaart af.","bouwer":"anders: {\"moment\":\"roundEnd\",\"if\":{\"playersWithCards\":{\"min\":2,\"max\":8}},\"then\":{\"forEach\":{\"withoutCards\":true},\"discardTop\":1}}","gedrag":"c27a7de7"},
   {"logic":{"moment":"roundEnd","then":{"forEach":{"withoutCards":true},"transfer":{"from":{"neighbor":"left"},"count":3}}},"zin":"Aan het einde van de ronde krijgt elke speler zonder kaarten 3 kaarten van de linkerbuur met kaarten.","bouwer":"gelijk","gedrag":"892817ca"},
   {"logic":{"moment":"roundEnd","then":{"forEach":{"withoutCards":true},"transfer":{"from":{"neighbor":"right"},"count":1}}},"zin":"Aan het einde van de ronde krijgt elke speler zonder kaarten 1 kaart van de rechterbuur met kaarten.","bouwer":"gelijk","gedrag":"1641751e"},
   {"logic":{"moment":"roundEnd","then":{"forEach":{"withoutCards":true},"transfer":{"from":{"neighbor":"right"},"count":3}}},"zin":"Aan het einde van de ronde krijgt elke speler zonder kaarten 3 kaarten van de rechterbuur met kaarten.","bouwer":"gelijk","gedrag":"496ba3f6"},
@@ -388,7 +388,7 @@
   {"logic":{"moment":"award","if":{"or":[{"playersWithCards":{"min":0}},{"or":[{"playersWithCards":{"min":2}},{"anyPlayer":{"opened":{"not":{"rank":"K"}}}}]}]},"then":{"sharePot":["winner",{"opened":{"suit":"♥"},"exclude":"winner"}]}},"zin":"Als minstens nul spelers kaarten hebben of (minstens twee spelers kaarten hebben of er een speler is die de ronde met een kaart die geen Heer is begon), dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een kaart van harten, de hoogste kaart eerst.","bouwer":"gelijk","gedrag":"3773451f"},
   {"logic":{"moment":"award","if":{"winnerOpened":{"not":{"rank":"K"}}},"then":{"sharePot":["winner",{"opened":{"and":[{"color":"red"},{"rank":"K"}]},"exclude":"winner"}]}},"zin":"Als de winnaar de ronde met een kaart die geen Heer is begon, dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een rode kaart die ook een Heer is, de hoogste kaart eerst.","bouwer":"gelijk","gedrag":"c27a7de7"},
   {"logic":{"moment":"decide","if":{"or":[{"exists":{"not":{"rank":"K"}}},{"count":{"suit":"♥"},"max":1},{"exists":{"group":{"relation":"sameRank","min":2,"pick":"highest"}}}]},"then":{"win":{"suit":["♥","♦"]}}},"zin":"Als er een kaart die geen Heer is ligt, er ten hoogste één kaart van harten ligt of er een groep van minstens 2 kaarten met dezelfde waarde ligt, dan winnen kaarten van harten of ruiten. Bij gelijk spel: BATTLE!","bouwer":"gelijk","gedrag":"537aca87"},
-  {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":2,"max":9}},"then":{"forEach":{"opened":{"rank":"K"}},"discardTop":1}},"zin":"Aan het einde van de ronde, als tussen 2 en 9 spelers kaarten hebben, dan legt elke speler die de ronde begon met een Heer zijn bovenste kaart af.","bouwer":"kan niet tonen","gedrag":"9b80cf8b"},
+  {"logic":{"moment":"roundEnd","if":{"playersWithCards":{"min":2,"max":9}},"then":{"forEach":{"opened":{"rank":"K"}},"discardTop":1}},"zin":"Aan het einde van de ronde, als tussen 2 en 9 spelers kaarten hebben, dan legt elke speler die de ronde begon met een Heer zijn bovenste kaart af.","bouwer":"anders: {\"moment\":\"roundEnd\",\"if\":{\"playersWithCards\":{\"min\":2,\"max\":8}},\"then\":{\"forEach\":{\"opened\":{\"rank\":\"K\"}},\"discardTop\":1}}","gedrag":"9b80cf8b"},
   {"logic":{"moment":"award","if":{"not":{"or":[{"not":{"anyPlayer":{"opened":{"rank":["K","Q"]},"exclude":"winner"}}},{"or":[{"winnerOpened":{"and":[{"rank":"K"},{"suit":"♠"}]}},{"or":[{"anyPlayer":{"opened":{"rank":["K","Q"]},"exclude":"winner"}},{"not":{"or":[{"battle":true},{"winnerOpened":{"rank":"K"}}]}}]}]}]}},"then":{"sharePot":["winner",{"opened":{"suit":"♥"},"exclude":"winner"}]}},"zin":"Als het niet zo is dat (er geen andere speler is die de ronde met een Heer of een Vrouw begon of (de winnaar de ronde met een Heer die ook een kaart van schoppen is begon of (er een andere speler is die de ronde met een Heer of een Vrouw begon of het niet zo is dat (er een battle is geweest of de winnaar de ronde met een Heer begon)))), dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een kaart van harten, de hoogste kaart eerst.","bouwer":"kan niet tonen","gedrag":"c27a7de7"},
   {"logic":{"moment":"tiebreak","if":{"and":[{"not":{"and":[{"exists":{"rank":"A"}},{"count":{"rank":"2"},"min":2}]}},{"and":[{"count":{"suit":"♥"},"min":1,"max":1},{"exists":{"group":{"relation":"sameSuit","min":2,"pick":"highest"}}}]}]},"then":{"win":{"group":{"relation":"sameSuit","min":4,"pick":"highest"}}}},"zin":"Bij een gelijkspel, als het niet zo is dat (er een Aas ligt en er minstens twee 2'en liggen) en (er precies één kaart van harten ligt en er een groep van minstens 2 kaarten van hetzelfde symbool ligt), dan winnen de kaarten van de hoogste groep van minstens 4 kaarten van hetzelfde symbool.","bouwer":"gelijk","gedrag":"ca8937fd"},
   {"logic":{"moment":"decide","if":{"or":[{"not":{"exists":{"lowest":"value","of":{"suit":"♥"}}}},{"not":{"exists":{"group":{"relation":"consecutive","min":3,"pick":"highest"}}}}]},"then":{"win":{"or":[{"rank":"K"},{"rank":"Q"}]}}},"zin":"Als het niet zo is dat er een kaart die de laagste kaart onder de kaarten van harten is ligt of het niet zo is dat er een groep van minstens 3 kaarten met opeenvolgende waarden ligt, dan winnen Heren of Vrouwen. Bij gelijk spel: BATTLE!","bouwer":"kan niet tonen","gedrag":"e61b06e3"},
@@ -397,7 +397,7 @@
   {"logic":{"moment":"tiebreak","if":{"count":{"rank":"A"},"min":0,"max":0},"then":{"win":{"suit":["♥","♦"]}}},"zin":"Bij een gelijkspel, als er geen Azen liggen, dan winnen kaarten van harten of ruiten.","bouwer":"gelijk","gedrag":"df978a25"},
   {"logic":{"moment":"award","if":{"or":[{"playersWithCards":{"min":2}},{"and":[{"winnerOpened":{"not":{"color":"red"}}},{"anyPlayer":{"opened":{"color":"black"},"exclude":"winner"}}]},{"anyPlayer":{"opened":{"color":"red"},"exclude":"winner"}}]},"then":{"sharePot":["winner",{"opened":{"and":[{"color":"red"},{"rank":"K"}]},"exclude":"winner"}]}},"zin":"Als minstens twee spelers kaarten hebben, (de winnaar de ronde met een kaart die geen rode kaart is begon en er een andere speler is die de ronde met een zwarte kaart begon) of er een andere speler is die de ronde met een rode kaart begon, dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een rode kaart die ook een Heer is, de hoogste kaart eerst.","bouwer":"gelijk","gedrag":"c27a7de7"},
   {"logic":{"moment":"award","if":{"and":[{"anyPlayer":{"opened":{"or":[{"rank":"K"},{"rank":"Q"}]},"exclude":"winner"}},{"anyPlayer":{"opened":{"or":[{"rank":"K"},{"rank":"Q"}]},"exclude":"winner"}},{"and":[{"anyPlayer":{"opened":{"not":{"color":"red"}}}},{"anyPlayer":{"opened":{"rank":["K","Q"]}}}]}]},"then":{"sharePot":["winner",{"opened":{"not":{"color":"red"}},"exclude":"winner"}]}},"zin":"Als er een andere speler is die de ronde met een Heer of een Vrouw begon, er een andere speler is die de ronde met een Heer of een Vrouw begon en (er een speler is die de ronde met een kaart die geen rode kaart is begon en er een speler is die de ronde met een Heer of een Vrouw begon), dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een kaart die geen rode kaart is, de hoogste kaart eerst.","bouwer":"kan niet tonen","gedrag":"dfd2bb6e"},
-  {"logic":{"moment":"award","if":{"playersWithCards":{"min":2,"max":9}},"then":{"sharePot":["winner",{"opened":{"color":"red"},"exclude":"winner"}]}},"zin":"Als tussen 2 en 9 spelers kaarten hebben, dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een rode kaart, de hoogste kaart eerst.","bouwer":"kan niet tonen","gedrag":"63e00a23"},
+  {"logic":{"moment":"award","if":{"playersWithCards":{"min":2,"max":9}},"then":{"sharePot":["winner",{"opened":{"color":"red"},"exclude":"winner"}]}},"zin":"Als tussen 2 en 9 spelers kaarten hebben, dan wordt de pot verdeeld over de winnaar en de andere spelers die de ronde begonnen met een rode kaart, de hoogste kaart eerst.","bouwer":"anders: {\"moment\":\"award\",\"if\":{\"playersWithCards\":{\"min\":2,\"max\":8}},\"then\":{\"sharePot\":[\"winner\",{\"opened\":{\"color\":\"red\"},\"exclude\":\"winner\"}]}}","gedrag":"63e00a23"},
   {"logic":{"moment":"roundEnd","if":{"not":{"or":[{"anyPlayer":{"withoutCards":true}},{"playersWithCards":{"min":2}}]}},"then":{"forEach":{"opened":{"color":"red"}},"transfer":{"from":{"opened":{"rank":"A"}},"count":1}}},"zin":"Aan het einde van de ronde, als het niet zo is dat (er een speler zonder kaarten is of minstens twee spelers kaarten hebben), dan krijgt elke speler die de ronde begon met een rode kaart 1 kaart van de eerste speler die de ronde begon met een Aas.","bouwer":"gelijk","gedrag":"c27a7de7"},
   {"logic":{"moment":"tiebreak","if":{"or":[{"exists":{"highest":"suitOrder"}},{"count":{"color":"red"},"max":1}]},"then":{"win":{"color":"red"}}},"zin":"Bij een gelijkspel, als er een kaart die de kaart met het hoogste symbool heeft ligt of er ten hoogste één rode kaart ligt, dan winnen rode kaarten.","bouwer":"gelijk","gedrag":"4cf8d693"},
   {"logic":{"moment":"award","if":{"or":[{"not":{"anyPlayer":{"opened":{"rank":"K"},"exclude":"winner"}}},{"winnerOpened":{"color":"black"}},{"or":[{"anyPlayer":{"withoutCards":true}},{"or":[{"anyPlayer":{"opened":{"color":"black"}}},{"winnerOpened":{"and":[{"rank":"K"},{"suit":"♠"}]}},{"or":[{"anyPlayer":{"opened":{"and":[{"color":"red"},{"rank":"K"}]}}},{"anyPlayer":{"opened":{"and":[{"rank":"K"},{"suit":"♠"}]},"exclude":"winner"}}]}]}]}]},"then":{"sharePot":[{"withoutCards":true}]}},"zin":"Als er geen andere speler is die de ronde met een Heer begon, de winnaar de ronde met een zwarte kaart begon of (er een speler zonder kaarten is of (er een speler is die de ronde met een zwarte kaart begon, de winnaar de ronde met een Heer die ook een kaart van schoppen is begon of (er een speler is die de ronde met een rode kaart die ook een Heer is begon of er een andere speler is die de ronde met een Heer die ook een kaart van schoppen is begon))), dan wordt de pot verdeeld over de spelers zonder kaarten, de hoogste kaart eerst.","bouwer":"kan niet tonen","gedrag":"f2713ad3"},
@@ -679,11 +679,11 @@
     "cards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -695,15 +695,15 @@
      },
      {
       "key": "highest",
-      "label": "de hoogste kaart (op waarde of symbool)"
+      "label": "de hoogste kaart"
      },
      {
       "key": "lowest",
-      "label": "de laagste kaart (op waarde of symbool)"
+      "label": "de laagste kaart"
      },
      {
       "key": "group",
-      "label": "de hoogste groep kaarten die bij elkaar horen"
+      "label": "kaarten die bij elkaar horen (paar, reeks)"
      },
      {
       "key": "and",
@@ -721,11 +721,11 @@
     "singleCards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -781,11 +781,11 @@
     "cards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -797,15 +797,15 @@
      },
      {
       "key": "highest",
-      "label": "de hoogste kaart (op waarde of symbool)"
+      "label": "de hoogste kaart"
      },
      {
       "key": "lowest",
-      "label": "de laagste kaart (op waarde of symbool)"
+      "label": "de laagste kaart"
      },
      {
       "key": "group",
-      "label": "de hoogste groep kaarten die bij elkaar horen"
+      "label": "kaarten die bij elkaar horen (paar, reeks)"
      },
      {
       "key": "and",
@@ -823,11 +823,11 @@
     "singleCards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -895,11 +895,11 @@
     "cards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -911,15 +911,15 @@
      },
      {
       "key": "highest",
-      "label": "de hoogste kaart (op waarde of symbool)"
+      "label": "de hoogste kaart"
      },
      {
       "key": "lowest",
-      "label": "de laagste kaart (op waarde of symbool)"
+      "label": "de laagste kaart"
      },
      {
       "key": "group",
-      "label": "de hoogste groep kaarten die bij elkaar horen"
+      "label": "kaarten die bij elkaar horen (paar, reeks)"
      },
      {
       "key": "and",
@@ -937,11 +937,11 @@
     "singleCards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -1001,11 +1001,11 @@
     "cards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -1017,15 +1017,15 @@
      },
      {
       "key": "highest",
-      "label": "de hoogste kaart (op waarde of symbool)"
+      "label": "de hoogste kaart"
      },
      {
       "key": "lowest",
-      "label": "de laagste kaart (op waarde of symbool)"
+      "label": "de laagste kaart"
      },
      {
       "key": "group",
-      "label": "de hoogste groep kaarten die bij elkaar horen"
+      "label": "kaarten die bij elkaar horen (paar, reeks)"
      },
      {
       "key": "and",
@@ -1043,11 +1043,11 @@
     "singleCards": [
      {
       "key": "rank",
-      "label": "kaarten met een bepaalde waarde"
+      "label": "een waarde (zoals Heer of 7)"
      },
      {
       "key": "suit",
-      "label": "kaarten van een bepaald symbool"
+      "label": "een symbool (zoals ♥)"
      },
      {
       "key": "color",
@@ -1072,7 +1072,7 @@
    "sharePot/decide": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1082,7 +1082,7 @@
    "forEach/decide": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1092,7 +1092,7 @@
    "anyPlayer/decide": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1102,17 +1102,17 @@
    "from/decide": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "neighbor",
-     "label": "de linker- of rechterbuur met kaarten"
+     "label": "de linker- of rechterbuur"
     }
    ],
    "sharePot/tiebreak": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1122,7 +1122,7 @@
    "forEach/tiebreak": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1132,7 +1132,7 @@
    "anyPlayer/tiebreak": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1142,11 +1142,11 @@
    "from/tiebreak": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "neighbor",
-     "label": "de linker- of rechterbuur met kaarten"
+     "label": "de linker- of rechterbuur"
     }
    ],
    "sharePot/award": [
@@ -1156,7 +1156,7 @@
     },
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1166,7 +1166,7 @@
    "forEach/award": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1180,7 +1180,7 @@
     },
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1190,17 +1190,17 @@
    "from/award": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "neighbor",
-     "label": "de linker- of rechterbuur met kaarten"
+     "label": "de linker- of rechterbuur"
     }
    ],
    "sharePot/roundEnd": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1210,7 +1210,7 @@
    "forEach/roundEnd": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1220,7 +1220,7 @@
    "anyPlayer/roundEnd": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "withoutCards",
@@ -1230,11 +1230,11 @@
    "from/roundEnd": [
     {
      "key": "opened",
-     "label": "spelers die de ronde met een bepaalde kaart begonnen"
+     "label": "spelers die de ronde begonnen met een bepaalde kaart"
     },
     {
      "key": "neighbor",
-     "label": "de linker- of rechterbuur met kaarten"
+     "label": "de linker- of rechterbuur"
     }
    ]
   },
