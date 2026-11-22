@@ -156,22 +156,15 @@ function rtCondition(node){
   return rtJoin(node.or.map(wrap), 'of');
 }
 
-// Een gevolg in drie delen: onderwerp (s), persoonsvorm (v) en de rest (r).
-// Na "dan" komt de persoonsvorm eerst: "dan gaat de hele pot naar de aflegstapel".
-function rtEffect(node){
-  if ('discardPot' in node) return {s:'de hele pot', v:'gaat', r:'naar de aflegstapel'};
-  if ('sharePot' in node){
-    const who = node.sharePot.map(p => rtPlayer(p, false));
-    return {s:'de pot', v:'wordt', r:'verdeeld over ' + rtJoin(who, 'en') + ', de hoogste kaart eerst'};
-  }
-  if ('transfer' in node){
-    const t = node.transfer, n = t.count === 1 ? '1 kaart' : t.count + ' kaarten';
-    const from = 'neighbor' in t.from ? rtPlayer(t.from, false)
-      : 'de eerste speler die de ronde begon met ' + rtCards(t.from.opened).single;
-    return {s:rtPlayer(node.forEach, true), v:'krijgt', r:n + ' van ' + from};
-  }
-  return {s:rtPlayer(node.forEach, true), v:'legt',
-    r:(node.discardTop === 1 ? 'zijn bovenste kaart' : 'zijn bovenste ' + node.discardTop + ' kaarten') + ' af'};
+// Een gewone zin uit een gevolg in drie delen ({ s, v, r }: onderwerp, persoonsvorm en de rest; zie parts in js/blocks-effects.js),
+// met de voorwaarde en het moment. Na "dan" komt de persoonsvorm eerst: "dan gaat de hele pot naar de aflegstapel".
+function rtEffectSentence(e, cond, moment){
+  if (moment === 'roundEnd') return cond
+    ? 'Aan het einde van de ronde, als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
+    : 'Aan het einde van de ronde ' + e.v + ' ' + e.s + ' ' + e.r + '.';
+  return cond
+    ? 'Als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
+    : rtUpper(e.s) + ' ' + e.v + ' ' + e.r + '.';
 }
 
 // De hele regel als zin(nen). Geeft '' als de beschrijving niet klopt (zie validateRuleLogic).
@@ -183,31 +176,14 @@ function describeRuleLogic(logic){
 
 function rtDescribeCore(logic){
   if (validateRuleLogic(logic).length) return '';
-  const m = logic.moment, then = logic.then;
   const cond = 'if' in logic ? rtCondition(logic.if) : null;
-  if ('win' in then){
-    const x = rtCards(then.win), verb = x.verbSingular ? 'wint' : 'winnen';
-    if (m === 'tiebreak') return 'Bij een gelijkspel' + (cond ? ', als ' + cond + ', dan' : '') + (x.verbSingular ? ' wint ' + x.single : ' winnen ' + x.plural) + '.';
-    const s = cond ? 'Als ' + cond + ', dan ' + verb + ' ' + x.plural + '.' : rtUpper(x.plural) + ' ' + verb + '.';
-    return s + ' Bij gelijk spel: BATTLE!';
-  }
-  const e = rtEffect(then);
-  if (m === 'roundEnd') return cond
-    ? 'Aan het einde van de ronde, als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
-    : 'Aan het einde van de ronde ' + e.v + ' ' + e.s + ' ' + e.r + '.';
-  return cond
-    ? 'Als ' + cond + ', dan ' + e.v + ' ' + e.s + ' ' + e.r + '.'
-    : rtUpper(e.s) + ' ' + e.v + ' ' + e.r + '.';
+  const effect = registryEffectOf(logic.then, logic.moment);
+  return effect.describe ? effect.describe(logic.then, cond, logic.moment) : rtEffectSentence(effect.parts(logic.then), cond, logic.moment);
 }
 
 // ---- de keuzes voor de regelbouwer ----
 
-const RULE_MOMENTS = [
-  { id: 'decide', label: 'Als de kaarten open liggen: wie wint de ronde?' },
-  { id: 'tiebreak', label: 'Als spelers gelijk eindigen: wie van hen wint?' },
-  { id: 'award', label: 'Als de winnaar de pot krijgt' },
-  { id: 'roundEnd', label: 'Aan het einde van de ronde' }
-];
+const RULE_MOMENTS = RULE_REGISTRY.moments.map(m => ({ id: m.id, label: m.label })); // zie js/rule-registry.js
 
 const RT_ALL = ['decide', 'tiebreak', 'award', 'roundEnd'];
 // De eerste twee voorwaarden die bij een moment passen (voor voorbeelden van "en" en "of").
@@ -229,13 +205,8 @@ const RULE_BLOCKS = {
     { key: 'or', label: 'minstens één van deze voorwaarden geldt', moments: RT_ALL, sample: m => ({ or: RT_SIMPLE_IF[m] }) },
     { key: 'not', label: 'deze voorwaarde geldt niet', moments: RT_ALL, sample: m => ({ not: RT_SIMPLE_IF[m][0] }) }
   ],
-  effects: [
-    { key: 'win', label: 'deze kaarten winnen', moments: ['decide', 'tiebreak'], sample: { win: { rank: '2' } } },
-    { key: 'discardPot', label: 'de hele pot gaat naar de aflegstapel', moments: ['award'], sample: { discardPot: true } },
-    { key: 'sharePot', label: 'de pot wordt verdeeld over deze spelers', moments: ['award'], sample: { sharePot: ['winner', { opened: { rank: 'Q' }, exclude: 'winner' }] } },
-    { key: 'transfer', label: 'spelers krijgen kaarten van een andere speler', moments: ['roundEnd'], sample: { forEach: { withoutCards: true }, transfer: { from: { neighbor: 'left' }, count: 1 } } },
-    { key: 'discardTop', label: 'spelers leggen kaarten af', moments: ['roundEnd'], sample: { forEach: { opened: { rank: 'K' } }, discardTop: 1 } }
-  ],
+  effects: registryBlocks('effect').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-effects.js
+
   // Keuzes van kaarten. cards: wat er bij "deze spelers winnen" en bij tellen kan (ook de hoogste en groepen); singleCards: wat er
   // bij "begon met een kaart" kan (één soort kaart).
   cards: [

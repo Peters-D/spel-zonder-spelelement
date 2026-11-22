@@ -63,7 +63,7 @@
 //                                              elke gekozen speler legt zijn bovenste n kaarten af
 //                                              (count en n: 1 t/m 52)
 
-const DSL_MOMENTS = ['decide', 'tiebreak', 'award', 'roundEnd'];
+const DSL_MOMENTS = RULE_REGISTRY.moments.map(m => m.id); // zie js/rule-registry.js
 const DSL_RELATIONS = ['sameRank', 'sameSuit', 'sameColor', 'consecutive'];
 const DSL_MAX_DEPTH = 8;
 const DSL_MAX_CARDS = 52; // meer kaarten dan er in het spel zitten kan een gevolg niet verplaatsen
@@ -178,31 +178,23 @@ function validateRuleLogic(logic){
       else node[key].forEach((x, i) => condition(x, path + '.' + key + '[' + i + ']', moment, depth + 1));
     }
   };
+  // De gedeelde hulpjes, voor de controle van de bouwstenen in het register (zie js/rule-registry.js).
+  const v = { err, isObj, only, oneOf, int, range, card, cards, players };
+  // Het gevolg: de bouwstenen van het moment uit het register. Heeft een moment één gevolg (decide, tiebreak), dan is dat verplicht;
+  // anders precies één van de gevolgen, plus de velden die alle gevolgen van het moment delen (bij roundEnd: forEach).
   const effect = (node, path, moment) => {
     if (!isObj(node)) return err(path, 'een gevolg verwacht');
-    if (moment === 'decide' || moment === 'tiebreak'){
-      only(node, path, ['win']);
-      if (!('win' in node)) err(path, '"win" verwacht'); else cards(node.win, path + '.win', 1);
-    } else if (moment === 'award'){
-      const key = oneOf(node, path, ['discardPot', 'sharePot']);
-      only(node, path, [key]);
-      if (key === 'discardPot'){ if (node.discardPot !== true) err(path + '.discardPot', 'true verwacht'); }
-      else if (key === 'sharePot'){
-        if (!Array.isArray(node.sharePot) || node.sharePot.length === 0) err(path + '.sharePot', 'een lijst van spelers verwacht');
-        else node.sharePot.forEach((x, i) => players(x, path + '.sharePot[' + i + ']', true, false));
-      }
-    } else if (moment === 'roundEnd'){
-      const key = oneOf(node, path, ['transfer', 'discardTop']);
-      only(node, path, ['forEach', key]);
-      if (!('forEach' in node)) err(path, '"forEach" verwacht'); else players(node.forEach, path + '.forEach', false, false);
-      if (key === 'transfer'){
-        if (!isObj(node.transfer)) return err(path + '.transfer', '{ from, count } verwacht');
-        only(node.transfer, path + '.transfer', ['from', 'count']);
-        players(node.transfer.from, path + '.transfer.from', false, true);
-        if (isObj(node.transfer.from) && 'withoutCards' in node.transfer.from) err(path + '.transfer.from', 'spelers zonder kaarten kunnen geen kaarten geven');
-        int(node.transfer.count, path + '.transfer.count', 1, DSL_MAX_CARDS);
-      } else if (key === 'discardTop') int(node.discardTop, path + '.discardTop', 1, DSL_MAX_CARDS);
+    const m = registryMoment(moment), keys = registryBlocks('effect', moment).map(b => b.key);
+    if (keys.length === 1){
+      only(node, path, keys);
+      if (!(keys[0] in node)) err(path, '"' + keys[0] + '" verwacht'); else registryBlock('effect', keys[0]).validate(node, path, v, moment);
+      return;
     }
+    const key = oneOf(node, path, keys);
+    const shared = m.shared || [];
+    only(node, path, shared.map(f => f.key).concat([key]));
+    for (const f of shared) f.validate(node, path, v);
+    if (key) registryBlock('effect', key).validate(node, path, v, moment);
   };
 
   if (!isObj(logic)){ err('', 'een beschrijving verwacht'); return errors; }
@@ -324,45 +316,5 @@ function dslTest(node, env){
 function compileRuleLogic(logic){
   const errors = validateRuleLogic(logic);
   if (errors.length) throw new Error('Regelbeschrijving klopt niet: ' + errors.join('; '));
-  const cond = logic.if, then = logic.then;
-  if (logic.moment === 'decide'){
-    return { decide(inPlay, rules){
-      const env = { scope: inPlay, rules: rules || {} };
-      if (cond && !dslTest(cond, env)) return null;
-      const winners = dslSelectCards(inPlay, then.win, env.rules);
-      return winners.length > 0 ? winners : null;
-    } };
-  }
-  if (logic.moment === 'tiebreak'){
-    return { breakTie(winners, rules){
-      const env = { scope: winners, rules: rules || {} };
-      if (cond && !dslTest(cond, env)) return null;
-      const one = dslSelectCards(winners, then.win, env.rules);
-      return one.length === 1 ? one : null;
-    } };
-  }
-  if (logic.moment === 'award'){
-    return { onAward(ctx){
-      if (cond && !dslTest(cond, { ctx })) return;
-      const state = ctx.state;
-      if ('discardPot' in then){ engineDiscardPot(state); return; }
-      if (ctx.how === 'void' || !ctx.winner || state.pot.length === 0) return; // verdelen kan alleen met een winnaar en een pot
-      const ids = [];
-      for (const sel of then.sharePot) for (const p of dslSelectPlayers(sel, ctx)) if (!ids.includes(p.id)) ids.push(p.id);
-      if (ids.length > 0) engineSharePot(state, ids);
-    } };
-  }
-  return { onRoundEnd(ctx){
-    if (cond && !dslTest(cond, { ctx })) return;
-    const state = ctx.state;
-    const targets = dslSelectPlayers(then.forEach, ctx);
-    if ('discardTop' in then){ targets.forEach(p => engineDiscardFromDeck(state, p.id, then.discardTop)); return; }
-    // Wie geeft, staat vast vóór er kaarten verschuiven: een speler die net een kaart kreeg, geeft niet meteen door.
-    const from = then.transfer.from;
-    const givers = targets.map(p => 'neighbor' in from ? engineNeighbor(state, p.id, from.neighbor) : dslSelectPlayers(from, ctx).find(g => g.id !== p.id) || null);
-    const second = then.forEach !== 'winner' && then.forEach.secondChance === true;
-    targets.forEach((p, i) => {
-      if (givers[i] && engineTransferCards(state, givers[i].id, p.id, then.transfer.count) > 0 && second) p.chanceUsed = true; // de tweede kans is gebruikt
-    });
-  } };
+  return registryMoment(logic.moment).compile(logic.if, logic.then); // het moment en het gevolg staan in het register
 }
