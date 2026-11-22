@@ -137,24 +137,17 @@ function validateRuleLogic(logic){
     }
   };
   // Spelers. allowWinner: mag 'winner' (alleen bij award); allowNeighbor: mag neighbor (alleen als from bij forEach).
+  // De keuzes van spelers staan in het register (js/blocks-players.js): 'winner', of een object met precies één van de andere sleutels.
   const players = (node, path, allowWinner, allowNeighbor) => {
-    if (node === 'winner'){ if (!allowWinner) err(path, '"winner" kan alleen bij het moment award'); return; }
+    const allow = { winner: allowWinner, neighbor: allowNeighbor };
+    const literal = typeof node === 'string' ? registryPlayersOf(node) : null;
+    if (literal) return literal.validate(node, path, v, allow);
     if (!isObj(node)) return err(path, 'een keuze van spelers verwacht');
-    const key = oneOf(node, path, ['opened', 'withoutCards', 'neighbor']);
-    if (key === 'opened'){
-      only(node, path, ['opened', 'exclude']);
-      card(node.opened, path + '.opened', 1);
-      if ('exclude' in node && (node.exclude !== 'winner' || !allowWinner)) err(path + '.exclude', '"winner" verwacht (alleen bij het moment award)');
-    } else if (key === 'withoutCards'){
-      only(node, path, ['withoutCards', 'secondChance']);
-      if (node.withoutCards !== true) err(path + '.withoutCards', 'true verwacht');
-      if ('secondChance' in node && node.secondChance !== true) err(path + '.secondChance', 'true verwacht');
-    }
-    else if (key === 'neighbor'){
-      only(node, path, ['neighbor']);
-      if (!allowNeighbor) err(path, '"neighbor" kan alleen als from bij forEach');
-      if (!['left', 'right'].includes(node.neighbor)) err(path + '.neighbor', '"left" of "right" verwacht');
-    }
+    const key = oneOf(node, path, registryBlocks('players').filter(b => !b.literal).map(b => b.key));
+    if (!key) return;
+    const block = registryBlock('players', key);
+    only(node, path, block.fields);
+    block.validate(node, path, v, allow);
   };
   // Een voorwaarde: precies één van de voorwaarden uit het register, met alleen haar eigen sleutels, bij een moment waar ze kan.
   const condition = (node, path, moment, depth) => {
@@ -270,14 +263,9 @@ function dslSelectCards(scope, node, rules){
 }
 
 // Spelers kiezen bij award en roundEnd. ctx: { state, winner }.
+// De keuzes van spelers staan in het register (js/blocks-players.js).
 function dslSelectPlayers(node, ctx){
-  const state = ctx.state;
-  if (node === 'winner') return ctx.winner ? [ctx.winner] : [];
-  if ('opened' in node){
-    return state.players.filter(p => state.opening[p.id] && dslCardMatches(state.opening[p.id], node.opened) &&
-      !(node.exclude === 'winner' && ctx.winner && p.id === ctx.winner.id));
-  }
-  return state.players.filter(p => p.deck.length === 0 && !(node.secondChance && p.chanceUsed)); // withoutCards (met secondChance: nog een tweede kans)
+  return registryPlayersOf(node).select(node, ctx);
 }
 
 // Klopt een voorwaarde? De voorwaarden staan in het register (js/blocks-conditions.js).
