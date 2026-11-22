@@ -118,6 +118,7 @@ defineMoment({
   }
 });
 
+// Bij tiebreak moet er precies één winnaar overblijven, anders beslist de regel niets.
 defineMoment({
   id: 'tiebreak', label: 'Als spelers gelijk eindigen: wie van hen wint?', prompt: 'er zijn meerdere winnaars: wie van hen wint (er moet precies één overblijven)', onTable: true,
   compile(cond, then){
@@ -142,6 +143,7 @@ defineMoment({
   }
 });
 
+// Aan het einde van de ronde: vóór spelers zonder kaarten afvallen.
 defineMoment({
   id: 'roundEnd', label: 'Aan het einde van de ronde', prompt: 'de ronde is voorbij', onTable: false,
   // Elk gevolg aan het einde van de ronde heeft forEach: de spelers die het overkomt.

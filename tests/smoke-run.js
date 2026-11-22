@@ -271,6 +271,80 @@ own('vangnet', () => {
   if (out.counts.effect !== 5 || out.counts.condition !== 9 || out.counts.players !== 4 || out.counts.cards !== 10) fail('verwacht 5 gevolgen, 9 voorwaarden, 4 keuzes van spelers en 10 van kaarten, kreeg ' + JSON.stringify(out.counts));
 }
 
+// ---- een bouwsteen toevoegen kan op één plek ----
+// In een eigen, verse omgeving komt er één voorwaarde bij, alleen met defineBlock (direct na de bouwstenen van het spel). Daarna
+// moeten de controle, het gedrag, de zin, de keuzelijsten, de uitleg voor een taalmodel en de regelbouwer hem kennen, zonder dat
+// er verder iets is aangepast. Zo blijft "één plek" waar.
+{
+  const fail = t => failures.push('nieuwe bouwsteen: ' + t), J = v => JSON.stringify(v);
+  const extra = `defineBlock('condition', {
+    key: 'potSize', moments: ['award'], label: 'de pot heeft zoveel kaarten', sample: { potSize: { min: 4 } }, fields: ['potSize'],
+    validate(node, path, v){
+      if (!v.isObj(node.potSize)) v.err(path + '.potSize', '{ min, max } verwacht');
+      else { v.only(node.potSize, path + '.potSize', ['min', 'max']); v.range(node.potSize, path + '.potSize'); }
+    },
+    test(node, env){ const n = env.ctx.potSize, r = node.potSize; return (!('min' in r) || n >= r.min) && (!('max' in r) || n <= r.max); },
+    sentence(node){ return rtAmount(node.potSize, { pre: 'de pot ', sing: 'kaart', plural: 'kaarten', vs: 'heeft', vp: 'heeft', none: 'de pot leeg is' }); },
+    prompt: ['{ "potSize": { "min": n, "max": n } }             award: zoveel kaarten in de pot'],
+    builder: {
+      fresh(c){ Object.assign(c, { mode: 'min', n: 4, m: 6 }); },
+      toLogic(c){ return { potSize: rbRange(c, 52) }; },
+      fromLogic(node, c){ rbRangeFrom(node.potSize, c); return c; },
+      editor(row, c, label){ row.appendChild(rbRangeEditor(c, 52, label)); }
+    }
+  });`;
+  const freshEls = {}; // een eigen pagina: de gewone omgeving deelt haar elementen niet
+  const freshDocument = Object.assign({}, document, { getElementById(id){ return freshEls[id] || (freshEls[id] = makeEl(id)); } });
+  const fresh = vm.createContext({
+    document: freshDocument, console, Math, JSON, Set, Map, Array, Object, Promise, parseInt,
+    setTimeout(){ return 0; }, clearTimeout(){}, requestAnimationFrame(){ return 0; }
+  });
+  const lastBlocks = Math.max(...scripts.map((src, i) => /js\/blocks-[^/]+\.js$/.test(src) ? i : -1));
+  let loaded = true;
+  scripts.forEach((src, i) => {
+    if (!loaded) return;
+    try {
+      vm.runInContext(fs.readFileSync(path.join(root, src), 'utf8'), fresh, { filename: src });
+      if (i === lastBlocks) vm.runInContext(extra, fresh, { filename: 'nieuwe-bouwsteen.js' });
+    } catch (e){ fail('laden mislukt bij ' + src + ': ' + e.message); loaded = false; }
+  });
+  if (lastBlocks < 0) fail('geen js/blocks-*.js in index.html');
+  if (loaded){
+    const out = JSON.parse(vm.runInContext(`(() => {
+      const logic = { moment: 'award', if: { potSize: { min: 4 } }, then: { discardPot: true } };
+      const st = rbFromLogic(logic), back = st ? rbToLogic(st) : null;
+      let editor = '';
+      try { rb = rbNewState('award'); const c = rbNewCond('potSize'); rbCondRow(c, 0, [c]); editor = 'ok'; } catch (e){ editor = e.message; }
+      return JSON.stringify({
+        errors: validateRuleLogic(logic),
+        wrongMoment: validateRuleLogic({ moment: 'decide', if: { potSize: { min: 4 } }, then: { win: { all: true } } }),
+        sentence: describeRuleLogic(logic),
+        test: [3, 4, 9].map(n => dslTest(logic.if, { ctx: { potSize: n } })),
+        compiled: typeof compileRuleLogic(logic).onAward,
+        choices: ruleChoicesFor('award').conditions.map(c => c.key), notAtDecide: !ruleChoicesFor('decide').conditions.some(c => c.key === 'potSize'),
+        builderKinds: (rb = rbNewState('award'), rbCondKinds().map(c => c.key)),
+        prompt: RULE_PROMPT_GRAMMAR.includes('  { "potSize": { "min": n, "max": n } }'),
+        roundTrip: back && back.logic ? JSON.stringify(back.logic) === JSON.stringify(logic) : String(back && back.error),
+        fresh: JSON.stringify(rbToLogic(Object.assign(rbNewState('award'), { conds: [rbNewCond('potSize')] })).logic),
+        editor, missing: registryMissing('condition', registryBlock('condition', 'potSize'))
+      }); })()`, fresh));
+    if (out.errors.length) fail('de controle weigert het voorbeeld: ' + out.errors[0]);
+    if (!out.wrongMoment.some(e => e.includes('"potSize" kan alleen bij award'))) fail('de controle weigert hem niet bij een ander moment: ' + J(out.wrongMoment));
+    if (out.sentence !== 'Als de pot minstens vier kaarten heeft, dan gaat de hele pot naar de aflegstapel.') fail('onverwachte zin: ' + J(out.sentence));
+    if (J(out.test) !== J([false, true, true])) fail('het gedrag klopt niet: ' + J(out.test));
+    if (out.compiled !== 'function') fail('compileRuleLogic maakt geen onAward');
+    if (!out.choices.includes('potSize') || !out.notAtDecide) fail('de keuzelijst klopt niet: ' + J(out.choices));
+    if (!out.builderKinds.includes('potSize')) fail('de regelbouwer biedt hem niet aan');
+    if (!out.prompt) fail('de uitleg voor een taalmodel noemt hem niet');
+    if (out.roundTrip !== true) fail('de beschrijving komt anders terug uit de bouwer: ' + out.roundTrip);
+    if (out.fresh !== J({ moment: 'award', if: { potSize: { min: 4 } }, then: { discardPot: true } })) fail('een nieuwe voorwaarde in de bouwer geeft ' + out.fresh);
+    if (out.editor !== 'ok') fail('het formulier tekent hem niet: ' + out.editor);
+    if (out.missing.length) fail('het register mist onderdelen: ' + out.missing.join(', '));
+  }
+  // De verse omgeving mag de gewone niet raken.
+  if (run("registryBlock('condition', 'potSize')") !== null) fail('de proefbouwsteen staat ook in de gewone omgeving');
+}
+
 // ---- thema's: alle kleuren staan in css/themes.css ----
 {
   const read = f => fs.readFileSync(path.join(root, f), 'utf8');
