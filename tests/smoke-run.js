@@ -152,6 +152,13 @@ own('vangnet', () => {
   const now = JSON.parse(run('__ruleSnapshot(' + JSON.stringify(corpus) + ')'));
   if (now.valid.length < 300 || now.invalid.length < 40) fail('de verzameling is te klein geworden: ' + now.valid.length + ' geldige en ' + now.invalid.length + ' ongeldige beschrijvingen');
   if (update){
+    // Een --update mag de verzameling niet ongemerkt kleiner maken: dan zou het vangnet minder bewaken zonder dat iemand het ziet.
+    const before = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+    if (before && (now.valid.length < before.valid.length || now.invalid.length < before.invalid.length)){
+      fail('de verzameling wordt kleiner (' + before.valid.length + ' → ' + now.valid.length + ' geldige, ' + before.invalid.length + ' → ' + now.invalid.length +
+        ' ongeldige); tests/rule-snapshot.json is niet bijgewerkt. Is dat bewust, verwijder het bestand dan eerst en draai --update opnieuw.');
+      return;
+    }
     // Eén beschrijving per regel, zodat een verschil in de pull request per beschrijving te lezen is.
     const line = x => '  ' + JSON.stringify(x);
     fs.writeFileSync(file, ['{', ' "valid": [', now.valid.map(line).join(',\n'), ' ],', ' "invalid": [', now.invalid.map(line).join(',\n'), ' ],',
@@ -174,7 +181,9 @@ own('vangnet', () => {
   compare('ongeldig', old.invalid, now.invalid, ['fouten']);
   for (const k of new Set(Object.keys(old.keuzes).concat(Object.keys(now.keuzes)))) if (J(old.keuzes[k]) !== J(now.keuzes[k])) diffs.push('keuzes: ' + k + ' is veranderd: was ' + J(old.keuzes[k]).slice(0, 300) + ', is nu ' + J(now.keuzes[k]).slice(0, 300));
   if (old.prompt !== now.prompt){
-    const a = old.prompt.split('\n'), b = now.prompt.split('\n'), i = a.findIndex((l, j) => l !== b[j]);
+    const a = old.prompt.split('\n'), b = now.prompt.split('\n');
+    let i = a.findIndex((l, j) => l !== b[j]);
+    if (i < 0) i = a.length; // de oude tekst is het begin van de nieuwe: er komen alleen regels bij aan het einde
     diffs.push('de instructie voor Claude is veranderd, eerst op regel ' + (i + 1) + ': was ' + J(a[i]) + ', is nu ' + J(b[i]));
   }
   for (const d of diffs.slice(0, 20)) fail(d);
@@ -241,6 +250,13 @@ own('vangnet', () => {
     if (!threw) problems.push('defineBlock weigert een dubbele sleutel niet');
     threw = false; try { defineBlock('iets', { key: 'x' }); } catch (e){ threw = true; }
     if (!threw) problems.push('defineBlock weigert een onbekende soort niet');
+    // Alleen eigen sleutels tellen: een naam van het prototype ("toString", "constructor") is geen bouwsteen en geen sleutel.
+    if (registryHas({}, 'toString') || !registryHas({ toString: 1 }, 'toString')) problems.push('registryHas kijkt niet alleen naar eigen sleutels');
+    const proto = validateRuleLogic({ moment: 'award', if: { constructor: true }, then: { discardPot: true } });
+    if (!proto.some(e => e.includes('precies één van'))) problems.push('een prototype-naam als voorwaarde geeft niet de gewone melding: ' + JSON.stringify(proto));
+    // De regel voor en/of/niet staat in de uitleg bij de kaarten en bij de voorwaarden (hij hangt aan and; zie de bouwstenen).
+    const andLine = '  { "and": [..] }, { "or": [..] }, { "not": .. }';
+    if (RULE_PROMPT_GRAMMAR.split('\\n').filter(l => l === andLine).length !== 2) problems.push('de uitleg heeft de regel voor en/of/niet niet precies twee keer (kaarten en voorwaarden)');
     // Een onvolledige bouwsteen weigert defineBlock meteen, met de ontbrekende onderdelen in de melding.
     let msg = ''; try { defineBlock('condition', { key: '__onvolledig', label: 'x', sample: { __onvolledig: true }, moments: ['award'], fields: ['__onvolledig'], validate(){}, test(){ return true; }, prompt: [] }); } catch (e){ msg = e.message; }
     if (!/mist: sentence, builder$/.test(msg)) problems.push('defineBlock weigert een onvolledige bouwsteen niet goed: ' + JSON.stringify(msg));

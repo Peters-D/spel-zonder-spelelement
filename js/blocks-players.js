@@ -9,6 +9,7 @@
 //   validate(node, path, v, allow)   de controle van de inhoud; allow: { winner, neighbor } (mag de winnaar, mag de buurman)
 //   select(node, ctx)                de spelers die het zijn; ctx: { state, winner }
 //   phrase(node, forEach)            de keuze als zinsdeel: "elke speler zonder kaarten" (forEach) of "de spelers zonder kaarten"
+//   giverPhrase(node)                (optioneel) het zinsdeel als gever bij transfer ("krijgt 1 kaart van ..."), als dat anders is
 //   excludeMoments                   (alleen opened) bij welke momenten "behalve de winnaar" kan
 //   prompt                           de regels voor de uitleg aan een taalmodel (js/rule-prompt.js), zonder inspringing
 //   builder                          het deel voor de regelbouwer (js/rule-builder.js):
@@ -19,7 +20,6 @@
 
 // Bij welk moment elke plek voor spelers bestaat.
 const PLAYER_SLOTS = { sharePot: ['award'], forEach: ['roundEnd'], anyPlayer: ['award', 'roundEnd'], from: ['roundEnd'] };
-const PLAYER_ALL_MOMENTS = RULE_REGISTRY.moments.map(m => m.id);
 
 defineBlock('players', {
   key: 'winner', literal: true, label: 'de winnaar', sample: 'winner', slots: ['sharePot', 'anyPlayer'], moments: ['award'],
@@ -40,7 +40,7 @@ defineBlock('players', {
 
 defineBlock('players', {
   key: 'opened', label: 'spelers die de ronde met een bepaalde kaart begonnen', sample: { opened: { rank: 'Q' } },
-  slots: ['sharePot', 'forEach', 'anyPlayer', 'from'], moments: PLAYER_ALL_MOMENTS, fields: ['opened', 'exclude'],
+  slots: ['sharePot', 'forEach', 'anyPlayer', 'from'], moments: RULE_MOMENT_IDS, fields: ['opened', 'exclude'],
   excludeMoments: ['award'], // "behalve de winnaar" (exclude: 'winner'): de winnaar bestaat alleen bij award
   validate(node, path, v, allow){
     v.card(node.opened, path + '.opened', 1);
@@ -57,6 +57,8 @@ defineBlock('players', {
     return forEach ? 'elke ' + other + 'speler die de ronde begon met ' + c.single
       : 'de ' + other + 'spelers die de ronde begonnen met ' + c.single;
   },
+  // Als gever bij transfer: één speler, de eerste die bij de keuze past (zie transfer in js/blocks-effects.js).
+  giverPhrase(node){ return 'de eerste speler die de ronde begon met ' + rtCards(node.opened).single; },
   prompt: ['{ "opened": <soort kaart> }                       spelers die de ronde begonnen met zo\'n kaart; met "exclude": "winner" zonder de winnaar (alleen bij award)'],
   builder: {
     label: 'spelers die de ronde begonnen met een bepaalde kaart',
@@ -83,7 +85,7 @@ defineBlock('players', {
 
 defineBlock('players', {
   key: 'withoutCards', label: 'spelers zonder kaarten', sample: { withoutCards: true },
-  slots: ['sharePot', 'forEach', 'anyPlayer'], moments: PLAYER_ALL_MOMENTS, fields: ['withoutCards', 'secondChance'],
+  slots: ['sharePot', 'forEach', 'anyPlayer'], moments: RULE_MOMENT_IDS, fields: ['withoutCards', 'secondChance'],
   validate(node, path, v){
     if (node.withoutCards !== true) v.err(path + '.withoutCards', 'true verwacht');
     if ('secondChance' in node && node.secondChance !== true) v.err(path + '.secondChance', 'true verwacht');
@@ -109,7 +111,7 @@ defineBlock('players', {
 
 defineBlock('players', {
   key: 'neighbor', label: 'de linker- of rechterbuur met kaarten', sample: { neighbor: 'left' },
-  slots: ['from'], moments: PLAYER_ALL_MOMENTS, fields: ['neighbor'],
+  slots: ['from'], moments: RULE_MOMENT_IDS, fields: ['neighbor'],
   validate(node, path, v, allow){
     if (!allow.neighbor) v.err(path, '"neighbor" kan alleen als from bij forEach');
     if (!['left', 'right'].includes(node.neighbor)) v.err(path + '.neighbor', '"left" of "right" verwacht');

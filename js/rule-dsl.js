@@ -18,7 +18,6 @@
 // Alles in één lijst: de uitleg voor een taalmodel (RULE_PROMPT_GRAMMAR in js/rule-prompt.js), die uit hetzelfde register komt.
 // Een bouwsteen toevoegen: zie de README ("Een nieuwe bouwsteen toevoegen").
 
-const DSL_MOMENTS = RULE_REGISTRY.moments.map(m => m.id); // zie js/rule-registry.js
 const DSL_MAX_DEPTH = 8;
 const DSL_MAX_CARDS = 52; // meer kaarten dan er in het spel zitten kan een gevolg niet verplaatsen
 
@@ -31,7 +30,7 @@ function validateRuleLogic(logic){
   const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
   const only = (node, path, keys) => { for (const k of Object.keys(node)) if (!keys.includes(k)) err(path, 'onbekend onderdeel "' + k + '"'); };
   const oneOf = (node, path, keys) => {
-    const present = keys.filter(k => k in node);
+    const present = keys.filter(k => registryHas(node, k));
     if (present.length !== 1) err(path, 'precies één van ' + keys.join(', ') + ' verwacht');
     return present[0];
   };
@@ -117,7 +116,7 @@ function validateRuleLogic(logic){
 
   if (!isObj(logic)){ err('', 'een beschrijving verwacht'); return errors; }
   only(logic, '', ['moment', 'if', 'then']);
-  if (!DSL_MOMENTS.includes(logic.moment)){ err('moment', 'een van ' + DSL_MOMENTS.join(', ') + ' verwacht'); return errors; }
+  if (!RULE_MOMENT_IDS.includes(logic.moment)){ err('moment', 'een van ' + RULE_MOMENT_IDS.join(', ') + ' verwacht'); return errors; }
   if ('if' in logic) condition(logic.if, 'if', logic.moment, 1);
   if (!('then' in logic)) err('then', 'ontbreekt'); else effect(logic.then, 'then', logic.moment);
   return errors;
