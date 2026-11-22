@@ -2,13 +2,11 @@
 // bij elk moment horen (voor de regelbouwer, waarmee je een regel aan elkaar klikt). Alleen tekst en gegevens: geen scherm.
 //
 //   describeRuleLogic(logic)       de beschrijving als zin(nen), of '' als de beschrijving niet klopt
-//   RULE_MOMENTS, RULE_BLOCKS      de moment en bouwstenen met hun Nederlandse naam
+//   RULE_MOMENTS                   de momenten met hun Nederlandse naam (de bouwstenen staan in het register, js/rule-registry.js)
 //   ruleChoicesFor(moment)         wat er bij dat moment gekozen kan worden: voorwaarden, gevolgen, kaarten
 //   rulePlayerChoices(slot, moment) welke keuzes van spelers er op een plek (en bij een moment) passen
 //
-// De tests controleren dat de lijst met bouwstenen precies overeenkomt met wat de controle (validateRuleLogic) toelaat, en dat
-// elke bouwsteen een zin geeft. Komt er een bouwsteen bij in js/rule-dsl.js, dan moet hij hier ook bij (de test faalt anders niet
-// vanzelf voor een bouwsteen die ontbreekt: let daar zelf op).
+// De zinnen zelf staan bij de bouwstenen (sentence, phrase, describe/parts in js/blocks-*.js); dit bestand zet ze in elkaar.
 
 // Het enkelvoud en meervoud van een waarde, zoals die in een zin staat.
 const RT_RANK = {
@@ -16,10 +14,6 @@ const RT_RANK = {
   '9': ['9', "9'en"], '10': ['10', "10'en"], J: ['Boer', 'Boeren'], Q: ['Vrouw', 'Vrouwen'], K: ['Heer', 'Heren'], A: ['Aas', 'Azen']
 };
 const RT_SUIT = { '♠': 'schoppen', '♥': 'harten', '♦': 'ruiten', '♣': 'klaveren' };
-const RT_RELATION = {
-  sameRank: 'met dezelfde waarde', sameSuit: 'van hetzelfde symbool',
-  sameColor: 'van dezelfde kleur', consecutive: 'met opeenvolgende waarden'
-};
 const RT_NUMBER = { 1: 'één', 2: 'twee', 3: 'drie', 4: 'vier', 5: 'vijf', 6: 'zes', 7: 'zeven', 8: 'acht' };
 
 const rtList = v => Array.isArray(v) ? v : [v];
@@ -102,23 +96,6 @@ function rtDescribeCore(logic){
 const RULE_MOMENTS = RULE_REGISTRY.moments.map(m => ({ id: m.id, label: m.label })); // zie js/rule-registry.js
 
 // sample: een voorbeeld dat bij de controle klopt (voor de tests); bij een samengestelde voorwaarde een functie van het moment.
-const RULE_BLOCKS = {
-  conditions: registryBlocks('condition').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-conditions.js
-
-  effects: registryBlocks('effect').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-effects.js
-
-  // Keuzes van kaarten. cards: wat er bij "deze spelers winnen" en bij tellen kan (ook de hoogste en groepen); singleCards: wat er
-  // bij "begon met een kaart" kan (één soort kaart).
-  cards: registryBlocks('cards').map(b => ({ key: b.key, label: b.label, sample: b.sample })), // zie js/blocks-cards.js
-  singleCards: registryBlocks('cards').filter(b => b.single).map(b => b.key),
-  // Keuzes van spelers en de plekken waar ze passen: sharePot (pot verdelen), forEach (wie het overkomt), anyPlayer (voorwaarde),
-  // from (van wie kaarten komen). Zie js/blocks-players.js.
-  players: registryBlocks('players').map(b => Object.assign({ key: b.key, label: b.label, sample: b.sample, slots: b.slots, moments: b.moments },
-    b.excludeMoments ? { excludeMoments: b.excludeMoments } : {})),
-  // Bij welk moment elke plek voor spelers bestaat.
-  playerSlots: PLAYER_SLOTS
-};
-
 function ruleBlockSample(block, moment){
   return typeof block.sample === 'function' ? block.sample(moment) : block.sample;
 }
@@ -128,15 +105,15 @@ function ruleChoicesFor(moment){
   const pick = b => ({ key: b.key, label: b.label });
   return {
     moment: RULE_MOMENTS.find(m => m.id === moment) || null,
-    conditions: RULE_BLOCKS.conditions.filter(b => b.moments.includes(moment)).map(pick),
-    effects: RULE_BLOCKS.effects.filter(b => b.moments.includes(moment)).map(pick),
-    cards: RULE_BLOCKS.cards.map(pick),
-    singleCards: RULE_BLOCKS.cards.filter(b => RULE_BLOCKS.singleCards.includes(b.key)).map(pick)
+    conditions: RULE_REGISTRY.condition.filter(b => b.moments.includes(moment)).map(pick),
+    effects: RULE_REGISTRY.effect.filter(b => b.moments.includes(moment)).map(pick),
+    cards: registryBlocks('cards').map(pick),
+    singleCards: registryBlocks('cards').filter(b => b.single).map(pick)
   };
 }
 
 // De keuzes van spelers die op een plek passen (sharePot, forEach, anyPlayer of from). Met een moment erbij alleen de keuzes die bij dat
 // moment horen ("de winnaar" bestaat alleen bij award).
 function rulePlayerChoices(slot, moment){
-  return RULE_BLOCKS.players.filter(b => b.slots.includes(slot) && (!moment || b.moments.includes(moment))).map(b => ({ key: b.key, label: b.label }));
+  return registryBlocks('players', moment).filter(b => b.slots.includes(slot)).map(b => ({ key: b.key, label: b.label }));
 }

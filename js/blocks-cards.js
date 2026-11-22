@@ -13,8 +13,20 @@
 //   select(scope, node, rules)               de spelers uit scope (elk met een open kaart) die erbij horen, in de volgorde van de tafel
 //   phrase(node)                             de zinsdelen (zie rtCards in js/rule-text.js): single, plural, bare, barePlural, en soms
 //                                            cond en verbSingular
+//   prompt                                   de regels voor de uitleg aan een taalmodel (js/rule-prompt.js), zonder inspringing
+//   builder                                  het deel voor de regelbouwer (js/rule-builder.js), of false als de bouwer de bouwsteen
+//                                            zelf maakt (and, not: de tweede eis en "juist niet"; or kan de bouwer niet maken)
+//     label                                  de naam in de keuzelijst
+//     toLogic(cs)                            de keuze in de bouwer (cs, zie rbNewCards) -> beschrijving; een fout is een RB_ERR
+//     fromLogic(node, cs)                    vult cs vanuit de beschrijving; geeft cs, of null als de bouwer het niet kan tonen
+//     editor(box, cs, label)                 de velden in het formulier
 
-const DSL_RELATIONS = ['sameRank', 'sameSuit', 'sameColor', 'consecutive'];
+// De relaties in een groep, met hun naam in een zin en in de bouwer.
+const CARD_RELATIONS = {
+  sameRank: 'met dezelfde waarde', sameSuit: 'van hetzelfde symbool',
+  sameColor: 'van dezelfde kleur', consecutive: 'met opeenvolgende waarden'
+};
+const DSL_RELATIONS = Object.keys(CARD_RELATIONS);
 
 // De spelers uit scope waarvan de open kaart past (voor rank, suit en color).
 const cardsByMatch = (scope, node) => scope.filter(p => dslCardMatches(p.faceCard, node));
@@ -36,6 +48,21 @@ defineBlock('cards', {
       plural: 'kaarten met ' + rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'),
       bare: rtJoin(r.map(x => RT_RANK[x][0]), 'of'), barePlural: rtJoin(r.map(x => RT_RANK[x][1]), 'of')
     };
+  },
+  prompt: ['{ "rank": "K" } of { "rank": ["K", "Q"] }   waarden: "2" t/m "10", "J", "Q", "K", "A"'],
+  builder: {
+    label: 'een waarde (zoals Heer of 7)',
+    toLogic(cs){
+      const ranks = RB_RANKS_DESC.filter(r => (cs.ranks || []).includes(r));
+      if (ranks.length === 0) throw RB_ERR('Kies minstens één waarde.');
+      return { rank: ranks.length === 1 ? ranks[0] : ranks };
+    },
+    fromLogic(node, cs){ cs.ranks = rtList(node.rank).slice(); return cs; },
+    editor(box, cs, label){
+      box.appendChild(rbChips(RANKS.slice().reverse().map(r => [r, r]), cs.ranks, label + ': waarden', (v, on) => {
+        cs.ranks = on ? cs.ranks.concat(v) : cs.ranks.filter(x => x !== v);
+      }));
+    }
   }
 });
 
@@ -47,6 +74,21 @@ defineBlock('cards', {
   phrase(node){
     const names = rtJoin(rtList(node.suit).map(x => RT_SUIT[x]), 'of');
     return { single: 'een kaart van ' + names, plural: 'kaarten van ' + names, bare: 'kaart van ' + names, barePlural: 'kaarten van ' + names };
+  },
+  prompt: ['{ "suit": "♥" } of { "suit": ["♥", "♦"] }   symbolen: "♠", "♥", "♦", "♣"'],
+  builder: {
+    label: 'een symbool (zoals ♥)',
+    toLogic(cs){
+      const suits = SUITS.filter(x => (cs.suits || []).includes(x));
+      if (suits.length === 0) throw RB_ERR('Kies minstens één symbool.');
+      return { suit: suits.length === 1 ? suits[0] : suits };
+    },
+    fromLogic(node, cs){ cs.suits = rtList(node.suit).slice(); return cs; },
+    editor(box, cs, label){
+      box.appendChild(rbChips(SUITS.map(s => [s, s, s === '♥' || s === '♦']), cs.suits, label + ': symbolen', (v, on) => {
+        cs.suits = on ? cs.suits.concat(v) : cs.suits.filter(x => x !== v);
+      }));
+    }
   }
 });
 
@@ -58,6 +100,18 @@ defineBlock('cards', {
   phrase(node){
     const adj = node.color === 'red' ? 'rode' : 'zwarte';
     return { single: 'een ' + adj + ' kaart', plural: adj + ' kaarten', bare: adj + ' kaart', barePlural: adj + ' kaarten' };
+  },
+  prompt: ['{ "color": "red" } of { "color": "black" }'],
+  builder: {
+    label: 'rode of zwarte kaarten',
+    toLogic(cs){
+      if (!['red', 'black'].includes(cs.color)) throw RB_ERR('Kies rood of zwart.');
+      return { color: cs.color };
+    },
+    fromLogic(node, cs){ cs.color = node.color; return cs; },
+    editor(box, cs, label){
+      box.appendChild(rbSelect([['red', 'rode kaarten'], ['black', 'zwarte kaarten']], cs.color, label + ': kleur', v => { cs.color = v; }, false));
+    }
   }
 });
 
@@ -65,12 +119,14 @@ defineBlock('cards', {
   key: 'all', label: 'alle kaarten', sample: { all: true }, fields: ['all'],
   validate(node, path, v){ if (node.all !== true) v.err(path + '.all', 'true verwacht'); },
   select(scope){ return scope.slice(); },
-  phrase(){ return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' }; }
+  phrase(){ return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' }; },
+  prompt: ['{ "all": true }'],
+  builder: { label: 'alle kaarten', toLogic(){ return { all: true }; }, fromLogic(node, cs){ return cs; }, editor(){} }
 });
 
 // highest en lowest: de hoogste of laagste kaart op waarde of op de volgorde van de symbolen, eventueel binnen een deel (of).
-const cardsExtreme = (key, label) => ({
-  key, label, sample: { [key]: 'value' }, fields: [key, 'of'],
+const cardsExtreme = (key, label, prompt, builderLabel) => ({
+  key, label, sample: { [key]: 'value' }, fields: [key, 'of'], prompt: [prompt],
   validate(node, path, v, depth){
     if (!['value', 'suitOrder'].includes(node[key])) v.err(path + '.' + key, '"value" of "suitOrder" verwacht');
     if ('of' in node) v.cards(node.of, path + '.of', depth + 1);
@@ -103,10 +159,34 @@ const cardsExtreme = (key, label) => ({
     // single/plural: als onderwerp ("de hoogste kaart wint"); cond/bare/barePlural: in een voorwaarde ("er een kaart die de hoogste kaart is ligt")
     return { single: what, plural: what, cond: 'een kaart die ' + what + ' ' + be[0], bare: 'kaart die ' + what + ' ' + be[0],
       barePlural: 'kaarten die ' + what + ' ' + be[1], verbSingular: true };
+  },
+  // De bouwer kent "of" alleen als een kleur.
+  builder: {
+    label: builderLabel,
+    toLogic(cs){
+      if (!['value', 'suitOrder'].includes(cs.by)) throw RB_ERR('Kies of het om de waarde of om het symbool gaat.');
+      const node = { [key]: cs.by };
+      if (cs.of === 'red' || cs.of === 'black') node.of = { color: cs.of };
+      return node;
+    },
+    fromLogic(node, cs){
+      cs.by = node[key];
+      if ('of' in node){
+        if (!('color' in node.of)) return null;
+        cs.of = node.of.color;
+      }
+      return cs;
+    },
+    editor(box, cs, label){
+      box.appendChild(rbSelect([['value', 'op waarde'], ['suitOrder', 'op symbool (in de volgorde die bij het spel is gekozen)']], cs.by, label + ': op waarde of op symbool?', v => { cs.by = v; }, false));
+      box.appendChild(rbSelect([['none', 'van alle kaarten'], ['red', 'alleen van de rode kaarten'], ['black', 'alleen van de zwarte kaarten']], cs.of, label + ': van welke kaarten?', v => { cs.of = v; }, false));
+    }
   }
 });
-defineBlock('cards', cardsExtreme('highest', 'de hoogste kaart (op waarde of symbool)'));
-defineBlock('cards', cardsExtreme('lowest', 'de laagste kaart (op waarde of symbool)'));
+defineBlock('cards', cardsExtreme('highest', 'de hoogste kaart (op waarde of symbool)',
+  '{ "highest": "value" } of { "highest": "suitOrder" }, eventueel met "of": <kaarten>   (de hoogste op waarde of op symboolvolgorde)', 'de hoogste kaart'));
+defineBlock('cards', cardsExtreme('lowest', 'de laagste kaart (op waarde of symbool)',
+  '{ "lowest": "value" } of { "lowest": "suitOrder" }, eventueel met "of": <kaarten>', 'de laagste kaart'));
 
 defineBlock('cards', {
   key: 'group', label: 'de hoogste groep kaarten die bij elkaar horen', sample: { group: { relation: 'sameRank', min: 2, pick: 'highest' } }, fields: ['group'],
@@ -120,9 +200,23 @@ defineBlock('cards', {
   },
   select(scope, node){ return dslBestGroup(scope, node.group); },
   phrase(node){
-    const g = node.group, rel = RT_RELATION[g.relation];
+    const g = node.group, rel = CARD_RELATIONS[g.relation];
     const what = 'een groep van minstens ' + g.min + ' kaarten ' + rel;
     return { single: what, plural: 'de kaarten van de hoogste groep van minstens ' + g.min + ' kaarten ' + rel, bare: 'groep', barePlural: 'groepen' };
+  },
+  prompt: ['{ "group": { "relation": "sameRank" | "sameSuit" | "sameColor" | "consecutive", "min": 2 of meer, "pick": "highest" } }   (de hoogste groep kaarten die bij elkaar horen)'],
+  builder: {
+    label: 'kaarten die bij elkaar horen (paar, reeks)',
+    toLogic(cs){
+      if (!DSL_RELATIONS.includes(cs.relation)) throw RB_ERR('Kies welke kaarten bij elkaar horen.');
+      return { group: { relation: cs.relation, min: rbInt(cs.min, 2, 8, 'Aantal kaarten in de groep'), pick: 'highest' } };
+    },
+    fromLogic(node, cs){ cs.relation = node.group.relation; cs.min = node.group.min; return cs; },
+    editor(box, cs, label){
+      box.appendChild(rbSelect(Object.entries(CARD_RELATIONS), cs.relation, label + ': hoe horen ze bij elkaar?', v => { cs.relation = v; }, false));
+      box.appendChild(rbMake('span', 'bld-word', 'minstens'));
+      box.appendChild(rbNumber(cs.min, 2, 8, label + ': minstens zoveel kaarten', v => { cs.min = v; }));
+    }
   }
 });
 
@@ -140,7 +234,9 @@ defineBlock('cards', {
     const bare = a.bare + ' die ook ' + one.join(' en ook ');
     const plural = a.barePlural + ' die ook ' + many.join(' en ook ');
     return { single: 'een ' + bare, plural, bare, barePlural: plural };
-  }
+  },
+  prompt: ['{ "and": [..] }, { "or": [..] }, { "not": .. }'], // de regel voor and, or en not samen
+  builder: false // de bouwer maakt "en ook" zelf (de tweede eis bij een waarde, symbool of kleur)
 });
 
 defineBlock('cards', {
@@ -152,7 +248,9 @@ defineBlock('cards', {
     const xs = node.or.map(rtCards);
     const many = rtJoin(xs.map(x => x.barePlural), 'of');
     return { single: rtJoin(xs.map(x => x.single), 'of'), plural: many, bare: rtJoin(xs.map(x => x.bare), 'of'), barePlural: many };
-  }
+  },
+  prompt: [], // staat bij and
+  builder: false // kan de bouwer niet maken
 });
 
 defineBlock('cards', {
@@ -164,5 +262,7 @@ defineBlock('cards', {
     const x = rtCards(node.not);
     const many = 'kaarten die geen ' + x.bare + ' zijn';
     return { single: 'een kaart die geen ' + x.bare + ' is', plural: many, bare: 'kaart die geen ' + x.bare + ' is', barePlural: many };
-  }
+  },
+  prompt: [], // staat bij and
+  builder: false // de bouwer maakt "juist niet deze kaarten" zelf
 });

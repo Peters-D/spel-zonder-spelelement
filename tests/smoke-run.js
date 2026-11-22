@@ -241,6 +241,31 @@ own('vangnet', () => {
     if (!threw) problems.push('defineBlock weigert een dubbele sleutel niet');
     threw = false; try { defineBlock('iets', { key: 'x' }); } catch (e){ threw = true; }
     if (!threw) problems.push('defineBlock weigert een onbekende soort niet');
+    // Een onvolledige bouwsteen weigert defineBlock meteen, met de ontbrekende onderdelen in de melding.
+    let msg = ''; try { defineBlock('condition', { key: '__onvolledig', label: 'x', sample: { __onvolledig: true }, moments: ['award'], fields: ['__onvolledig'], validate(){}, test(){ return true; }, prompt: [] }); } catch (e){ msg = e.message; }
+    if (!/mist: sentence, builder$/.test(msg)) problems.push('defineBlock weigert een onvolledige bouwsteen niet goed: ' + JSON.stringify(msg));
+    if (registryBlock('condition', '__onvolledig')) problems.push('een geweigerde bouwsteen staat toch in het register');
+    for (const kind of Object.keys(REGISTRY_REQUIRED)) for (const b of RULE_REGISTRY[kind]){
+      const missing = registryMissing(kind, b);
+      if (missing.length) problems.push(kind + ' ' + b.key + ' mist ' + missing.join(', '));
+    }
+    // Elk voorbeeld gaat heen en terug door de bouwer (als de bouwsteen een bouwerdeel heeft): rbFromLogic en dan rbToLogic geven
+    // dezelfde beschrijving.
+    const slotLogic = { sharePot: p => ({ moment: 'award', then: { sharePot: [p] } }), forEach: p => ({ moment: 'roundEnd', then: { forEach: p, discardTop: 1 } }),
+      anyPlayer: p => ({ moment: 'award', if: { anyPlayer: p }, then: { discardPot: true } }),
+      from: p => ({ moment: 'roundEnd', then: { forEach: { withoutCards: true }, transfer: { from: p, count: 1 } } }) };
+    const roundTrips = [];
+    for (const b of RULE_REGISTRY.effect) if (b.builder) for (const m of b.moments) roundTrips.push(['effect ' + b.key, { moment: m, then: b.sample }]);
+    for (const b of RULE_REGISTRY.condition) if (b.builder) for (const m of b.moments) roundTrips.push(['condition ' + b.key, { moment: m, if: ruleBlockSample(b, m), then: defaultThen(m) }]);
+    for (const b of RULE_REGISTRY.players) if (b.builder) for (const s of b.slots) if (PLAYER_SLOTS[s].some(m => b.moments.includes(m))) roundTrips.push(['players ' + b.key + ' op ' + s, slotLogic[s](b.sample)]);
+    for (const b of RULE_REGISTRY.cards) if (b.builder) roundTrips.push(['cards ' + b.key, { moment: 'decide', then: { win: b.sample } }]);
+    for (const [what, logic] of roundTrips){
+      try {
+        const st = rbFromLogic(logic), back = st ? rbToLogic(st) : null;
+        if (!st) problems.push(what + ': de bouwer kan het voorbeeld niet tonen');
+        else if (back.error || JSON.stringify(back.logic) !== JSON.stringify(logic)) problems.push(what + ': het voorbeeld komt anders terug uit de bouwer: ' + JSON.stringify(back.error || back.logic));
+      } catch (e){ problems.push(what + ': fout in de bouwer: ' + e.message); }
+    }
     return JSON.stringify({ problems, counts: Object.fromEntries(Object.keys(needs).map(k => [k, RULE_REGISTRY[k].length])) }); })()`));
   for (const p of out.problems) fail(p);
   if (out.counts.effect !== 5 || out.counts.condition !== 9 || out.counts.players !== 4 || out.counts.cards !== 10) fail('verwacht 5 gevolgen, 9 voorwaarden, 4 keuzes van spelers en 10 van kaarten, kreeg ' + JSON.stringify(out.counts));
@@ -1828,8 +1853,11 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   // De lijst met bouwstenen komt precies overeen met de controle: een bouwsteen die bij een moment wordt aangeboden, wordt door de controle
   // geaccepteerd, en een die er niet bij hoort, geweigerd.
   const valid = logic => JSON.parse(run('JSON.stringify(validateRuleLogic(' + J(logic) + '))')).length === 0;
-  const blocks = JSON.parse(run('JSON.stringify(RULE_BLOCKS)'));
-  const sample = (key, group, moment) => JSON.parse(run('JSON.stringify(ruleBlockSample(RULE_BLOCKS.' + group + '.find(b => b.key === ' + J(key) + '), ' + J(moment) + '))'));
+  // De bouwstenen uit het register (js/rule-registry.js), in de groepen die deze test gebruikt.
+  const REG = '({ conditions: RULE_REGISTRY.condition, effects: RULE_REGISTRY.effect, cards: RULE_REGISTRY.cards, players: RULE_REGISTRY.players, ' +
+    'singleCards: RULE_REGISTRY.cards.filter(b => b.single).map(b => b.key), playerSlots: PLAYER_SLOTS })';
+  const blocks = JSON.parse(run('JSON.stringify(' + REG + ')'));
+  const sample = (key, group, moment) => JSON.parse(run('JSON.stringify(ruleBlockSample(' + REG + '.' + group + '.find(b => b.key === ' + J(key) + '), ' + J(moment) + '))'));
   const effectFor = { decide: { win: { all: true } }, tiebreak: { win: { all: true } }, award: { discardPot: true }, roundEnd: { forEach: { withoutCards: true }, discardTop: 1 } };
   for (const moment of ['decide', 'tiebreak', 'award', 'roundEnd']){
     for (const b of blocks.conditions){
@@ -2144,7 +2172,7 @@ if (JSON.stringify(evOff) !== JSON.stringify({ type: 'win', winner: 0 })) failur
   const known = new Set(words.concat(JSON.parse(run('JSON.stringify(RANKS.concat(SUITS))'))));
   for (const m of grammar.matchAll(/"([^"]+)"/g)) if (!known.has(m[1])) fail('de uitleg noemt een onbekend woord: "' + m[1] + '"');
   // De sleutels van de bouwstenenlijst (die met de controle is vergeleken) staan er ook allemaal in.
-  const blockKeys = JSON.parse(run('JSON.stringify([].concat(RULE_BLOCKS.conditions, RULE_BLOCKS.effects, RULE_BLOCKS.cards, RULE_BLOCKS.players).map(b => b.key))'));
+  const blockKeys = JSON.parse(run('JSON.stringify([].concat(RULE_REGISTRY.condition, RULE_REGISTRY.effect, RULE_REGISTRY.cards, RULE_REGISTRY.players).map(b => b.key))'));
   for (const k of blockKeys) if (!grammar.includes('"' + k + '"')) fail('de uitleg mist de bouwsteen ' + k);
   // De regels van het spel staan erin als voorbeeld, met zin en beschrijving, net als de grenzen en het voorbeeldblok.
   const ruleInfo = JSON.parse(run('JSON.stringify(RULES.map(r => [r.title, describeRuleLogic(r.logic), JSON.stringify(r.logic)]))'));
