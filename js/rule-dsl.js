@@ -64,7 +64,6 @@
 //                                              (count en n: 1 t/m 52)
 
 const DSL_MOMENTS = RULE_REGISTRY.moments.map(m => m.id); // zie js/rule-registry.js
-const DSL_RELATIONS = ['sameRank', 'sameSuit', 'sameColor', 'consecutive'];
 const DSL_MAX_DEPTH = 8;
 const DSL_MAX_CARDS = 52; // meer kaarten dan er in het spel zitten kan een gevolg niet verplaatsen
 
@@ -98,43 +97,25 @@ function validateRuleLogic(logic){
   };
   const deep = (path, depth) => { if (depth > DSL_MAX_DEPTH){ err(path, 'te diep genest'); return true; } return false; };
 
-  // Eén kaart: rank / suit / color / and / or / not
+  // De keuzes van kaarten staan in het register (js/blocks-cards.js).
+  // Eén kaart: precies één van de bouwstenen met single (rank / suit / color / and / or / not), zonder andere sleutels.
   const card = (node, path, depth) => {
     if (!isObj(node)) return err(path, 'een kaartbeschrijving verwacht');
     if (deep(path, depth)) return;
-    const key = oneOf(node, path, ['rank', 'suit', 'color', 'and', 'or', 'not']);
+    const key = oneOf(node, path, registryBlocks('cards').filter(b => b.single).map(b => b.key));
     only(node, path, [key]);
-    if (key === 'rank') listOf(node.rank, path + '.rank', RANKS, 'waarde');
-    else if (key === 'suit') listOf(node.suit, path + '.suit', SUITS, 'symbool');
-    else if (key === 'color'){ if (!['red', 'black'].includes(node.color)) err(path + '.color', '"red" of "black" verwacht'); }
-    else if (key === 'not') card(node.not, path + '.not', depth + 1);
-    else if (key){ if (!Array.isArray(node[key]) || node[key].length === 0) err(path + '.' + key, 'een lijst verwacht'); else node[key].forEach((x, i) => card(x, path + '.' + key + '[' + i + ']', depth + 1)); }
+    if (key) registryBlock('cards', key).validate(node, path, v, depth, true);
   };
-  // Kaarten op tafel
+  // Kaarten op tafel: precies één van de bouwstenen; rank, suit en color worden gecontroleerd als één kaart.
   const cards = (node, path, depth) => {
     if (!isObj(node)) return err(path, 'een keuze van kaarten verwacht');
     if (deep(path, depth)) return;
-    const key = oneOf(node, path, ['rank', 'suit', 'color', 'all', 'highest', 'lowest', 'group', 'and', 'or', 'not']);
-    if (key === 'rank' || key === 'suit' || key === 'color') return card(node, path, depth);
-    if (key === 'all'){ only(node, path, ['all']); if (node.all !== true) err(path + '.all', 'true verwacht'); }
-    else if (key === 'highest' || key === 'lowest'){
-      only(node, path, [key, 'of']);
-      if (!['value', 'suitOrder'].includes(node[key])) err(path + '.' + key, '"value" of "suitOrder" verwacht');
-      if ('of' in node) cards(node.of, path + '.of', depth + 1);
-    } else if (key === 'group'){
-      only(node, path, ['group']);
-      const g = node.group;
-      if (!isObj(g)) return err(path + '.group', 'een beschrijving van de groep verwacht');
-      only(g, path + '.group', ['relation', 'min', 'pick']);
-      if (!DSL_RELATIONS.includes(g.relation)) err(path + '.group.relation', 'een van ' + DSL_RELATIONS.join(', ') + ' verwacht');
-      int(g.min, path + '.group.min', 2);
-      if (g.pick !== 'highest') err(path + '.group.pick', '"highest" verwacht');
-    } else if (key === 'not'){ only(node, path, ['not']); cards(node.not, path + '.not', depth + 1); }
-    else if (key){
-      only(node, path, [key]);
-      if (!Array.isArray(node[key]) || node[key].length === 0) err(path + '.' + key, 'een lijst verwacht');
-      else node[key].forEach((x, i) => cards(x, path + '.' + key + '[' + i + ']', depth + 1));
-    }
+    const key = oneOf(node, path, registryBlocks('cards').map(b => b.key));
+    if (!key) return;
+    const block = registryBlock('cards', key);
+    if (block.leaf) return card(node, path, depth);
+    only(node, path, block.fields);
+    block.validate(node, path, v, depth, false);
   };
   // Spelers. allowWinner: mag 'winner' (alleen bij award); allowNeighbor: mag neighbor (alleen als from bij forEach).
   // De keuzes van spelers staan in het register (js/blocks-players.js): 'winner', of een object met precies één van de andere sleutels.
@@ -161,7 +142,7 @@ function validateRuleLogic(logic){
     block.validate(node, path, v, moment, depth);
   };
   // De gedeelde hulpjes, voor de controle van de bouwstenen in het register (zie js/rule-registry.js).
-  const v = { err, isObj, only, oneOf, int, range, card, cards, players, condition };
+  const v = { err, isObj, only, oneOf, listOf, int, range, card, cards, players, condition };
   // Het gevolg: de bouwstenen van het moment uit het register. Heeft een moment één gevolg (decide, tiebreak), dan is dat verplicht;
   // anders precies één van de gevolgen, plus de velden die alle gevolgen van het moment delen (bij roundEnd: forEach).
   const effect = (node, path, moment) => {
@@ -193,14 +174,9 @@ const dslList = v => Array.isArray(v) ? v : [v];
 const dslIsRed = card => card.suit === '♥' || card.suit === '♦';
 const dslColor = card => card.suit ? (dslIsRed(card) ? 'red' : 'black') : null;
 
-// Past één kaart bij de beschrijving?
+// Past één kaart bij de beschrijving? Zie js/blocks-cards.js.
 function dslCardMatches(card, node){
-  if ('rank' in node) return dslList(node.rank).includes(card.rank);
-  if ('suit' in node) return dslList(node.suit).includes(card.suit);
-  if ('color' in node) return dslColor(card) === node.color;
-  if ('and' in node) return node.and.every(x => dslCardMatches(card, x));
-  if ('or' in node) return node.or.some(x => dslCardMatches(card, x));
-  return !dslCardMatches(card, node.not);
+  return registryCardsOf(node).matches(card, node);
 }
 
 // De hoogste groep volgens een relatie (zie de uitleg bovenaan). Geeft de spelers, in de volgorde van de tafel.
@@ -236,30 +212,9 @@ function dslBestGroup(scope, group){
   return scope.filter(p => members.has(p));
 }
 
-// De spelers uit scope (elk met een open kaart) die bij de keuze horen, in de volgorde van de tafel.
+// De spelers uit scope (elk met een open kaart) die bij de keuze horen, in de volgorde van de tafel. Zie js/blocks-cards.js.
 function dslSelectCards(scope, node, rules){
-  if ('all' in node) return scope.slice();
-  if ('highest' in node || 'lowest' in node){
-    const within = 'of' in node ? dslSelectCards(scope, node.of, rules) : scope;
-    if (within.length === 0) return [];
-    const high = 'highest' in node;
-    if ((high ? node.highest : node.lowest) === 'value'){
-      const values = within.map(p => p.faceCard.value);
-      const best = high ? Math.max(...values) : Math.min(...values);
-      return within.filter(p => p.faceCard.value === best);
-    }
-    const order = suitOrderOf(rules);
-    const place = p => order.indexOf(p.faceCard.suit);
-    if (within.some(p => place(p) < 0)) return []; // onbekend symbool: de regel beslist niets
-    const places = within.map(place);
-    const best = high ? Math.min(...places) : Math.max(...places);
-    return within.filter(p => place(p) === best);
-  }
-  if ('group' in node) return dslBestGroup(scope, node.group);
-  if ('and' in node){ const sets = node.and.map(x => dslSelectCards(scope, x, rules)); return scope.filter(p => sets.every(s => s.includes(p))); }
-  if ('or' in node){ const sets = node.or.map(x => dslSelectCards(scope, x, rules)); return scope.filter(p => sets.some(s => s.includes(p))); }
-  if ('not' in node){ const out = dslSelectCards(scope, node.not, rules); return scope.filter(p => !out.includes(p)); }
-  return scope.filter(p => dslCardMatches(p.faceCard, node));
+  return registryCardsOf(node).select(scope, node, rules);
 }
 
 // Spelers kiezen bij award en roundEnd. ctx: { state, winner }.

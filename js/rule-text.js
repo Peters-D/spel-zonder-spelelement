@@ -36,59 +36,7 @@ const rtUpper = t => t.charAt(0).toUpperCase() + t.slice(1);
 //   plural: de kaarten als onderwerp, met een meervoudig werkwoord ("kaarten met een 2")
 //   verbSingular: true als het onderwerp één kaart is ("de hoogste kaart wint")
 function rtCards(node){
-  if ('rank' in node){
-    const r = rtList(node.rank);
-    return {
-      single: rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'),
-      plural: 'kaarten met ' + rtJoin(r.map(x => 'een ' + RT_RANK[x][0]), 'of'),
-      bare: rtJoin(r.map(x => RT_RANK[x][0]), 'of'), barePlural: rtJoin(r.map(x => RT_RANK[x][1]), 'of')
-    };
-  }
-  if ('suit' in node){
-    const names = rtJoin(rtList(node.suit).map(x => RT_SUIT[x]), 'of');
-    return { single: 'een kaart van ' + names, plural: 'kaarten van ' + names, bare: 'kaart van ' + names, barePlural: 'kaarten van ' + names };
-  }
-  if ('color' in node){
-    const adj = node.color === 'red' ? 'rode' : 'zwarte';
-    return { single: 'een ' + adj + ' kaart', plural: adj + ' kaarten', bare: adj + ' kaart', barePlural: adj + ' kaarten' };
-  }
-  if ('all' in node) return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' };
-  if ('highest' in node || 'lowest' in node){
-    const high = 'highest' in node, kind = high ? node.highest : node.lowest, word = high ? 'hoogste' : 'laagste';
-    // Een keuze uit een deel van de kaarten ("onder de Heren"); alleen een kleur wordt een bijvoeglijk naamwoord ("de hoogste rode kaart").
-    const of = node.of, colorOnly = of && 'color' in of && Object.keys(of).length === 1;
-    const color = colorOnly ? (of.color === 'red' ? 'rode ' : 'zwarte ') : '';
-    let what = kind === 'value' ? 'de ' + word + ' ' + color + 'kaart'
-      : (colorOnly ? 'de ' + color.trim() + ' kaart met het ' + word + ' symbool' : 'de kaart met het ' + word + ' symbool');
-    if (of && !colorOnly) what += ' onder de ' + rtCards(of).barePlural;
-    const be = kind === 'value' ? ['is', 'zijn'] : ['heeft', 'hebben'];
-    // single/plural: als onderwerp ("de hoogste kaart wint"); cond/bare/barePlural: in een voorwaarde ("er een kaart die de hoogste kaart is ligt")
-    return { single: what, plural: what, cond: 'een kaart die ' + what + ' ' + be[0], bare: 'kaart die ' + what + ' ' + be[0],
-      barePlural: 'kaarten die ' + what + ' ' + be[1], verbSingular: true };
-  }
-  if ('group' in node){
-    const g = node.group, rel = RT_RELATION[g.relation];
-    const what = 'een groep van minstens ' + g.min + ' kaarten ' + rel;
-    return { single: what, plural: 'de kaarten van de hoogste groep van minstens ' + g.min + ' kaarten ' + rel, bare: 'groep', barePlural: 'groepen' };
-  }
-  if ('not' in node){
-    const x = rtCards(node.not);
-    const many = 'kaarten die geen ' + x.bare + ' zijn';
-    return { single: 'een kaart die geen ' + x.bare + ' is', plural: many, bare: 'kaart die geen ' + x.bare + ' is', barePlural: many };
-  }
-  if ('or' in node){
-    const xs = node.or.map(rtCards);
-    const many = rtJoin(xs.map(x => x.barePlural), 'of');
-    return { single: rtJoin(xs.map(x => x.single), 'of'), plural: many, bare: rtJoin(xs.map(x => x.bare), 'of'), barePlural: many };
-  }
-  // and: de kaarten die aan alle eisen tegelijk voldoen: "kaart van harten die ook een Heer is en ook geen Aas is"
-  const xs = node.and.map(rtCards);
-  const [a, ...rest] = xs, restNodes = node.and.slice(1);
-  const one = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).bare : o.single) + ' is');
-  const many = rest.map((o, i) => ('not' in restNodes[i] ? 'geen ' + rtCards(restNodes[i].not).barePlural : o.barePlural) + ' zijn');
-  const bare = a.bare + ' die ook ' + one.join(' en ook ');
-  const plural = a.barePlural + ' die ook ' + many.join(' en ook ');
-  return { single: 'een ' + bare, plural, bare, barePlural: plural };
+  return registryCardsOf(node).phrase(node); // zie js/blocks-cards.js
 }
 
 // Een keuze van spelers, als zinsdeel. forEach: "elke speler ..."; anders "de spelers ...".
@@ -161,19 +109,8 @@ const RULE_BLOCKS = {
 
   // Keuzes van kaarten. cards: wat er bij "deze spelers winnen" en bij tellen kan (ook de hoogste en groepen); singleCards: wat er
   // bij "begon met een kaart" kan (één soort kaart).
-  cards: [
-    { key: 'rank', label: 'kaarten met een bepaalde waarde', sample: { rank: 'K' } },
-    { key: 'suit', label: 'kaarten van een bepaald symbool', sample: { suit: '♥' } },
-    { key: 'color', label: 'rode of zwarte kaarten', sample: { color: 'red' } },
-    { key: 'all', label: 'alle kaarten', sample: { all: true } },
-    { key: 'highest', label: 'de hoogste kaart (op waarde of symbool)', sample: { highest: 'value' } },
-    { key: 'lowest', label: 'de laagste kaart (op waarde of symbool)', sample: { lowest: 'value' } },
-    { key: 'group', label: 'de hoogste groep kaarten die bij elkaar horen', sample: { group: { relation: 'sameRank', min: 2, pick: 'highest' } } },
-    { key: 'and', label: 'kaarten die aan al deze eisen voldoen', sample: { and: [{ color: 'red' }, { rank: 'K' }] } },
-    { key: 'or', label: 'kaarten die aan een van deze eisen voldoen', sample: { or: [{ rank: 'K' }, { rank: 'Q' }] } },
-    { key: 'not', label: 'kaarten die hier niet bij horen', sample: { not: { rank: 'K' } } }
-  ],
-  singleCards: ['rank', 'suit', 'color', 'and', 'or', 'not'],
+  cards: registryBlocks('cards').map(b => ({ key: b.key, label: b.label, sample: b.sample })), // zie js/blocks-cards.js
+  singleCards: registryBlocks('cards').filter(b => b.single).map(b => b.key),
   // Keuzes van spelers en de plekken waar ze passen: sharePot (pot verdelen), forEach (wie het overkomt), anyPlayer (voorwaarde),
   // from (van wie kaarten komen). Zie js/blocks-players.js.
   players: registryBlocks('players').map(b => Object.assign({ key: b.key, label: b.label, sample: b.sample, slots: b.slots, moments: b.moments },
