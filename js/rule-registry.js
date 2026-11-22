@@ -3,9 +3,10 @@
 // toevoegen is dan één object in een van de js/blocks-*.js-bestanden (en een test).
 //
 // Wat er in het register staat:
-//   momenten    defineMoment({ id, label, onTable, shared, compile })
+//   momenten    defineMoment({ id, label, prompt, onTable, shared, compile })
 //                 id        'decide' | 'tiebreak' | 'award' | 'roundEnd' (de volgorde van de momenten in meldingen en keuzelijsten)
 //                 label     de naam in de regelbouwer
+//                 prompt    de uitleg van het moment aan een taalmodel (js/rule-prompt.js)
 //                 onTable   true als de regel naar de open kaarten kijkt (beslissen, gelijkspel)
 //                 shared    velden die elk gevolg op dit moment heeft (bij roundEnd: forEach), met hun controle
 //                 compile   maakt van de voorwaarde en het gevolg de functie die de spelkern aanroept (zie compileRuleLogic)
@@ -22,6 +23,8 @@
 //                 describe(then, cond, moment)       de hele zin, of
 //                 parts(then)                        { s, v, r }: onderwerp, persoonsvorm en de rest, voor de gewone zinsbouw
 //                 usesDiscard                         true als het gevolg kaarten aflegt (dan staat de aflegstapel op het scherm)
+//               en bij elke soort ook prompt (de uitleg aan een taalmodel) en builder (het deel voor de regelbouwer); zie de
+//               uitleg bovenaan elk js/blocks-*.js-bestand.
 //
 // De volgorde van defineBlock telt: in die volgorde staan de bouwstenen in meldingen ("precies één van ... verwacht") en keuzelijsten.
 
@@ -32,9 +35,35 @@ function defineMoment(m){
   return m;
 }
 
+// De onderdelen die elke bouwsteen van een soort moet hebben; zie de uitleg bovenaan elk js/blocks-*.js-bestand.
+// builder: de onderdelen van het bouwerdeel (of builder: false, als de bouwer de bouwsteen zelf maakt).
+const REGISTRY_REQUIRED = {
+  effect: { fns: ['validate', 'run'], values: ['moments', 'prompt'], builder: ['fresh', 'toLogic', 'fromLogic', 'editor'] },
+  condition: { fns: ['validate', 'test', 'sentence'], values: ['moments', 'fields', 'prompt'], builder: ['fresh', 'toLogic', 'fromLogic', 'editor'] },
+  players: { fns: ['validate', 'select', 'phrase'], values: ['moments', 'slots', 'prompt'], builder: ['label', 'toLogic', 'fromLogic', 'editor'] },
+  cards: { fns: ['validate', 'select', 'phrase'], values: ['fields', 'prompt'], builder: ['label', 'toLogic', 'fromLogic', 'editor'] }
+};
+
+// De ontbrekende onderdelen van een bouwsteen (leeg = compleet).
+function registryMissing(kind, block){
+  const need = REGISTRY_REQUIRED[kind], missing = [];
+  for (const k of ['key', 'label', 'sample']) if (block[k] === undefined) missing.push(k);
+  for (const k of need.fns) if (typeof block[k] !== 'function') missing.push(k);
+  for (const k of need.values) if (block[k] === undefined) missing.push(k);
+  if (kind === 'effect' && typeof block.describe !== 'function' && typeof block.parts !== 'function') missing.push('describe of parts');
+  if (kind === 'cards' && block.single && typeof block.matches !== 'function') missing.push('matches');
+  if (block.builder !== false){
+    if (!block.builder || typeof block.builder !== 'object') missing.push('builder');
+    else for (const k of need.builder) if (block.builder[k] === undefined) missing.push('builder.' + k);
+  }
+  return missing;
+}
+
 function defineBlock(kind, block){
   if (!RULE_REGISTRY[kind]) throw new Error('Onbekende soort bouwsteen: ' + kind);
   if (RULE_REGISTRY[kind].some(b => b.key === block.key)) throw new Error('Bouwsteen bestaat al: ' + kind + ' ' + block.key);
+  const missing = registryMissing(kind, block);
+  if (missing.length) throw new Error('Bouwsteen ' + kind + ' ' + block.key + ' mist: ' + missing.join(', '));
   RULE_REGISTRY[kind].push(block);
   return block;
 }
@@ -77,7 +106,7 @@ function registryEffectOf(then, moment){
 // compile(cond, then) geeft de functie(s) voor de spelkern. Voorwaarden test dslTest (js/rule-dsl.js); het gevolg doet run.
 
 defineMoment({
-  id: 'decide', label: 'Als de kaarten open liggen: wie wint de ronde?', onTable: true,
+  id: 'decide', label: 'Als de kaarten open liggen: wie wint de ronde?', prompt: 'wie wint de open kaarten; winnen er meer spelers, dan battlen zij', onTable: true,
   compile(cond, then){
     const effect = registryEffectOf(then, 'decide');
     return { decide(inPlay, rules){
@@ -90,7 +119,7 @@ defineMoment({
 });
 
 defineMoment({
-  id: 'tiebreak', label: 'Als spelers gelijk eindigen: wie van hen wint?', onTable: true,
+  id: 'tiebreak', label: 'Als spelers gelijk eindigen: wie van hen wint?', prompt: 'er zijn meerdere winnaars: wie van hen wint (er moet precies één overblijven)', onTable: true,
   compile(cond, then){
     const effect = registryEffectOf(then, 'tiebreak');
     return { breakTie(winners, rules){
@@ -103,7 +132,7 @@ defineMoment({
 });
 
 defineMoment({
-  id: 'award', label: 'Als de winnaar de pot krijgt', onTable: false,
+  id: 'award', label: 'Als de winnaar de pot krijgt', prompt: 'de pot wordt toegekend', onTable: false,
   compile(cond, then){
     const effect = registryEffectOf(then, 'award');
     return { onAward(ctx){
@@ -114,7 +143,7 @@ defineMoment({
 });
 
 defineMoment({
-  id: 'roundEnd', label: 'Aan het einde van de ronde', onTable: false,
+  id: 'roundEnd', label: 'Aan het einde van de ronde', prompt: 'de ronde is voorbij', onTable: false,
   // Elk gevolg aan het einde van de ronde heeft forEach: de spelers die het overkomt.
   shared: [{ key: 'forEach', validate(node, path, v){ if (!('forEach' in node)) v.err(path, '"forEach" verwacht'); else v.players(node.forEach, path + '.forEach', false, false); } }],
   compile(cond, then){

@@ -5,56 +5,47 @@
 //   buildRulePrompt(wish)       de hele instructie, met de wens van de speler erin
 //   extractRuleJson(text)       haalt het regelblok uit een antwoord dat er tekst of een codeblok omheen heeft
 //
-// De uitleg van de bouwstenen hieronder moet gelijk lopen met js/rule-dsl.js; de test controleert dat elk sleutelwoord van de
-// controle erin voorkomt en dat de voorbeelden (de regels van het spel zelf) erbij staan.
+// De uitleg van de bouwstenen komt uit het register (prompt bij elk moment en elke bouwsteen); de test controleert dat elk
+// sleutelwoord van de controle erin voorkomt en dat de voorbeelden (de regels van het spel zelf) erbij staan.
 
 const RULE_PROMPT_WISH_MAX = 600;
 
-const RULE_PROMPT_GRAMMAR = [
-  'logic is een object { "moment": ..., "if": ... (optioneel), "then": ... }.',
-  '',
-  'moment (kies er één):',
-  '  "decide"    wie wint de open kaarten; winnen er meer spelers, dan battlen zij',
-  '  "tiebreak"  er zijn meerdere winnaars: wie van hen wint (er moet precies één overblijven)',
-  '  "award"     de pot wordt toegekend',
-  '  "roundEnd"  de ronde is voorbij',
-  '',
-  'Kaarten kiezen (bij decide uit alle open kaarten, bij tiebreak uit de kaarten van de spelers die gelijk eindigden):',
-  '  { "rank": "K" } of { "rank": ["K", "Q"] }   waarden: "2" t/m "10", "J", "Q", "K", "A"',
-  '  { "suit": "♥" } of { "suit": ["♥", "♦"] }   symbolen: "♠", "♥", "♦", "♣"',
-  '  { "color": "red" } of { "color": "black" }',
-  '  { "all": true }',
-  '  { "highest": "value" } of { "highest": "suitOrder" }, eventueel met "of": <kaarten>   (de hoogste op waarde of op symboolvolgorde)',
-  '  { "lowest": "value" } of { "lowest": "suitOrder" }, eventueel met "of": <kaarten>',
-  '  { "group": { "relation": "sameRank" | "sameSuit" | "sameColor" | "consecutive", "min": 2 of meer, "pick": "highest" } }   (de hoogste groep kaarten die bij elkaar horen)',
-  '  { "and": [..] }, { "or": [..] }, { "not": .. }',
-  '',
-  'Eén soort kaart (voor "opened" en "winnerOpened"): alleen rank, suit, color, and, or, not.',
-  '',
-  'Spelers kiezen (alleen bij award en roundEnd):',
-  '  "winner"                                         de winnaar (alleen bij award)',
-  '  { "opened": <soort kaart> }                       spelers die de ronde begonnen met zo\'n kaart; met "exclude": "winner" zonder de winnaar (alleen bij award)',
-  '  { "withoutCards": true }                          spelers zonder kaarten',
-  '  { "withoutCards": true, "secondChance": true }      spelers zonder kaarten die hun tweede kans nog hebben (elke speler heeft er één; wie met forEach + transfer kaarten krijgt, gebruikt hem; wie een ronde wint, krijgt hem terug)',
-  '  { "neighbor": "left" } of { "neighbor": "right" } de eerstvolgende speler met kaarten links of rechts (alleen als "from" bij transfer)',
-  '',
-  'Voorwaarden (if):',
-  '  { "exists": <kaarten> }                           decide, tiebreak',
-  '  { "count": <kaarten>, "min": n, "max": n }        decide, tiebreak (min, max of allebei)',
-  '  { "battle": true }                                award: er was deze ronde een battle',
-  '  { "winnerOpened": <soort kaart> }                 award',
-  '  { "anyPlayer": <spelers> }                        award, roundEnd',
-  '  { "playersWithCards": { "min": n, "max": n } }    award, roundEnd',
-  '  { "and": [..] }, { "or": [..] }, { "not": .. }',
-  '',
-  'Gevolgen (then):',
-  '  decide, tiebreak:  { "win": <kaarten> }',
-  '  award:             { "discardPot": true }   of   { "sharePot": [<spelers>, ...] }   (verdelen van hoog naar laag, in deze volgorde)',
-  '  roundEnd:          { "forEach": <spelers>, "transfer": { "from": <spelers>, "count": n } }   of   { "forEach": <spelers>, "discardTop": n }',
-  '                     (count en discardTop: een geheel getal van 1 t/m 52)',
-  '',
-  'Er bestaat niets anders: geen andere sleutels, geen code, geen geheugen over meerdere rondes en geen keuzes van spelers.'
-].join('\n');
+// De uitleg komt uit het register (js/rule-registry.js): elk moment en elke bouwsteen heeft zijn eigen regel(s) in prompt.
+function rulePromptGrammar(){
+  const lines = kind => registryBlocks(kind).flatMap(b => b.prompt).map(t => '  ' + t);
+  // De gevolgen met dezelfde momenten op één regel: "  award:             { ... }   of   { ... }".
+  const effects = [];
+  for (const b of registryBlocks('effect')){
+    const label = b.moments.join(', ') + ':';
+    let group = effects.find(g => g.label === label);
+    if (!group) effects.push(group = { label, items: [], notes: [] });
+    group.items.push(b.prompt);
+    if (b.promptNote) group.notes.push(b.promptNote);
+  }
+  return [
+    'logic is een object { "moment": ..., "if": ... (optioneel), "then": ... }.',
+    '',
+    'moment (kies er één):',
+    ...RULE_REGISTRY.moments.map(m => '  ' + JSON.stringify(m.id).padEnd(11) + ' ' + m.prompt),
+    '',
+    'Kaarten kiezen (bij decide uit alle open kaarten, bij tiebreak uit de kaarten van de spelers die gelijk eindigden):',
+    ...lines('cards'),
+    '',
+    'Eén soort kaart (voor "opened" en "winnerOpened"): alleen ' + registryBlocks('cards').filter(b => b.single).map(b => b.key).join(', ') + '.',
+    '',
+    'Spelers kiezen (alleen bij award en roundEnd):',
+    ...lines('players'),
+    '',
+    'Voorwaarden (if):',
+    ...lines('condition'),
+    '',
+    'Gevolgen (then):',
+    ...effects.flatMap(g => ['  ' + g.label.padEnd(19) + g.items.join('   of   ')].concat(g.notes.map(n => ' '.repeat(21) + n))),
+    '',
+    'Er bestaat niets anders: geen andere sleutels, geen code, geen geheugen over meerdere rondes en geen keuzes van spelers.'
+  ].join('\n');
+}
+const RULE_PROMPT_GRAMMAR = rulePromptGrammar();
 
 // De wens van de speler als één regel tekst van beperkte lengte (hij komt midden in de instructie te staan).
 function rulePromptWish(wish){

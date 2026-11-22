@@ -22,7 +22,9 @@
 // De voorbeelden: het spel zoekt zelf een paar willekeurige tafels (of verdelingen) waarop de regel iets anders doet dan het gewone spel, en
 // legt vast wat er dan gebeurt. Ze bewijzen dat het blok doet wat het doet, niet dat het doet wat je bedoelde.
 
-const RB_SINGLE = ['rank', 'suit', 'color'];
+// De keuzes van kaarten die de bouwer kent (zie builder in js/blocks-cards.js); single: alleen een soort kaart (waarde, symbool, kleur).
+const rbCardKinds = single => registryBlocks('cards').filter(b => b.builder && (!single || b.leaf));
+const RB_SINGLE = rbCardKinds(true).map(b => b.key); // rank, suit, color
 const RB_RANKS_DESC = RANKS.slice().reverse(); // A K Q J 10 ... 2, zoals in een zin
 
 function RB_ERR(message){
@@ -44,28 +46,9 @@ const rbInt = (v, min, max, what) => {
 function rbCards(cs, singleOnly){
   if (!cs || typeof cs !== 'object') throw RB_ERR('Kies welke kaarten je bedoelt.');
   if (singleOnly && !RB_SINGLE.includes(cs.kind)) throw RB_ERR('Hier past alleen een waarde, een symbool of een kleur.');
-  let node;
-  if (cs.kind === 'rank'){
-    const ranks = RB_RANKS_DESC.filter(r => (cs.ranks || []).includes(r));
-    if (ranks.length === 0) throw RB_ERR('Kies minstens één waarde.');
-    node = { rank: ranks.length === 1 ? ranks[0] : ranks };
-  } else if (cs.kind === 'suit'){
-    const suits = SUITS.filter(x => (cs.suits || []).includes(x));
-    if (suits.length === 0) throw RB_ERR('Kies minstens één symbool.');
-    node = { suit: suits.length === 1 ? suits[0] : suits };
-  } else if (cs.kind === 'color'){
-    if (!['red', 'black'].includes(cs.color)) throw RB_ERR('Kies rood of zwart.');
-    node = { color: cs.color };
-  } else if (cs.kind === 'all'){
-    node = { all: true };
-  } else if (cs.kind === 'highest' || cs.kind === 'lowest'){
-    if (!['value', 'suitOrder'].includes(cs.by)) throw RB_ERR('Kies of het om de waarde of om het symbool gaat.');
-    node = { [cs.kind]: cs.by };
-    if (cs.of === 'red' || cs.of === 'black') node.of = { color: cs.of };
-  } else if (cs.kind === 'group'){
-    if (!['sameRank', 'sameSuit', 'sameColor', 'consecutive'].includes(cs.relation)) throw RB_ERR('Kies welke kaarten bij elkaar horen.');
-    node = { group: { relation: cs.relation, min: rbInt(cs.min, 2, 8, 'Aantal kaarten in de groep'), pick: 'highest' } };
-  } else throw RB_ERR('Kies welke kaarten je bedoelt.');
+  const block = rbCardKinds(false).find(b => b.key === cs.kind);
+  if (!block) throw RB_ERR('Kies welke kaarten je bedoelt.');
+  let node = block.builder.toLogic(cs);
   if (RB_SINGLE.includes(cs.kind)){
     if (cs.also) node = { and: [node, rbCards(cs.also, true)] };
     if (cs.not) node = { not: node };
@@ -76,24 +59,9 @@ function rbCards(cs, singleOnly){
 // De spelers bij award en roundEnd.
 function rbPlayer(p, moment){
   if (!p || typeof p !== 'object') throw RB_ERR('Kies welke spelers je bedoelt.');
-  if (p.kind === 'winner'){
-    if (moment !== 'award') throw RB_ERR('"De winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".');
-    return 'winner';
-  }
-  if (p.kind === 'withoutCards') return p.chance ? { withoutCards: true, secondChance: true } : { withoutCards: true };
-  if (p.kind === 'neighbor'){
-    if (!['left', 'right'].includes(p.side)) throw RB_ERR('Kies de linker- of rechterbuur.');
-    return { neighbor: p.side };
-  }
-  if (p.kind === 'opened'){
-    const node = { opened: rbCards(p.cs, true) };
-    if (p.other){
-      if (moment !== 'award') throw RB_ERR('"Behalve de winnaar" kun je alleen kiezen bij het moment "Als de winnaar de pot krijgt".');
-      node.exclude = 'winner';
-    }
-    return node;
-  }
-  throw RB_ERR('Kies welke spelers je bedoelt.');
+  const block = registryBlock('players', p.kind);
+  if (!block) throw RB_ERR('Kies welke spelers je bedoelt.');
+  return block.builder.toLogic(p, moment); // zie js/blocks-players.js
 }
 
 // min/max uit een keuze (minstens, ten hoogste, precies, tussen).
@@ -119,36 +87,22 @@ function rbCond(c, moment, nested){
     node = items.length === 1 ? items[0] : { [c.mode === 'and' ? 'and' : 'or']: items };
     return c.not ? { not: node } : node;
   }
-  if (c.key === 'exists') node = { exists: rbCards(c.cs, false) };
-  else if (c.key === 'count') node = Object.assign({ count: rbCards(c.cs, false) }, rbRange(c, 52));
-  else if (c.key === 'battle') node = { battle: true };
-  else if (c.key === 'winnerOpened') node = { winnerOpened: rbCards(c.cs, true) };
-  else if (c.key === 'anyPlayer') node = { anyPlayer: rbPlayer({ kind: c.who, cs: c.cs, other: c.other, chance: c.chance }, moment) };
-  else if (c.key === 'playersWithCards') node = { playersWithCards: rbRange(c, 8) };
-  else throw RB_ERR('Kies een voorwaarde.');
+  const block = registryBlock('condition', c.key);
+  if (!block || !block.builder) throw RB_ERR('Kies een voorwaarde.');
+  node = block.builder.toLogic(c, moment); // zie js/blocks-conditions.js
   return c.not ? { not: node } : node;
 }
 
 function rbEffect(e, moment){
-  if (e.key === 'win') return { win: rbCards(e.cs, false) };
-  if (e.key === 'discardPot') return { discardPot: true };
-  if (e.key === 'sharePot'){
-    if (!Array.isArray(e.who) || e.who.length === 0) throw RB_ERR('Kies over welke spelers de pot wordt verdeeld.');
-    return { sharePot: e.who.map(p => rbPlayer(p, moment)) };
-  }
-  if (e.key === 'transfer'){
-    return { forEach: rbPlayer(e.each, moment), transfer: { from: rbPlayer(e.from, moment), count: rbInt(e.count, 1, 52, 'Het aantal kaarten') } };
-  }
-  if (e.key === 'discardTop') return { forEach: rbPlayer(e.each, moment), discardTop: rbInt(e.count, 1, 52, 'Het aantal kaarten') };
-  throw RB_ERR('Kies wat er gebeurt.');
+  const block = registryBlock('effect', e.key);
+  if (!block) throw RB_ERR('Kies wat er gebeurt.');
+  return block.builder.toLogic(e, moment); // zie js/blocks-effects.js
 }
 
 function rbNewCond(key){
   const c = { key, not: false };
-  if (key === 'exists' || key === 'count' || key === 'winnerOpened') c.cs = rbNewCards('rank');
-  if (key === 'count') Object.assign(c, { mode: 'min', n: 2, m: 3 });
-  if (key === 'anyPlayer') Object.assign(c, { who: 'withoutCards', cs: rbNewCards('rank'), other: false, chance: false });
-  if (key === 'playersWithCards') Object.assign(c, { mode: 'min', n: 2, m: 3 });
+  const block = registryBlock('condition', key);
+  if (block && block.builder) block.builder.fresh(c);
   if (key === 'group') Object.assign(c, { mode: 'or', conds: [] });
   return c;
 }
@@ -159,10 +113,8 @@ function rbNewPlayer(kind){
 
 function rbNewEffect(key){
   const e = { key };
-  if (key === 'win') e.cs = rbNewCards('rank');
-  if (key === 'sharePot') e.who = [rbNewPlayer('winner')];
-  if (key === 'transfer') Object.assign(e, { each: rbNewPlayer('withoutCards'), from: rbNewPlayer('neighbor'), count: 1 });
-  if (key === 'discardTop') Object.assign(e, { each: rbNewPlayer('opened'), count: 1 });
+  const block = registryBlock('effect', key);
+  if (block) block.builder.fresh(e);
   return e;
 }
 
@@ -209,33 +161,15 @@ function rbCardsFrom(node){
     a.also = b;
     return a;
   }
-  if ('rank' in node){ out.kind = 'rank'; out.ranks = rtList(node.rank).slice(); return out; }
-  if ('suit' in node){ out.kind = 'suit'; out.suits = rtList(node.suit).slice(); return out; }
-  if ('color' in node){ out.kind = 'color'; out.color = node.color; return out; }
-  if ('all' in node){ out.kind = 'all'; return out; }
-  if ('highest' in node || 'lowest' in node){
-    out.kind = 'highest' in node ? 'highest' : 'lowest';
-    out.by = node[out.kind];
-    if ('of' in node){
-      if (!('color' in node.of)) return null;
-      out.of = node.of.color;
-    }
-    return out;
-  }
-  if ('group' in node){ out.kind = 'group'; out.relation = node.group.relation; out.min = node.group.min; return out; }
-  return null;
+  const block = registryCardsOf(node);
+  if (!block || !block.builder) return null;
+  out.kind = block.key;
+  return block.builder.fromLogic(node, out); // zie js/blocks-cards.js
 }
 
 function rbPlayerFrom(node){
-  if (node === 'winner') return rbNewPlayer('winner');
-  const p = rbNewPlayer('withoutCards');
-  if ('withoutCards' in node){ p.chance = node.secondChance === true; return p; }
-  if ('neighbor' in node){ p.kind = 'neighbor'; p.side = node.neighbor; return p; }
-  p.kind = 'opened';
-  p.cs = rbCardsFrom(node.opened);
-  if (!p.cs || !RB_SINGLE.includes(p.cs.kind)) return null;
-  p.other = node.exclude === 'winner';
-  return p;
+  const block = registryPlayersOf(node);
+  return block.builder.fromLogic(node, rbNewPlayer(block.key)); // zie js/blocks-players.js
 }
 
 function rbRangeFrom(node, out){
@@ -256,45 +190,17 @@ function rbCondFrom(node, nested){
     if (conds.some(x => !x)) return null;
     return { key: 'group', not, mode, conds };
   }
-  if ('exists' in node){ c = rbNewCond('exists'); c.cs = rbCardsFrom(node.exists); if (!c.cs) return null; }
-  else if ('count' in node){ c = rbNewCond('count'); c.cs = rbCardsFrom(node.count); if (!c.cs) return null; rbRangeFrom(node, c); }
-  else if ('battle' in node) c = rbNewCond('battle');
-  else if ('winnerOpened' in node){ c = rbNewCond('winnerOpened'); c.cs = rbCardsFrom(node.winnerOpened); if (!c.cs) return null; }
-  else if ('anyPlayer' in node){
-    c = rbNewCond('anyPlayer');
-    const p = rbPlayerFrom(node.anyPlayer);
-    if (!p || p.kind === 'neighbor') return null;
-    c.who = p.kind; c.cs = p.cs; c.other = p.other; c.chance = p.chance;
-  } else if ('playersWithCards' in node){
-    const r = node.playersWithCards;
-    if ((r.min !== undefined && r.min > 8) || (r.max !== undefined && r.max > 8)) return null; // de bouwer telt tot 8 spelers
-    c = rbNewCond('playersWithCards'); rbRangeFrom(r, c);
-  }
-  else return null; // dubbele "niet": dat toont de bouwer niet
+  const block = registryConditionOf(node);
+  if (!block || !block.builder) return null; // dubbele "niet": dat toont de bouwer niet
+  c = block.builder.fromLogic(node, rbNewCond(block.key)); // zie js/blocks-conditions.js
+  if (!c) return null;
   c.not = not;
   return c;
 }
 
 function rbEffectFrom(node){
-  if ('win' in node){ const e = rbNewEffect('win'); e.cs = rbCardsFrom(node.win); return e.cs ? e : null; }
-  if ('discardPot' in node) return rbNewEffect('discardPot');
-  if ('sharePot' in node){
-    const who = node.sharePot.map(rbPlayerFrom);
-    if (who.some(p => !p || p.kind === 'neighbor')) return null;
-    const e = rbNewEffect('sharePot');
-    e.who = who;
-    return e;
-  }
-  if ('transfer' in node){
-    const e = rbNewEffect('transfer'), each = rbPlayerFrom(node.forEach), from = rbPlayerFrom(node.transfer.from);
-    if (!each || !from || each.kind === 'neighbor' || each.kind === 'winner' || from.kind === 'withoutCards' || from.kind === 'winner') return null;
-    e.each = each; e.from = from; e.count = node.transfer.count;
-    return e;
-  }
-  const e = rbNewEffect('discardTop'), each = rbPlayerFrom(node.forEach);
-  if (!each || each.kind === 'neighbor' || each.kind === 'winner') return null;
-  e.each = each; e.count = node.discardTop;
-  return e;
+  const block = registryEffectOf(node);
+  return block.builder.fromLogic(node, rbNewEffect(block.key)); // zie js/blocks-effects.js
 }
 
 // beschrijving -> stand, of null als de bouwer die niet kan tonen (bijvoorbeeld en/of binnen een voorwaarde, of meer dan twee eisen).

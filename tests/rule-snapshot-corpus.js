@@ -12,7 +12,7 @@
 //
 // De verzameling zelf is bevroren: __ruleCorpus() maakt haar alleen bij --update (uit de bouwstenenlijst van dat moment); daarna
 // leest de rooktest de beschrijvingen uit tests/rule-snapshot.json en geeft ze aan __ruleSnapshot(corpus). Zo hangt het vangnet
-// niet af van de lijsten die de verbouwing juist verandert (RULE_BLOCKS, ruleBlockSample en dergelijke).
+// niet af van de lijsten die de verbouwing juist verandert (het register, ruleBlockSample en dergelijke).
 globalThis.__ruleCorpus = function(){
   const J = x => JSON.stringify(x);
   const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, '0'); };
@@ -21,7 +21,7 @@ globalThis.__ruleCorpus = function(){
   const MOMENTS = ['decide', 'tiebreak', 'award', 'roundEnd'];
   const onTable = m => m === 'decide' || m === 'tiebreak';
   const forMoment = (list, m) => list.filter(b => b.moments.includes(m));
-  const playerSample = key => RULE_BLOCKS.players.find(b => b.key === key).sample;
+  const playerSample = key => registryBlock('players', key).sample;
   const defaultThen = m => onTable(m) ? { win: { rank: 'K' } } : m === 'award' ? { discardPot: true } : { forEach: { withoutCards: true }, discardTop: 1 };
 
   // ---- de geldige beschrijvingen ----
@@ -37,20 +37,20 @@ globalThis.__ruleCorpus = function(){
   };
 
   // Kaarten: elke keuze uit de bouwstenenlijst, plus varianten met "onder", groepen en en/of/niet.
-  const cards = RULE_BLOCKS.cards.map(b => b.sample).concat([
+  const cards = registryBlocks('cards').map(b => b.sample).concat([
     { rank: ['K', 'Q', 'A'] }, { suit: ['♥', '♦'] }, { color: 'black' }, { lowest: 'suitOrder' }, { highest: 'suitOrder' },
     { highest: 'value', of: { color: 'red' } }, { highest: 'suitOrder', of: { rank: 'K' } }, { lowest: 'value', of: { suit: '♥' } },
     { not: { rank: ['K', 'Q'] } }, { and: [{ suit: '♥' }, { not: { rank: 'K' } }] }, { or: [{ rank: 'K' }, { color: 'red' }] },
     { and: [{ suit: '♥' }, { rank: 'K' }, { not: { rank: 'A' } }] }
   ]);
   for (const relation of DSL_RELATIONS) for (const min of [2, 3, 4]) cards.push({ group: { relation, min, pick: 'highest' } });
-  const singles = RULE_BLOCKS.cards.filter(b => RULE_BLOCKS.singleCards.includes(b.key)).map(b => b.sample)
+  const singles = registryBlocks('cards').filter(b => b.single).map(b => b.sample)
     .concat([{ rank: ['K', 'Q'] }, { color: 'black' }, { and: [{ rank: 'K' }, { suit: '♠' }] }, { not: { color: 'red' } }]);
   const ranges = [{ min: 1 }, { max: 1 }, { max: 0 }, { min: 0, max: 0 }, { min: 2, max: 2 }, { min: 1, max: 1 }, { min: 1, max: 3 }, { min: 0 }, { min: 2, max: 9 }];
 
   for (const m of MOMENTS){
-    for (const b of forMoment(RULE_BLOCKS.effects, m)) add({ moment: m, then: ruleBlockSample(b, m) });
-    for (const b of forMoment(RULE_BLOCKS.conditions, m)){
+    for (const b of forMoment(RULE_REGISTRY.effect, m)) add({ moment: m, then: ruleBlockSample(b, m) });
+    for (const b of forMoment(RULE_REGISTRY.condition, m)){
       const s = ruleBlockSample(b, m);
       add({ moment: m, if: s, then: defaultThen(m) });
       add({ moment: m, if: { not: s }, then: defaultThen(m) });
