@@ -992,6 +992,26 @@ test('regelbouwer: een bestaand blok in de bouwer laden', async page => {
   noErrors(page);
 });
 
+test('regelbouwer: "ten hoogste 9 spelers" wordt bij laden "ten hoogste 8", met een melding', async page => {
+  await crOpen(page);
+  const block = await crSample(page);
+  block.logic = { moment: 'award', if: { playersWithCards: { min: 2, max: 9 } }, then: { discardPot: true } };
+  block.examples = await page.evaluate(logic => rbSuggestExamples(logic).examples, block.logic); // voorbeelden die het spel zelf vindt
+  await page.fill('#customRuleText', JSON.stringify(block));
+  await page.click('#ruleBuilderLoad');
+  const msgs = await crMessages(page);
+  ok(msgs.some(m => m.includes('"Ten hoogste 9 spelers" is in de bouwer "ten hoogste 8" geworden')), 'melding over de aanpassing: ' + msgs.join(' | '));
+  eq(await page.$eval('[aria-label="Voorwaarde 1: hoeveel?"]', e => e.value), 'between', 'tussen ... en ...');
+  eq(await page.$eval('[aria-label="Voorwaarde 1: tweede aantal"]', e => e.value), '8', 'het tweede aantal is 8');
+  eq((await bBlock(page)).logic.if, { playersWithCards: { min: 2, max: 8 } }, 'het blok heeft nu 8');
+  // Een ondergrens boven 8 zou de regel echt veranderen: die toont de bouwer niet.
+  block.logic = { moment: 'award', if: { playersWithCards: { min: 9 } }, then: { discardPot: true } };
+  await page.fill('#customRuleText', JSON.stringify(block));
+  await page.click('#ruleBuilderLoad');
+  ok((await crMessages(page))[0].includes('kan deze regel niet laten zien'), 'minstens 9 kan de bouwer niet tonen');
+  noErrors(page);
+});
+
 test('regelbouwer: van bouwen tot meespelen, met proefspellen', async page => {
   await crOpen(page);
   await page.fill('.bld-title', 'Rood gaat voor');

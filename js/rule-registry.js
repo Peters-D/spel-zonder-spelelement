@@ -40,8 +40,8 @@ function defineMoment(m){
 const REGISTRY_REQUIRED = {
   effect: { fns: ['validate', 'run'], values: ['moments', 'prompt'], builder: ['fresh', 'toLogic', 'fromLogic', 'editor'] },
   condition: { fns: ['validate', 'test', 'sentence'], values: ['moments', 'fields', 'prompt'], builder: ['fresh', 'toLogic', 'fromLogic', 'editor'] },
-  players: { fns: ['validate', 'select', 'phrase'], values: ['moments', 'slots', 'prompt'], builder: ['label', 'toLogic', 'fromLogic', 'editor'] },
-  cards: { fns: ['validate', 'select', 'phrase'], values: ['fields', 'prompt'], builder: ['label', 'toLogic', 'fromLogic', 'editor'] }
+  players: { fns: ['validate', 'select', 'phrase'], values: ['moments', 'slots', 'prompt'], builder: ['toLogic', 'fromLogic', 'editor'] },
+  cards: { fns: ['validate', 'select', 'phrase'], values: ['fields', 'prompt'], builder: ['toLogic', 'fromLogic', 'editor'] }
 };
 
 // De ontbrekende onderdelen van een bouwsteen (leeg = compleet).

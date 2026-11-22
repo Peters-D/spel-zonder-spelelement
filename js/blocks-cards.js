@@ -16,7 +16,6 @@
 //   prompt                                   de regels voor de uitleg aan een taalmodel (js/rule-prompt.js), zonder inspringing
 //   builder                                  het deel voor de regelbouwer (js/rule-builder.js), of false als de bouwer de bouwsteen
 //                                            zelf maakt (and, not: de tweede eis en "juist niet"; or kan de bouwer niet maken)
-//     label                                  de naam in de keuzelijst
 //     toLogic(cs)                            de keuze in de bouwer (cs, zie rbNewCards) -> beschrijving; een fout is een RB_ERR
 //     fromLogic(node, cs)                    vult cs vanuit de beschrijving; geeft cs, of null als de bouwer het niet kan tonen
 //     editor(box, cs, label)                 de velden in het formulier
@@ -86,7 +85,7 @@ const cardsListValidate = key => function(node, path, v, depth, single){
 };
 
 defineBlock('cards', {
-  key: 'rank', label: 'kaarten met een bepaalde waarde', sample: { rank: 'K' }, single: true, leaf: true, fields: ['rank'],
+  key: 'rank', label: 'een waarde (zoals Heer of 7)', sample: { rank: 'K' }, single: true, leaf: true, fields: ['rank'],
   validate(node, path, v){ v.listOf(node.rank, path + '.rank', RANKS, 'waarde'); },
   matches(card, node){ return dslList(node.rank).includes(card.rank); },
   select: cardsByMatch,
@@ -100,7 +99,6 @@ defineBlock('cards', {
   },
   prompt: ['{ "rank": "K" } of { "rank": ["K", "Q"] }   waarden: "2" t/m "10", "J", "Q", "K", "A"'],
   builder: {
-    label: 'een waarde (zoals Heer of 7)',
     toLogic(cs){
       const ranks = RB_RANKS_DESC.filter(r => (cs.ranks || []).includes(r));
       if (ranks.length === 0) throw RB_ERR('Kies minstens één waarde.');
@@ -116,7 +114,7 @@ defineBlock('cards', {
 });
 
 defineBlock('cards', {
-  key: 'suit', label: 'kaarten van een bepaald symbool', sample: { suit: '♥' }, single: true, leaf: true, fields: ['suit'],
+  key: 'suit', label: 'een symbool (zoals ♥)', sample: { suit: '♥' }, single: true, leaf: true, fields: ['suit'],
   validate(node, path, v){ v.listOf(node.suit, path + '.suit', SUITS, 'symbool'); },
   matches(card, node){ return dslList(node.suit).includes(card.suit); },
   select: cardsByMatch,
@@ -126,7 +124,6 @@ defineBlock('cards', {
   },
   prompt: ['{ "suit": "♥" } of { "suit": ["♥", "♦"] }   symbolen: "♠", "♥", "♦", "♣"'],
   builder: {
-    label: 'een symbool (zoals ♥)',
     toLogic(cs){
       const suits = SUITS.filter(x => (cs.suits || []).includes(x));
       if (suits.length === 0) throw RB_ERR('Kies minstens één symbool.');
@@ -152,7 +149,6 @@ defineBlock('cards', {
   },
   prompt: ['{ "color": "red" } of { "color": "black" }'],
   builder: {
-    label: 'rode of zwarte kaarten',
     toLogic(cs){
       if (!['red', 'black'].includes(cs.color)) throw RB_ERR('Kies rood of zwart.');
       return { color: cs.color };
@@ -170,11 +166,11 @@ defineBlock('cards', {
   select(scope){ return scope.slice(); },
   phrase(){ return { single: 'een kaart', plural: 'alle kaarten', bare: 'kaart', barePlural: 'kaarten' }; },
   prompt: ['{ "all": true }'],
-  builder: { label: 'alle kaarten', toLogic(){ return { all: true }; }, fromLogic(node, cs){ return cs; }, editor(){} }
+  builder: { toLogic(){ return { all: true }; }, fromLogic(node, cs){ return cs; }, editor(){} }
 });
 
 // highest en lowest: de hoogste of laagste kaart op waarde of op de volgorde van de symbolen, eventueel binnen een deel (of).
-const cardsExtreme = (key, label, prompt, builderLabel) => ({
+const cardsExtreme = (key, label, prompt) => ({
   key, label, sample: { [key]: 'value' }, fields: [key, 'of'], prompt: [prompt],
   validate(node, path, v, depth){
     if (!['value', 'suitOrder'].includes(node[key])) v.err(path + '.' + key, '"value" of "suitOrder" verwacht');
@@ -211,7 +207,6 @@ const cardsExtreme = (key, label, prompt, builderLabel) => ({
   },
   // De bouwer kent "of" alleen als een kleur.
   builder: {
-    label: builderLabel,
     toLogic(cs){
       if (!['value', 'suitOrder'].includes(cs.by)) throw RB_ERR('Kies of het om de waarde of om het symbool gaat.');
       const node = { [key]: cs.by };
@@ -233,13 +228,13 @@ const cardsExtreme = (key, label, prompt, builderLabel) => ({
   }
 });
 // De hoogste op waarde: bij gelijke waarde allemaal. Op symbool: in de volgorde van rules.suitOrder; is een symbool onbekend, dan niemand.
-defineBlock('cards', cardsExtreme('highest', 'de hoogste kaart (op waarde of symbool)',
-  '{ "highest": "value" } of { "highest": "suitOrder" }, eventueel met "of": <kaarten>   (de hoogste op waarde of op symboolvolgorde)', 'de hoogste kaart'));
-defineBlock('cards', cardsExtreme('lowest', 'de laagste kaart (op waarde of symbool)',
-  '{ "lowest": "value" } of { "lowest": "suitOrder" }, eventueel met "of": <kaarten>', 'de laagste kaart'));
+defineBlock('cards', cardsExtreme('highest', 'de hoogste kaart',
+  '{ "highest": "value" } of { "highest": "suitOrder" }, eventueel met "of": <kaarten>   (de hoogste op waarde of op symboolvolgorde)'));
+defineBlock('cards', cardsExtreme('lowest', 'de laagste kaart',
+  '{ "lowest": "value" } of { "lowest": "suitOrder" }, eventueel met "of": <kaarten>'));
 
 defineBlock('cards', {
-  key: 'group', label: 'de hoogste groep kaarten die bij elkaar horen', sample: { group: { relation: 'sameRank', min: 2, pick: 'highest' } }, fields: ['group'],
+  key: 'group', label: 'kaarten die bij elkaar horen (paar, reeks)', sample: { group: { relation: 'sameRank', min: 2, pick: 'highest' } }, fields: ['group'],
   validate(node, path, v){
     const g = node.group;
     if (!v.isObj(g)) return v.err(path + '.group', 'een beschrijving van de groep verwacht');
@@ -256,7 +251,6 @@ defineBlock('cards', {
   },
   prompt: ['{ "group": { "relation": "sameRank" | "sameSuit" | "sameColor" | "consecutive", "min": 2 of meer, "pick": "highest" } }   (de hoogste groep kaarten die bij elkaar horen)'],
   builder: {
-    label: 'kaarten die bij elkaar horen (paar, reeks)',
     toLogic(cs){
       if (!DSL_RELATIONS.includes(cs.relation)) throw RB_ERR('Kies welke kaarten bij elkaar horen.');
       return { group: { relation: cs.relation, min: rbInt(cs.min, 2, 8, 'Aantal kaarten in de groep'), pick: 'highest' } };
