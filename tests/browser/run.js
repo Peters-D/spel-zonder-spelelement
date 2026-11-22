@@ -942,6 +942,24 @@ test('regelbouwer: het moment bepaalt wat er te kiezen valt', async page => {
   noErrors(page);
 });
 
+test('regelbouwer: het vinkje "tweede kans" bij "er is een speler" wordt onthouden, ook na laden', async page => {
+  await crOpen(page);
+  await bPick(page, 'Wanneer?', 'award');
+  await page.click('text=+ voorwaarde');
+  await bPick(page, 'Voorwaarde 1: wat moet er kloppen?', 'anyPlayer');
+  await bPick(page, 'Voorwaarde 1: welke spelers?', 'withoutCards');
+  const box = page.locator('label', { hasText: 'alleen spelers die nog een tweede kans hebben' }).locator('input');
+  await box.check();
+  eq((await bBlock(page)).logic.if, { anyPlayer: { withoutCards: true, secondChance: true } }, 'de tweede kans staat in de beschrijving');
+  ok((await bSentence(page)).startsWith('Als er een speler zonder kaarten is die nog een tweede kans heeft, dan gaat de hele pot naar de aflegstapel.'), 'zin met de tweede kans');
+  // Het blok opnieuw in de bouwer laden: het vinkje staat er nog.
+  await page.click('#ruleBuilderLoad');
+  ok(await page.locator('label', { hasText: 'alleen spelers die nog een tweede kans hebben' }).locator('input').isChecked(), 'het vinkje staat aan na laden');
+  await page.locator('label', { hasText: 'alleen spelers die nog een tweede kans hebben' }).locator('input').uncheck();
+  eq((await bBlock(page)).logic.if, { anyPlayer: { withoutCards: true } }, 'uitvinken haalt de tweede kans weg');
+  noErrors(page);
+});
+
 test('regelbouwer: de zes regels van het spel komen uit de bouwer als dezelfde regel', async page => {
   // Alle zes laden in de bouwer en weer eruit; de beschrijving blijft precies hetzelfde.
   const same = await page.evaluate(() => RULES.map(r => { rb = rbFromLogic(r.logic); return [r.id, rb !== null && JSON.stringify(rbToLogic(rb).logic) === JSON.stringify(r.logic)]; }));

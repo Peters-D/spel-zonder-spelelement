@@ -21,6 +21,12 @@
 //     fromLogic(node, cs)                    vult cs vanuit de beschrijving; geeft cs, of null als de bouwer het niet kan tonen
 //     editor(box, cs, label)                 de velden in het formulier
 
+// Het enkelvoud en meervoud van een waarde, zoals die in een zin staat.
+const RT_RANK = {
+  '2': ['2', "2'en"], '3': ['3', "3'en"], '4': ['4', "4'en"], '5': ['5', "5'en"], '6': ['6', "6'en"], '7': ['7', "7'en"], '8': ['8', "8'en"],
+  '9': ['9', "9'en"], '10': ['10', "10'en"], J: ['Boer', 'Boeren'], Q: ['Vrouw', 'Vrouwen'], K: ['Heer', 'Heren'], A: ['Aas', 'Azen']
+};
+const RT_SUIT = { '♠': 'schoppen', '♥': 'harten', '♦': 'ruiten', '♣': 'klaveren' };
 // De relaties in een groep, met hun naam in een zin en in de bouwer.
 const CARD_RELATIONS = {
   sameRank: 'met dezelfde waarde', sameSuit: 'van hetzelfde symbool',

@@ -107,6 +107,8 @@ globalThis.__ruleCorpus = function(){
     add(logic);
   }
 
+  // Later toegevoegd, en daarom na de willekeurige combinaties (die uit de beschrijvingen hierboven kiezen): zo blijft de rest gelijk.
+  add({ moment: 'award', then: { sharePot: ['winner', { withoutCards: true, secondChance: true }] } }); // "de spelers zonder kaarten die nog een tweede kans hebben"
   return JSON.stringify({ valid: [...valid.values()], invalid: __ruleInvalidCorpus() });
 };
 

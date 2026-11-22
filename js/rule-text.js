@@ -8,12 +8,6 @@
 //
 // De zinnen zelf staan bij de bouwstenen (sentence, phrase, describe/parts in js/blocks-*.js); dit bestand zet ze in elkaar.
 
-// Het enkelvoud en meervoud van een waarde, zoals die in een zin staat.
-const RT_RANK = {
-  '2': ['2', "2'en"], '3': ['3', "3'en"], '4': ['4', "4'en"], '5': ['5', "5'en"], '6': ['6', "6'en"], '7': ['7', "7'en"], '8': ['8', "8'en"],
-  '9': ['9', "9'en"], '10': ['10', "10'en"], J: ['Boer', 'Boeren'], Q: ['Vrouw', 'Vrouwen'], K: ['Heer', 'Heren'], A: ['Aas', 'Azen']
-};
-const RT_SUIT = { '♠': 'schoppen', '♥': 'harten', '♦': 'ruiten', '♣': 'klaveren' };
 const RT_NUMBER = { 1: 'één', 2: 'twee', 3: 'drie', 4: 'vier', 5: 'vijf', 6: 'zes', 7: 'zeven', 8: 'acht' };
 
 const rtList = v => Array.isArray(v) ? v : [v];

@@ -106,8 +106,7 @@ defineBlock('effect', {
   },
   parts(then){
     const t = then.transfer, n = t.count === 1 ? '1 kaart' : t.count + ' kaarten';
-    const from = 'neighbor' in t.from ? rtPlayer(t.from, false)
-      : 'de eerste speler die de ronde begon met ' + rtCards(t.from.opened).single;
+    const giver = registryPlayersOf(t.from), from = giver.giverPhrase ? giver.giverPhrase(t.from) : rtPlayer(t.from, false);
     return { s: rtPlayer(then.forEach, true), v: 'krijgt', r: n + ' van ' + from };
   },
   prompt: '{ "forEach": <spelers>, "transfer": { "from": <spelers>, "count": n } }',

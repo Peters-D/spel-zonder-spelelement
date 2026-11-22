@@ -68,6 +68,9 @@ function defineBlock(kind, block){
   return block;
 }
 
+// Heeft de beschrijving deze sleutel zelf? (Niet via het prototype: "toString" of "constructor" telt niet.)
+const registryHas = (node, key) => Object.prototype.hasOwnProperty.call(node, key);
+
 function registryMoment(id){
   return RULE_REGISTRY.moments.find(m => m.id === id) || null;
 }
@@ -83,23 +86,23 @@ function registryBlock(kind, key){
 
 // De voorwaarde in een beschrijving (if, of een deel daarvan): de bouwsteen waarvan de sleutel erin staat.
 function registryConditionOf(node){
-  return RULE_REGISTRY.condition.find(b => b.key in node) || null;
+  return RULE_REGISTRY.condition.find(b => registryHas(node, b.key)) || null;
 }
 
 // De keuze van spelers in een beschrijving: 'winner', of het object met de sleutel van de bouwsteen.
 function registryPlayersOf(node){
   if (typeof node === 'string') return RULE_REGISTRY.players.find(b => b.literal && b.key === node) || null;
-  return RULE_REGISTRY.players.find(b => !b.literal && b.key in node) || null;
+  return RULE_REGISTRY.players.find(b => !b.literal && registryHas(node, b.key)) || null;
 }
 
 // De keuze van kaarten (of één kaart) in een beschrijving: de bouwsteen waarvan de sleutel erin staat.
 function registryCardsOf(node){
-  return RULE_REGISTRY.cards.find(b => b.key in node) || null;
+  return RULE_REGISTRY.cards.find(b => registryHas(node, b.key)) || null;
 }
 
 // Het gevolg in een beschrijving (then): de bouwsteen waarvan de sleutel erin staat.
 function registryEffectOf(then, moment){
-  return registryBlocks('effect', moment).find(b => b.key in then) || null;
+  return registryBlocks('effect', moment).find(b => registryHas(then, b.key)) || null;
 }
 
 // ---- de momenten ----
@@ -156,3 +159,6 @@ defineMoment({
     } };
   }
 });
+
+// De ids van de momenten, in volgorde (voor meldingen en voor bouwstenen die bij elk moment kunnen).
+const RULE_MOMENT_IDS = RULE_REGISTRY.moments.map(m => m.id);

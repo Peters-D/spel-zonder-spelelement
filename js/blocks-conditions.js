@@ -18,7 +18,8 @@
 //   De veldtypes van de bouwer: kaarten (rbCards, rbCardsFrom, rbCardsEditor), spelers (rbPlayer, rbPlayerFrom, rbPlayerEditor),
 //   een aantal (rbRange, rbRangeFrom, rbRangeEditor) en een getal (rbInt, rbNumber). Zie js/rule-builder.js en js/rule-builder-ui.js.
 
-const CONDITION_MOMENTS = RULE_REGISTRY.moments.map(m => m.id);
+// De bouwer telt spelers met kaarten tot zoveel: het spel heeft 2 tot en met 8 spelers.
+const CONDITION_MAX_PLAYERS = 8;
 // De eerste twee voorwaarden die bij een moment passen (voor voorbeelden van "en", "of" en "niet").
 const CONDITION_SIMPLE_IF = {
   decide: [{ exists: { rank: 'A' } }, { count: { rank: '2' }, min: 2 }], tiebreak: [{ exists: { rank: 'A' } }, { count: { rank: '2' }, min: 2 }],
@@ -136,24 +137,24 @@ defineBlock('condition', {
     return rtAmount(node.playersWithCards, { pre: '', sing: 'speler kaarten', plural: 'spelers kaarten', vs: 'heeft', vp: 'hebben', none: 'geen enkele speler kaarten heeft' });
   },
   prompt: ['{ "playersWithCards": { "min": n, "max": n } }    award, roundEnd'],
-  // De bouwer telt tot 8 spelers.
+  // De bouwer telt tot CONDITION_MAX_PLAYERS spelers; een beschrijving met een groter getal kan hij niet tonen.
   builder: {
     fresh(c){ Object.assign(c, { mode: 'min', n: 2, m: 3 }); },
-    toLogic(c){ return { playersWithCards: rbRange(c, 8) }; },
+    toLogic(c){ return { playersWithCards: rbRange(c, CONDITION_MAX_PLAYERS) }; },
     fromLogic(node, c){
-      const r = node.playersWithCards;
-      if ((r.min !== undefined && r.min > 8) || (r.max !== undefined && r.max > 8)) return null;
+      const r = node.playersWithCards, max = CONDITION_MAX_PLAYERS;
+      if ((r.min !== undefined && r.min > max) || (r.max !== undefined && r.max > max)) return null;
       rbRangeFrom(r, c);
       return c;
     },
-    editor(row, c, label){ row.appendChild(rbRangeEditor(c, 8, label)); row.appendChild(rbMake('span', 'bld-word', 'spelers hebben nog kaarten')); }
+    editor(row, c, label){ row.appendChild(rbRangeEditor(c, CONDITION_MAX_PLAYERS, label)); row.appendChild(rbMake('span', 'bld-word', 'spelers hebben nog kaarten')); }
   }
 });
 
 // ---- en, of, niet: voor elk moment, en bevatten zelf weer voorwaarden ----
 
 const conditionList = key => ({
-  key, moments: CONDITION_MOMENTS, fields: [key], grouping: true, builder: false, // de bouwer: het groepje voorwaarden (en / of)
+  key, moments: RULE_MOMENT_IDS, fields: [key], grouping: true, builder: false, // de bouwer: het groepje voorwaarden (en / of)
   validate(node, path, v, moment, depth){
     if (!Array.isArray(node[key]) || node[key].length === 0) v.err(path + '.' + key, 'een lijst verwacht');
     else node[key].forEach((x, i) => v.condition(x, path + '.' + key + '[' + i + ']', moment, depth + 1));
@@ -175,7 +176,7 @@ defineBlock('condition', Object.assign(conditionList('or'), {
 }));
 
 defineBlock('condition', {
-  key: 'not', moments: CONDITION_MOMENTS, label: 'deze voorwaarde geldt niet', sample: m => ({ not: CONDITION_SIMPLE_IF[m][0] }), fields: ['not'],
+  key: 'not', moments: RULE_MOMENT_IDS, label: 'deze voorwaarde geldt niet', sample: m => ({ not: CONDITION_SIMPLE_IF[m][0] }), fields: ['not'],
   prompt: [], // staat bij and
   builder: false, // de bouwer: het vinkje "juist niet"
   validate(node, path, v, moment, depth){ v.condition(node.not, path + '.not', moment, depth + 1); },
