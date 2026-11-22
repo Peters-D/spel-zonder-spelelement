@@ -123,37 +123,14 @@ function rtAmount(node, o){
 }
 
 // Een voorwaarde als bijzin, met het werkwoord achteraan (hij staat na "Als"): "er een 2 ligt", "er minstens twee Azen liggen".
+// De zinnen staan bij de voorwaarden in het register (js/blocks-conditions.js).
 function rtCondition(node){
-  const wrap = n => ('and' in n || 'or' in n) ? '(' + rtCondition(n) + ')' : rtCondition(n);
-  if ('exists' in node){ const c = rtCards(node.exists); return 'er ' + (c.cond || c.single) + ' ligt'; }
-  if ('count' in node){
-    const c = rtCards(node.count);
-    return rtAmount(node, { pre: 'er ', sing: c.bare, plural: c.barePlural, vs: 'ligt', vp: 'liggen', none: 'er geen ' + c.barePlural + ' liggen' });
-  }
-  if ('battle' in node) return 'er een battle is geweest';
-  if ('winnerOpened' in node) return 'de winnaar de ronde met ' + rtCards(node.winnerOpened).single + ' begon';
-  if ('anyPlayer' in node){
-    const p = node.anyPlayer;
-    if (p === 'winner') return 'er een winnaar is';
-    if ('withoutCards' in p) return 'er een speler zonder kaarten is' + (p.secondChance === true ? ' die nog een tweede kans heeft' : '');
-    return 'er een ' + (p.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(p.opened).single + ' begon';
-  }
-  if ('playersWithCards' in node)
-    return rtAmount(node.playersWithCards, { pre: '', sing: 'speler kaarten', plural: 'spelers kaarten', vs: 'heeft', vp: 'hebben', none: 'geen enkele speler kaarten heeft' });
-  if ('not' in node){
-    // Een gewone ontkenning waar dat kan ("er geen Aas ligt"); anders de omweg "het niet zo is dat ...".
-    const x = node.not;
-    if ('exists' in x && ('rank' in x.exists || 'suit' in x.exists || 'color' in x.exists)) return 'er geen ' + rtCards(x.exists).bare + ' ligt';
-    if ('battle' in x) return 'er geen battle is geweest';
-    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'withoutCards' in x.anyPlayer) return 'er geen speler zonder kaarten is' + (x.anyPlayer.secondChance === true ? ' die nog een tweede kans heeft' : '');
-    if ('anyPlayer' in x && x.anyPlayer !== 'winner' && 'opened' in x.anyPlayer)
-      return 'er geen ' + (x.anyPlayer.exclude === 'winner' ? 'andere ' : '') + 'speler is die de ronde met ' + rtCards(x.anyPlayer.opened).single + ' begon';
-    if ('anyPlayer' in x && x.anyPlayer === 'winner') return 'er geen winnaar is';
-    if ('winnerOpened' in x) return 'de winnaar de ronde niet met ' + rtCards(x.winnerOpened).single + ' begon';
-    return 'het niet zo is dat ' + wrap(x);
-  }
-  if ('and' in node) return rtJoin(node.and.map(wrap), 'en');
-  return rtJoin(node.or.map(wrap), 'of');
+  return registryConditionOf(node).sentence(node);
+}
+
+// Een voorwaarde binnen een andere: "en" en "of" komen tussen haakjes.
+function rtWrapCondition(node){
+  return registryConditionOf(node).grouping ? '(' + rtCondition(node) + ')' : rtCondition(node);
 }
 
 // Een gewone zin uit een gevolg in drie delen ({ s, v, r }: onderwerp, persoonsvorm en de rest; zie parts in js/blocks-effects.js),
@@ -186,25 +163,11 @@ function rtDescribeCore(logic){
 const RULE_MOMENTS = RULE_REGISTRY.moments.map(m => ({ id: m.id, label: m.label })); // zie js/rule-registry.js
 
 const RT_ALL = ['decide', 'tiebreak', 'award', 'roundEnd'];
-// De eerste twee voorwaarden die bij een moment passen (voor voorbeelden van "en" en "of").
-const RT_SIMPLE_IF = {
-  decide: [{ exists: { rank: 'A' } }, { count: { rank: '2' }, min: 2 }], tiebreak: [{ exists: { rank: 'A' } }, { count: { rank: '2' }, min: 2 }],
-  award: [{ battle: true }, { winnerOpened: { rank: 'K' } }], roundEnd: [{ anyPlayer: { withoutCards: true } }, { playersWithCards: { min: 2 } }]
-};
 
 // sample: een voorbeeld dat bij de controle klopt (voor de tests); bij een samengestelde voorwaarde een functie van het moment.
 const RULE_BLOCKS = {
-  conditions: [
-    { key: 'exists', label: 'er ligt een bepaalde kaart', moments: ['decide', 'tiebreak'], sample: { exists: { rank: 'A' } } },
-    { key: 'count', label: 'er liggen zoveel kaarten van een soort (bijvoorbeeld minstens 2 Azen)', moments: ['decide', 'tiebreak'], sample: { count: { rank: 'A' }, min: 2 } },
-    { key: 'battle', label: 'er is een battle geweest', moments: ['award'], sample: { battle: true } },
-    { key: 'winnerOpened', label: 'de winnaar begon de ronde met een bepaalde kaart', moments: ['award'], sample: { winnerOpened: { rank: 'K' } } },
-    { key: 'anyPlayer', label: 'er is een speler die …', moments: ['award', 'roundEnd'], sample: { anyPlayer: { withoutCards: true } } },
-    { key: 'playersWithCards', label: 'zoveel spelers hebben nog kaarten (bijvoorbeeld minstens 2)', moments: ['award', 'roundEnd'], sample: { playersWithCards: { min: 2 } } },
-    { key: 'and', label: 'al deze voorwaarden gelden', moments: RT_ALL, sample: m => ({ and: RT_SIMPLE_IF[m] }) },
-    { key: 'or', label: 'minstens één van deze voorwaarden geldt', moments: RT_ALL, sample: m => ({ or: RT_SIMPLE_IF[m] }) },
-    { key: 'not', label: 'deze voorwaarde geldt niet', moments: RT_ALL, sample: m => ({ not: RT_SIMPLE_IF[m][0] }) }
-  ],
+  conditions: registryBlocks('condition').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-conditions.js
+
   effects: registryBlocks('effect').map(b => ({ key: b.key, label: b.label, moments: b.moments, sample: b.sample })), // zie js/blocks-effects.js
 
   // Keuzes van kaarten. cards: wat er bij "deze spelers winnen" en bij tellen kan (ook de hoogste en groepen); singleCards: wat er
