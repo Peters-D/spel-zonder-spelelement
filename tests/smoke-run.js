@@ -24,7 +24,7 @@ const shardArg = args.find(a => a.startsWith('--shard='));
 const [SHARD, SHARDS] = shardArg ? shardArg.slice('--shard='.length).split('/').map(Number) : [0, 1];
 
 // De zware onderdelen en een schatting van hun duur in seconden. Het zwaarste gaat steeds naar het proces met de minste last.
-const TASKS = { 'ff-royalFamily': 20, 'ff-secondChance': 20, fixed: 18, 'ff-fake': 8, rest: 8 };
+const TASKS = { 'ff-royalFamily': 20, 'ff-secondChance': 20, fixed: 18, 'ff-fake': 8, rest: 8, vangnet: 6 };
 const OWNER = (() => {
   const load = Array(SHARDS).fill(0), owner = {};
   for (const [name, w] of Object.entries(TASKS).sort((a, b) => b[1] - a[1])){
@@ -136,6 +136,50 @@ for (const r of CATALOG){
   if (r.usesDiscard !== undefined && typeof r.usesDiscard !== 'boolean') failures.push('catalogus ' + r.id + ': usesDiscard moet true of false zijn');
   if (!Array.isArray(r.examples) || r.examples.length === 0) failures.push('catalogus ' + r.id + ': minstens één voorbeeld nodig (die laten zien en testen wat de regel doet)');
 }
+
+// ---- vangnet voor het bouwsteenregister (tests/rule-snapshot-corpus.js en tests/rule-snapshot.json) ----
+// Legt vast wat het spel nu met een vaste verzameling regelbeschrijvingen doet: de zin, de controle, het gedrag, de regelbouwer, de
+// keuzelijsten en de instructie voor Claude. Een verbouwing van de regelcode hoort hier niets aan te veranderen; verandert er bewust
+// iets, draai dan `node tests/smoke.js --update` en bekijk het verschil in tests/rule-snapshot.json. Staat vroeg in de test, voordat
+// andere onderdelen de catalogus tijdelijk aanpassen.
+own('vangnet', () => {
+  const fail = t => failures.push('vangnet: ' + t);
+  const file = path.join(__dirname, 'rule-snapshot.json');
+  run(fs.readFileSync(path.join(__dirname, 'rule-snapshot-corpus.js'), 'utf8'));
+  // De verzameling is bevroren: alleen --update maakt haar opnieuw; anders komen de beschrijvingen uit het vastgelegde bestand.
+  const stored = !update && fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+  const corpus = stored ? { valid: stored.valid.map(x => x.logic), invalid: stored.invalid.map(x => x.logic) } : JSON.parse(run('__ruleCorpus()'));
+  const now = JSON.parse(run('__ruleSnapshot(' + JSON.stringify(corpus) + ')'));
+  if (now.valid.length < 300 || now.invalid.length < 40) fail('de verzameling is te klein geworden: ' + now.valid.length + ' geldige en ' + now.invalid.length + ' ongeldige beschrijvingen');
+  if (update){
+    // Eén beschrijving per regel, zodat een verschil in de pull request per beschrijving te lezen is.
+    const line = x => '  ' + JSON.stringify(x);
+    fs.writeFileSync(file, ['{', ' "valid": [', now.valid.map(line).join(',\n'), ' ],', ' "invalid": [', now.invalid.map(line).join(',\n'), ' ],',
+      ' "keuzes": ' + JSON.stringify(now.keuzes, null, 1).replace(/\n/g, '\n ') + ',', ' "prompt": ' + JSON.stringify(now.prompt), '}'].join('\n') + '\n');
+    console.log('tests/rule-snapshot.json bijgewerkt (' + now.valid.length + ' geldige en ' + now.invalid.length + ' ongeldige beschrijvingen).');
+    return;
+  }
+  if (!stored){ fail('tests/rule-snapshot.json ontbreekt: draai node tests/smoke.js --update'); return; }
+  const old = stored;
+  const J = x => JSON.stringify(x);
+  const diffs = [];
+  const compare = (name, oldList, newList, fields) => {
+    const byKey = list => new Map(list.map(x => [J(x.logic), x]));
+    const a = byKey(oldList), b = byKey(newList);
+    for (const k of a.keys()) if (!b.has(k)) diffs.push(name + ': niet meer in de verzameling: ' + k);
+    for (const k of b.keys()) if (!a.has(k)) diffs.push(name + ': nieuw in de verzameling: ' + k);
+    for (const [k, x] of a) if (b.has(k)) for (const f of fields) if (J(x[f]) !== J(b.get(k)[f])) diffs.push(name + ': ' + f + ' van ' + k + ' was ' + J(x[f]) + ', is nu ' + J(b.get(k)[f]));
+  };
+  compare('geldig', old.valid, now.valid, ['zin', 'bouwer', 'gedrag']);
+  compare('ongeldig', old.invalid, now.invalid, ['fouten']);
+  for (const k of new Set(Object.keys(old.keuzes).concat(Object.keys(now.keuzes)))) if (J(old.keuzes[k]) !== J(now.keuzes[k])) diffs.push('keuzes: ' + k + ' is veranderd: was ' + J(old.keuzes[k]).slice(0, 300) + ', is nu ' + J(now.keuzes[k]).slice(0, 300));
+  if (old.prompt !== now.prompt){
+    const a = old.prompt.split('\n'), b = now.prompt.split('\n'), i = a.findIndex((l, j) => l !== b[j]);
+    diffs.push('de instructie voor Claude is veranderd, eerst op regel ' + (i + 1) + ': was ' + J(a[i]) + ', is nu ' + J(b[i]));
+  }
+  for (const d of diffs.slice(0, 20)) fail(d);
+  if (diffs.length > 20) fail('en nog ' + (diffs.length - 20) + ' verschillen');
+});
 
 // ---- thema's: alle kleuren staan in css/themes.css ----
 {
