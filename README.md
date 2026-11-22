@@ -106,7 +106,7 @@ Een bouwsteen is een onderdeel van een beschrijving (`logic`): een voorwaarde, e
 2. Voeg een `defineBlock(soort, { ... })` toe, op de plek waar hij in de keuzelijsten en meldingen moet staan. Een voorwaarde heeft bijvoorbeeld:
    - `key`, `moments`, `label`, `sample` en `fields`: de sleutel, bij welke momenten hij kan, de naam in de bouwer, een voorbeeld dat klopt, en de sleutels die hij mag hebben;
    - `validate`, `test` en `sentence` (en eventueel `negated`): de controle, of hij klopt, en de bijzin ("er een Aas ligt");
-   - `prompt`: zijn regel in de uitleg voor een taalmodel;
+   - `prompt`: zijn regel in de uitleg voor een taalmodel (bij een gevolg: gevolgen met precies dezelfde momenten komen daar samen op één regel, met "of" ertussen);
    - `builder`: zijn velden in de regelbouwer (`fresh`, `toLogic`, `fromLogic`, `editor`), gemaakt van de veldtypes kaarten, spelers, aantal en getal (`rbCards`, `rbPlayer`, `rbRange`, `rbInt` met hun editors). Kan de bouwer hem niet tonen, zet dan `builder: false`.
 3. Mist er een onderdeel, dan stopt het laden met de melding welke (`defineBlock` controleert dat). Draai daarna `node tests/smoke.js`: de registertest probeert het voorbeeld bij elk moment, vraagt de zin en stuurt het voorbeeld heen en terug door de bouwer.
 4. Het vangnet (`tests/rule-snapshot.json`) legt de zinnen, meldingen, het gedrag, de bouwer, de keuzes en de uitleg van alle bouwstenen vast, dus de test meldt de nieuwe keuze en de nieuwe regel in de uitleg als verschil. Draai `node tests/smoke.js --update` en bekijk het verschil in `tests/rule-snapshot.json`: daar horen alleen nieuwe beschrijvingen, de nieuwe keuze en de nieuwe regel in de uitleg bij te komen, en verder niets te veranderen.
